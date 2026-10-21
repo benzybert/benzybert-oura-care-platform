@@ -3,13 +3,15 @@
 import { randomInt } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { COFFEE_CONFIG } from "@/config/coffee";
 import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffee";
 import { encrypt } from "@/lib/crypto";
+import { buildDashboard } from "@/lib/doctor-dashboard";
+import { buildDoctorPdf } from "@/lib/doctor-pdf";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
@@ -36,6 +38,8 @@ import {
 } from "@/lib/self-rewards";
 import { cookieOptions, requireRole } from "@/lib/session";
 import {
+  DEFAULT_SHARE_EXPIRY,
+  DEFAULT_SHARE_WINDOW,
   MAX_ACTIVE_SHARE_LINKS,
   SHARE_EXPIRY_OPTIONS,
   SHARE_NAME_MAX,
@@ -56,6 +60,7 @@ const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewar
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
+type DoctorRoleValue = z.infer<typeof doctorRoleSchema>;
 
 /** Member grants or revokes one sharing scope. Consent history is append-only. */
 export async function setConsent(formData: FormData): Promise<void> {
@@ -178,6 +183,59 @@ export async function removeDoctorContact(formData: FormData): Promise<void> {
   redirect("/member?doctor=removed");
 }
 
+type IssuedShareLink = { ok: true; id: string; token: string; expiresAt: Date } | { ok: false; reason: "too_many" | "no_key" };
+
+/**
+ * Creates an active read-only dashboard link. Shared by the "create link" form and by
+ * "send to my doctor". Only the token's hash is used for lookup; the token is also stored
+ * encrypted so the member can copy the link again later.
+ */
+async function issueShareLink(
+  memberId: string,
+  input: {
+    role: DoctorRoleValue | null;
+    recipientLabel: string | null;
+    patientName: string | null;
+    note: string | null;
+    windowDays: number;
+    expiryDays: number;
+  },
+): Promise<IssuedShareLink> {
+  if ((await countActiveShareLinks(memberId)) >= MAX_ACTIVE_SHARE_LINKS) return { ok: false, reason: "too_many" };
+
+  const token = newShareToken();
+  let tokenEnc: string;
+  try {
+    tokenEnc = encrypt(token);
+  } catch {
+    return { ok: false, reason: "no_key" };
+  }
+  const expiresAt = addDaysTo(new Date(), input.expiryDays);
+  const [row] = await getDb()
+    .insert(shareLinks)
+    .values({
+      memberId,
+      tokenHash: hashShareToken(token),
+      tokenEnc,
+      recipientRole: input.role,
+      recipientLabel: input.recipientLabel,
+      patientName: input.patientName,
+      note: input.note,
+      windowDays: input.windowDays,
+      expiresAt,
+    })
+    .returning({ id: shareLinks.id });
+  return { ok: true, id: (row as { id: string }).id, token, expiresAt };
+}
+
+/** Absolute origin of this request, for links that leave the site (an email to the doctor). */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 /**
  * Member sends their own recent metrics to one of their doctors, after the confirmation
  * page. The message is rebuilt here from the database (nothing in it comes from the form),
@@ -194,20 +252,46 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   const contact = (await getDoctorContacts(member.id))[role];
   if (!contact) redirect("/member?doctor=missing");
 
+  const days = await getMetrics(member.id);
+  const link = await issueShareLink(member.id, {
+    role,
+    recipientLabel: contact.name,
+    patientName: null,
+    note: null,
+    windowDays: DEFAULT_SHARE_WINDOW,
+    expiryDays: DEFAULT_SHARE_EXPIRY,
+  });
+  if (!link.ok) redirect(`/member?doctor=${link.reason === "too_many" ? "too_many_links" : "failed"}`);
+
   const message = buildDoctorMessage({
     role,
     doctorName: contact.name,
-    days: await getMetrics(member.id),
+    days,
+    dashboardUrl: `${await requestOrigin()}${sharePath(link.token)}`,
+    withPdf: true,
+  });
+  const pdf = await buildDoctorPdf(buildDashboard(days, todayInIsrael(), DEFAULT_SHARE_WINDOW), {
+    patientName: null,
+    recipientLabel: contact.name,
+    recipientRole: role,
+    note: null,
+    generatedAt: new Date(),
   });
   const result = await sendMail({
     to: contact.email,
     replyTo: user.email,
     subject: message.subject,
     text: message.body,
+    attachments: [{ filename: `oura-summary-${todayInIsrael()}.pdf`, content: pdf }],
   });
 
-  if (!result.ok) redirect(`/member?doctor=${result.reason === "not_configured" ? "not_configured" : "failed"}`);
+  if (!result.ok) {
+    // Nothing reached the doctor, so the link made for this send must not stay open.
+    await getDb().update(shareLinks).set({ revokedAt: new Date() }).where(eq(shareLinks.id, link.id));
+    redirect(`/member?doctor=${result.reason === "not_configured" ? "not_configured" : "failed"}`);
+  }
 
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_created", scope: role });
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_to_doctor", scope: role });
   revalidatePath("/member");
   redirect(`/member?doctor=sent_${role}`);
@@ -258,35 +342,28 @@ export async function createShareLink(
   if (!parsed.success) return { ok: false, error: "חלק מהשדות לא תקינים. בדקו ונסו שוב." };
   const input = parsed.data;
 
-  if ((await countActiveShareLinks(member.id)) >= MAX_ACTIVE_SHARE_LINKS) {
-    return { ok: false, error: `יש כבר ${MAX_ACTIVE_SHARE_LINKS} קישורים פעילים. בטלו אחד ונסו שוב.` };
-  }
-
   const role = input.recipient === "other" ? null : input.recipient;
   // A saved doctor's name wins, so the header always matches the member's own address book.
   const saved = role ? (await getDoctorContacts(member.id))[role] : undefined;
-  const recipientLabel = saved?.name ?? input.recipientName;
 
-  const token = newShareToken();
-  let tokenEnc: string;
-  try {
-    tokenEnc = encrypt(token);
-  } catch {
-    return { ok: false, error: "השרת עוד לא הוגדר ליצירת קישורים (חסר מפתח הצפנה)." };
-  }
-  const expiresAt = addDaysTo(new Date(), input.expiryDays);
-
-  await getDb().insert(shareLinks).values({
-    memberId: member.id,
-    tokenHash: hashShareToken(token),
-    tokenEnc,
-    recipientRole: role,
-    recipientLabel,
+  const link = await issueShareLink(member.id, {
+    role,
+    recipientLabel: saved?.name ?? input.recipientName,
     patientName: input.patientName,
     note: input.note,
     windowDays: input.windowDays,
-    expiresAt,
+    expiryDays: input.expiryDays,
   });
+  if (!link.ok) {
+    return {
+      ok: false,
+      error:
+        link.reason === "too_many"
+          ? `יש כבר ${MAX_ACTIVE_SHARE_LINKS} קישורים פעילים. בטלו אחד ונסו שוב.`
+          : "השרת עוד לא הוגדר ליצירת קישורים (חסר מפתח הצפנה).",
+    };
+  }
+  const { token, expiresAt } = link;
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_created", scope: role ?? "share_link" });
   revalidatePath("/member");
 

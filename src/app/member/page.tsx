@@ -47,6 +47,7 @@ const DOCTOR_MESSAGES: Record<string, string> = {
   sent_family_doctor: "ההודעה נשלחה לרופא המשפחה.",
   not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
   failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
+  too_many_links: "יש יותר מדי קישורים פעילים לרופאים. בטלו אחד למטה ונסו שוב.",
 };
 
 const INTEGRATION_MESSAGES: Record<string, string> = {
