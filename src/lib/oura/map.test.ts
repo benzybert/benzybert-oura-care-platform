@@ -67,3 +67,26 @@ describe("mapToDayMetrics", () => {
     ]);
   });
 });
+
+describe("daily stress", () => {
+  it("maps seconds to minutes and keeps Oura's day label", () => {
+    const rows = mapToDayMetrics({
+      dailySleep: [],
+      dailyReadiness: [],
+      dailyActivity: [],
+      sleepPeriods: [],
+      dailyStress: [{ day: "2026-10-20", stress_high: 5400, recovery_high: 7200, day_summary: "stressful" }],
+    });
+    expect(rows[0]).toMatchObject({ day: "2026-10-20", stressMinutes: 90, recoveryMinutes: 120, stressSummary: "stressful" });
+  });
+
+  it("leaves the fields out when stress was not fetched", () => {
+    const rows = mapToDayMetrics({
+      dailySleep: [{ day: "2026-10-20", score: 80 }],
+      dailyReadiness: [],
+      dailyActivity: [],
+      sleepPeriods: [],
+    });
+    expect(rows[0]).not.toHaveProperty("stressMinutes");
+  });
+});

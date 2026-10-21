@@ -14,7 +14,7 @@ const API_BASE = "https://api.ouraring.com/v2/usercollection";
  */
 export const OURA_SCOPES = ["daily"];
 
-export type OuraCollection = "daily_sleep" | "daily_readiness" | "daily_activity" | "sleep";
+export type OuraCollection = "daily_sleep" | "daily_readiness" | "daily_activity" | "daily_stress" | "sleep";
 
 /** Token rejected / refresh token invalid or already used: the member must reconnect. */
 export class OuraAuthError extends Error {}

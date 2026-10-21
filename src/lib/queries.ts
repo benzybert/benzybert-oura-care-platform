@@ -3,6 +3,7 @@ import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
+import type { ContextEvent } from "./context-events";
 import type { ConsentScope, DayMetric, DoctorRole } from "./types";
 
 const {
@@ -18,6 +19,7 @@ const {
   doctorContacts,
   shareLinks,
   selfRewards,
+  contextEvents,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -50,6 +52,9 @@ export async function getMetrics(memberId: string): Promise<DayMetric[]> {
       totalSleepHours: dailyMetrics.totalSleepHours,
       steps: dailyMetrics.steps,
       bedtimeStartMinute: dailyMetrics.bedtimeStartMinute,
+      stressMinutes: dailyMetrics.stressMinutes,
+      recoveryMinutes: dailyMetrics.recoveryMinutes,
+      stressSummary: dailyMetrics.stressSummary,
     })
     .from(dailyMetrics)
     .where(eq(dailyMetrics.memberId, memberId))
@@ -247,4 +252,20 @@ export async function recordShareView(linkId: string): Promise<void> {
     .update(shareLinks)
     .set({ viewCount: sql`${shareLinks.viewCount} + 1`, lastViewedAt: new Date() })
     .where(eq(shareLinks.id, linkId));
+}
+
+/** Events that are ongoing or ended in the last `days` days, newest first. Public context: no member data. */
+export async function getRecentEvents(sinceDay: string): Promise<ContextEvent[]> {
+  const rows = await getDb()
+    .select({
+      id: contextEvents.id,
+      kind: contextEvents.kind,
+      titleHe: contextEvents.titleHe,
+      startsOn: contextEvents.startsOn,
+      endsOn: contextEvents.endsOn,
+    })
+    .from(contextEvents)
+    .where(sql`${contextEvents.endsOn} is null or ${contextEvents.endsOn} >= ${sinceDay}`)
+    .orderBy(desc(contextEvents.startsOn));
+  return rows;
 }

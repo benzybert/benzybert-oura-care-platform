@@ -9,6 +9,11 @@ export type DayMetric = {
   steps: number | null;
   /** minutes after local midnight when the main sleep started (0-1439) */
   bedtimeStartMinute: number | null;
+  /** Oura daily_stress, optional so code that predates it keeps working */
+  stressMinutes?: number | null;
+  recoveryMinutes?: number | null;
+  /** "restored" | "normal" | "stressful" */
+  stressSummary?: string | null;
 };
 
 export type ConsentScope = "care_team" | "org_aggregate" | "rewards";
