@@ -1992,7 +1992,6 @@ body:has(.dash) {
   body:has(.dash) {
     background: #fff !important;
   }
-  .demo-banner,
   .dash .no-print {
     display: none !important;
   }

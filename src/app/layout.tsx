@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import "@fontsource/ibm-plex-sans-hebrew/hebrew-400.css";
 import "@fontsource/ibm-plex-sans-hebrew/hebrew-600.css";
-import { demoAuthEnabled } from "@/lib/env";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +11,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// Read env at request time so the demo banner always reflects the real setting.
+// Render every page per request: responses carry per-user health data and are never cached.
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -22,7 +21,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a className="skip-link" href="#main">
           דלג לתוכן
         </a>
-        {demoAuthEnabled() && <div className="demo-banner">מצב דמו: נתונים סינתטיים, לא מתאמנים אמיתיים</div>}
         <header className="appbar">
           <Link href="/" className="brand">
             <span className="brand-mark" aria-hidden="true" />
