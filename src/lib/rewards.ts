@@ -22,9 +22,13 @@ export function lastCompletedWeek(today: string): Week {
 
 // Shift so 18:00 = 0. That keeps 23:00 and 01:00 close together
 // instead of splitting across midnight.
-const shift = (minuteOfDay: number) => (minuteOfDay - 18 * 60 + 1440) % 1440;
+export const shiftBedtime = (minuteOfDay: number) => (minuteOfDay - 18 * 60 + 1440) % 1440;
+const shift = shiftBedtime;
 
-function median(xs: number[]): number {
+/** Inverse of shiftBedtime: back to minutes after local midnight. */
+export const unshiftBedtime = (shifted: number) => (Math.round(shifted) + 18 * 60) % 1440;
+
+export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? (s[mid] ?? 0) : ((s[mid - 1] ?? 0) + (s[mid] ?? 0)) / 2;

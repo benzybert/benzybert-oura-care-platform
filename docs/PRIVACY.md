@@ -7,6 +7,7 @@ Health data is the most sensitive kind. These are the rules the code enforces, a
 - **Consent per purpose.** Three separate scopes (care team, anonymous org stats, rewards). Nothing is shared by default. A member can revoke any scope at any time, and revoking care-team sharing immediately removes them from the care view and dismisses their open alerts.
 - **Append-only consent history.** Revocation sets `revoked_at`; re-granting inserts a new row. You can always show who agreed to what, and when.
 - **Compute only what was agreed.** Alerts exist only for members with active care-team consent; rewards only with rewards consent.
+- **Self-rewards are private.** Goals and treats a member sets for themselves (`self_rewards`) are shown only to that member. No staff or org page reads the table, they are not part of any aggregate, and they need no sharing consent because nothing leaves the member's own view. A member can delete any of them.
 - **No individual employer view.** Organizations get group means only, never per-person values, never min or max, and nothing at all below `ORG_MIN_COHORT` (default 5) consenting members. Small groups identify people.
 - **Members can see who looked.** The member page shows how many times, and when last, the care team viewed their summary. Every staff view is written to `audit_log`.
 - **Minimal identity.** Staff see a short code (`T-07`), age band and goal. No names, phone numbers or email in the care view.

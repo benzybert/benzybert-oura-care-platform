@@ -6,6 +6,9 @@ import { sql } from "drizzle-orm";
 import { createDb, schema } from "../src/db";
 import { addDays, dayOfWeek, todayInIsrael } from "../src/lib/dates";
 import { runInsights } from "../src/lib/oura/sync";
+import { shiftBedtime, unshiftBedtime } from "../src/lib/rewards";
+import { computeSelfBaseline, evaluateSelfReward } from "../src/lib/self-rewards";
+import type { DayMetric } from "../src/lib/types";
 
 try {
   process.loadEnvFile(".env.local");
@@ -74,7 +77,7 @@ async function main() {
   if (reset) {
     console.log(`Resetting database on host ${new URL(url as string).hostname} ...`);
     await db.execute(
-      sql`truncate table audit_log, reward_events, alerts, daily_metrics, consents, oura_connections, care_assignments, members, users, organizations restart identity cascade`,
+      sql`truncate table audit_log, self_rewards, reward_events, alerts, daily_metrics, consents, oura_connections, care_assignments, members, users, organizations restart identity cascade`,
     );
   } else {
     const [{ count } = { count: 0 }] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.users);
@@ -194,12 +197,105 @@ async function main() {
   // Alerts + rewards come from the same code path the nightly sync uses.
   for (const m of memberRows) await runInsights(db, m.id, today);
 
+  await seedSelfRewards(memberRows[0]?.id, metricRows, today);
+
   const [alertCount] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.alerts);
   const [rewardCount] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.rewardEvents);
   console.log(
     `Seeded ${memberRows.length} members, ${metricRows.length} metric rows, ${alertCount?.n ?? 0} open alerts, ${rewardCount?.n ?? 0} reward events.`,
   );
   console.log("Demo logins (when DEMO_AUTH=true): /api/demo-login?role=member|care|org");
+}
+
+/**
+ * A few self-rewards for the demo member (T-01), one in each state, with targets
+ * derived from that member's synthetic data so the states come out as labelled.
+ */
+async function seedSelfRewards(
+  memberId: string | undefined,
+  rows: Array<typeof schema.dailyMetrics.$inferInsert>,
+  today: string,
+) {
+  if (!memberId) return;
+  const days: DayMetric[] = rows
+    .filter((r) => r.memberId === memberId)
+    .map((r) => ({
+      day: r.day,
+      sleepScore: r.sleepScore ?? null,
+      readinessScore: r.readinessScore ?? null,
+      averageHrv: r.averageHrv ?? null,
+      lowestHeartRate: r.lowestHeartRate ?? null,
+      totalSleepHours: r.totalSleepHours ?? null,
+      steps: r.steps ?? null,
+      bedtimeStartMinute: r.bedtimeStartMinute ?? null,
+    }));
+  const between = (from: string, n: number) => days.filter((d) => d.day >= from && d.day < addDays(from, n));
+  const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+  const nth = (xs: number[], k: number) => [...xs].sort((a, b) => b - a)[k - 1] ?? 0;
+
+  type Insert = typeof schema.selfRewards.$inferInsert;
+  const base = { memberId, allowSingleMiss: true, requiredDays: null, baseline: null } as const;
+  const items: Insert[] = [];
+
+  // Active: average sleep score, on track.
+  {
+    const startDay = addDays(today, -9);
+    const so = between(startDay, 10).map((d) => d.sleepScore ?? 0);
+    items.push({ ...base, title: "שבועיים של שינה איכותית", emoji: "😴", kind: "average", metric: "sleep_score",
+      target: Math.max(50, Math.floor(avg(so)) - 2), windowDays: 14, startDay,
+      rewardOptions: ["ארוחת בוקר בבית קפה שאני אוהב"], rewardBudget: 90 });
+  }
+  // Active: mystery reward, bedtime on 9 of 14 nights.
+  {
+    const startDay = addDays(today, -6);
+    const beds = between(startDay, 7).map((d) => shiftBedtime(d.bedtimeStartMinute ?? 0));
+    const target = unshiftBedtime(Math.ceil(nth(beds, 3) / 5) * 5);
+    items.push({ ...base, title: "לפני חצות", emoji: "🌙", kind: "days_hit", metric: "bedtime", target,
+      requiredDays: 9, windowDays: 14, startDay,
+      rewardOptions: ["ערב קולנוע", "כרטיס להופעה", "ארוחה במסעדה שרציתי לנסות"], rewardBudget: 150 });
+  }
+  // Active: beat my own HRV baseline.
+  {
+    const startDay = addDays(today, -4);
+    items.push({ ...base, title: "לנצח את ה-HRV שלי", emoji: "📈", kind: "beat_baseline", metric: "average_hrv",
+      target: 5, windowDays: 14, startDay, baseline: computeSelfBaseline(days, "average_hrv", startDay),
+      rewardOptions: ["שדרוג ציוד אימון"], rewardBudget: 250 });
+  }
+  // Earned, waiting to be opened: steps on 5 of 7 days.
+  {
+    const startDay = addDays(today, -8);
+    const steps = between(startDay, 7).map((d) => d.steps ?? 0);
+    items.push({ ...base, title: "צעדים ב-5 מתוך 7", emoji: "👟", kind: "days_hit", metric: "steps",
+      target: Math.max(1000, Math.floor(nth(steps, 5) / 500) * 500), requiredDays: 5, windowDays: 7, startDay,
+      rewardOptions: ["ספר שמע חדש (ואני מקשיב לו רק בהליכות)"], rewardBudget: 60 });
+  }
+  // Won recently and opened.
+  {
+    const startDay = addDays(today, -16);
+    const so = between(startDay, 7).map((d) => d.sleepScore ?? 0);
+    items.push({ ...base, title: "שבוע של שינה איכותית", emoji: "😴", kind: "days_hit", metric: "sleep_score",
+      target: Math.max(40, nth(so, 4)), requiredDays: 4, windowDays: 7, startDay,
+      rewardOptions: ["נעלי ריצה חדשות"], rewardBudget: 450,
+      claimedAt: new Date(`${addDays(today, -3)}T18:00:00Z`), claimedReward: "נעלי ריצה חדשות" });
+  }
+  // Missed recently: a stretch goal on sleep hours.
+  items.push({ ...base, title: "8.5 שעות", emoji: "🛌", kind: "average", metric: "total_sleep_hours",
+    target: 8.5, windowDays: 7, startDay: addDays(today, -11), rewardOptions: ["יום חופש"], rewardBudget: null });
+  // History: an older win, a mystery draw.
+  {
+    const startDay = addDays(today, -32);
+    const h = between(startDay, 7).map((d) => d.totalSleepHours ?? 0);
+    items.push({ ...base, title: "שבוע של 7 שעות", emoji: "🎲", kind: "average", metric: "total_sleep_hours",
+      target: Math.floor(avg(h) * 4) / 4, windowDays: 7, startDay,
+      rewardOptions: ["מסאז׳ של שעה", "ערב משחקים עם חברים", "פרח לבית"], rewardBudget: 300,
+      claimedAt: new Date(`${addDays(today, -24)}T18:00:00Z`), claimedReward: "מסאז׳ של שעה" });
+  }
+
+  await db.insert(schema.selfRewards).values(items);
+  const states = items.map((i) =>
+    i.claimedAt ? "claimed" : evaluateSelfReward(i as Parameters<typeof evaluateSelfReward>[0], days, today).status,
+  );
+  console.log(`Self-rewards for T-01: ${states.join(", ")}`);
 }
 
 main()

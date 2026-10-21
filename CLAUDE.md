@@ -14,10 +14,10 @@ Oura-based member health platform with three views over one dataset: member (`/m
 
 ```
 src/app/            pages (member, care, org), server actions (actions.ts), API routes
-src/components/     shared UI (metrics-table, logout-button, share-link card)
+src/components/     shared UI (metrics-table, logout-button, share-link card, doctor-share-card, self-rewards-section + self-reward-builder)
 src/components/doctor-dashboard/  the doctor dashboard: dashboard.tsx (server), trend-chart.tsx (client SVG), dashboard.css (tokens)
 src/db/             Drizzle schema + connection
-src/lib/            pure logic (alerts, consent, rewards, summary) + server helpers (queries, session)
+src/lib/            pure logic (alerts, consent, rewards, self-rewards, summary) + server helpers (queries, session)
 src/lib/oura/       OAuth client, API mapping, sync
 scripts/seed.ts     synthetic demo data
 drizzle/            generated SQL migrations (never hand-edit applied ones)
@@ -26,10 +26,10 @@ docs/               ARCHITECTURE, PRIVACY, SETUP
 
 ## Workflow
 
-Keep it simple: everything lives on **`main`**, and Vercel builds from it. This is a fast-moving side project: commit and push to `main` without asking for approval. No PRs or feature branches unless the user asks.
+Keep it simple: everything lives on **`main`**, and Vercel builds from it. This is a fast-moving side project: **always commit and push to `main` after every change**, without asking for approval and without leaving work unpushed at the end of a turn. No PRs or feature branches unless the user asks.
 
 1. Before pushing: `npm run typecheck && npm test && npm run build`.
-2. Schema change: edit `src/db/schema.ts`, run `npm run db:generate`, commit the SQL file. Make sure the new migration's `when` in `drizzle/meta/_journal.json` is later than the previous one, and enable RLS on any new table (see `0001`/`0002`). Do not run migrations against a real database without being asked; they must be applied to the Production database for the app to work.
+2. Schema change: edit `src/db/schema.ts`, run `npm run db:generate`, commit the SQL file. Make sure the new migration's `when` in `drizzle/meta/_journal.json` is later than the previous one, and enable RLS on any new table plus an `oura_app` policy, or the app is denied on Supabase (see `0003`). Do not run migrations against a real database without being asked; they must be applied to the Production database for the app to work.
 3. Add or update a Vitest test for any change in `src/lib/` logic.
 
 ## Config lives in files, not env vars
@@ -69,6 +69,16 @@ On `/member`, card "דאשבורד לרופא": the member creates a read-only l
 - Do not add: member email, age band, data outside the window, care-team alerts or notes, analytics or third-party scripts on `/share`.
 - Design: `dashboard.css` has three token layers scoped to `.dash` (primitives `--p-*`, semantic `--c-*`, component `--viz-*`); components use only `--c-*`/`--viz-*`. Chart colours `#0b84a5` (data) / `#c96a12` (attention) light, `#2a9fc0` / `#c9711f` dark, validated for colour-blind separation and 3:1 contrast; re-validate if you change them. Font: IBM Plex Sans Hebrew (self-hosted via `@fontsource`, no external requests). Charts keep time left to right (newest on the right) inside the RTL page. Print uses the light theme and opens the daily table.
 - Server-only code must not import values from a `"use client"` file (shared helpers live in `doctor-dashboard/format.ts`).
+
+## Feature: "התגמולים שלי" self-rewards (member page)
+
+Built on `/member`: the member sets a goal on their own Oura data and the treat they give themselves for reaching it (table `self_rewards`, migration `0004`, logic in `src/lib/self-rewards.ts`). Goal kinds: average over a period, X of Y days, streak with an optional joker, beat my own 28-day baseline, steady bedtime. Several reward options make a mystery reward drawn server-side when opened. Template gallery and live "contract" preview in `self-reward-builder.tsx`.
+
+Rules to keep:
+
+- Member-only. No staff or org page reads `self_rewards`; it is not part of any aggregate and needs no sharing consent.
+- Status is computed on read from `daily_metrics`; only the claim is stored. Claiming re-evaluates on the server.
+- Separate from the platform's bedtime points (`reward_events`, `rewards` consent).
 
 ## Not built yet (do not assume it exists)
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -8,6 +9,7 @@ import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
+import { todayInIsrael } from "@/lib/dates";
 import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
@@ -16,10 +18,18 @@ import {
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
+  getOwnSelfReward,
+  getSelfRewards,
   logAudit,
   membersWithConsent,
   recordShareView,
 } from "@/lib/queries";
+import {
+  MAX_OPEN_SELF_REWARDS,
+  computeSelfBaseline,
+  evaluateSelfReward,
+  parseSelfRewardForm,
+} from "@/lib/self-rewards";
 import { cookieOptions, requireRole } from "@/lib/session";
 import {
   MAX_ACTIVE_SHARE_LINKS,
@@ -38,7 +48,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -320,4 +330,136 @@ export async function openShareLink(formData: FormData): Promise<void> {
     scope: link.recipientRole ?? "share_link",
   });
   redirect(sharePath(token));
+}
+
+// ---------- self-rewards: the member's own goals and treats ----------
+// Every action re-checks the role and that the row belongs to the signed-in member.
+
+export type SelfRewardFormState = { ok: boolean; error: string | null; at: number };
+
+/** Keeps history from growing without bound. */
+const MAX_SELF_REWARD_ROWS = 60;
+
+const formValue = (formData: FormData) => (key: string) => {
+  const v = formData.get(key);
+  return typeof v === "string" ? v : null;
+};
+
+async function openSelfRewardCount(memberId: string, today: string) {
+  const [rows, metrics] = await Promise.all([getSelfRewards(memberId), getMetrics(memberId)]);
+  const open = rows.filter(
+    (r) => r.claimedAt === null && evaluateSelfReward(r, metrics, today).status !== "missed",
+  ).length;
+  return { open, total: rows.length, metrics };
+}
+
+/** Member adds a goal and the treat they promise themselves. Used with useActionState. */
+export async function createSelfReward(
+  _prev: SelfRewardFormState,
+  formData: FormData,
+): Promise<SelfRewardFormState> {
+  const fail = (error: string): SelfRewardFormState => ({ ok: false, error, at: Date.now() });
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) return fail("לא נמצא פרופיל מתאמן.");
+
+  const parsed = parseSelfRewardForm(formValue(formData));
+  if (!parsed.ok) return fail(parsed.error);
+  const { rule, title, emoji, rewardOptions, rewardBudget } = parsed.value;
+
+  const today = todayInIsrael();
+  const { open, total, metrics } = await openSelfRewardCount(member.id, today);
+  if (open >= MAX_OPEN_SELF_REWARDS) {
+    return fail(`יש לך כבר ${MAX_OPEN_SELF_REWARDS} יעדים פתוחים. כדאי לסיים או למחוק אחד קודם.`);
+  }
+  if (total >= MAX_SELF_REWARD_ROWS) return fail("ההיסטוריה מלאה. מחק כמה יעדים ישנים ונסה שוב.");
+
+  let baseline: number | null = null;
+  if (rule.kind === "beat_baseline") {
+    baseline = computeSelfBaseline(metrics, rule.metric, today);
+    if (baseline === null) {
+      return fail("כדי להתחרות בעצמך צריך לפחות 14 ימים עם נתונים בחודש האחרון.");
+    }
+  }
+
+  await getDb().insert(selfRewards).values({
+    memberId: member.id,
+    title,
+    emoji,
+    ...rule,
+    startDay: today,
+    baseline,
+    rewardOptions,
+    rewardBudget,
+  });
+  revalidatePath("/member");
+  return { ok: true, error: null, at: Date.now() };
+}
+
+/** Opens an earned reward. With several options, one is drawn at random, once. */
+export async function claimSelfReward(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) return;
+  const row = await getOwnSelfReward(member.id, id);
+  if (!row || row.claimedAt) return;
+
+  // The server decides whether it was earned, not the button.
+  const status = evaluateSelfReward(row, await getMetrics(member.id), todayInIsrael()).status;
+  if (status !== "earned") return;
+
+  const reward = row.rewardOptions[randomInt(row.rewardOptions.length)] ?? row.rewardOptions[0] ?? "";
+  await getDb()
+    .update(selfRewards)
+    .set({ claimedAt: new Date(), claimedReward: reward })
+    .where(and(eq(selfRewards.id, row.id), eq(selfRewards.memberId, member.id), isNull(selfRewards.claimedAt)));
+  revalidatePath("/member");
+}
+
+/** "Another round": the same goal and treat again, starting today. */
+export async function restartSelfReward(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) return;
+  const row = await getOwnSelfReward(member.id, id);
+  if (!row) return;
+
+  const today = todayInIsrael();
+  const { open, total, metrics } = await openSelfRewardCount(member.id, today);
+  if (open >= MAX_OPEN_SELF_REWARDS || total >= MAX_SELF_REWARD_ROWS) return;
+  const finished = row.claimedAt !== null || evaluateSelfReward(row, metrics, today).status === "missed";
+  if (!finished) return;
+
+  const baseline =
+    row.kind === "beat_baseline" ? (computeSelfBaseline(metrics, row.metric, today) ?? row.baseline) : null;
+  await getDb().insert(selfRewards).values({
+    memberId: member.id,
+    title: row.title,
+    emoji: row.emoji,
+    kind: row.kind,
+    metric: row.metric,
+    target: row.target,
+    requiredDays: row.requiredDays,
+    windowDays: row.windowDays,
+    allowSingleMiss: row.allowSingleMiss,
+    startDay: today,
+    baseline,
+    rewardOptions: row.rewardOptions,
+    rewardBudget: row.rewardBudget,
+  });
+  revalidatePath("/member");
+}
+
+/** Deletes one of the member's own goals. Deleted, not hidden: it is their data. */
+export async function deleteSelfReward(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) return;
+  await getDb()
+    .delete(selfRewards)
+    .where(and(eq(selfRewards.id, id), eq(selfRewards.memberId, member.id)));
+  revalidatePath("/member");
 }

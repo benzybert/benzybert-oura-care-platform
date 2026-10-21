@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   index,
   integer,
@@ -18,6 +19,22 @@ export const consentScopeEnum = pgEnum("consent_scope", ["care_team", "org_aggre
 export const alertStatusEnum = pgEnum("alert_status", ["open", "acknowledged", "dismissed"]);
 export const metricSourceEnum = pgEnum("metric_source", ["oura", "demo"]);
 export const doctorRoleEnum = pgEnum("doctor_role", ["neurologist", "family_doctor"]);
+export const selfRewardKindEnum = pgEnum("self_reward_kind", [
+  "average",
+  "days_hit",
+  "streak",
+  "beat_baseline",
+  "consistency",
+]);
+export const selfRewardMetricEnum = pgEnum("self_reward_metric", [
+  "sleep_score",
+  "readiness_score",
+  "total_sleep_hours",
+  "steps",
+  "average_hrv",
+  "lowest_heart_rate",
+  "bedtime",
+]);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -206,6 +223,41 @@ export const shareLinks = pgTable(
     lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
   },
   (t) => [index("share_links_member_idx").on(t.memberId, t.createdAt)],
+);
+
+/**
+ * Goals a member sets for themselves, with the treat they promise themselves.
+ * Private to the member: no staff or org query reads this table.
+ * Progress is computed on read (src/lib/self-rewards.ts); only the claim is stored.
+ */
+export const selfRewards = pgTable(
+  "self_rewards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    title: text("title"),
+    emoji: text("emoji"),
+    kind: selfRewardKindEnum("kind").notNull(),
+    metric: selfRewardMetricEnum("metric").notNull(),
+    /** threshold (form units), improvement percent (beat_baseline) or tolerance minutes (consistency) */
+    target: real("target").notNull(),
+    requiredDays: integer("required_days"),
+    windowDays: integer("window_days").notNull(),
+    startDay: date("start_day", { mode: "string" }).notNull(),
+    /** beat_baseline only: the member's own baseline, fixed at creation */
+    baseline: real("baseline"),
+    allowSingleMiss: boolean("allow_single_miss").notNull().default(true),
+    /** one option = a fixed reward; several = a mystery reward, one drawn when claimed */
+    rewardOptions: text("reward_options").array().notNull(),
+    /** optional, in whole shekels: what the member allows themselves to spend */
+    rewardBudget: integer("reward_budget"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimedReward: text("claimed_reward"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("self_rewards_member_idx").on(t.memberId)],
 );
 
 /** Who looked at whose data, and why. Members can be shown their own access log. */

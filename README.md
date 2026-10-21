@@ -4,7 +4,7 @@ Member health platform built on the Oura ring, with three views over the same da
 
 | View | Route | Who | Sees |
 | --- | --- | --- | --- |
-| Member | `/member` | the member | own metrics, rewards, what is shared, who looked |
+| Member | `/member` | the member | own metrics, rewards, self-set goals and treats, what is shared, who looked |
 | Care team | `/care` | assigned nurse / doctor | only members who consented: trends, alerts to review |
 | Organization | `/org` | employer / provider admin | anonymous group means, hidden below a minimum group size |
 | Doctor link | `/share/<token>` | a doctor the member sent a link to | read-only dashboard of the member's last 30/60/90 days, until the link expires or is revoked |
@@ -45,7 +45,7 @@ Then open `/` and use the demo sign-in buttons. `DEMO_AUTH` must never be on whe
 | --- | --- |
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | unit tests (alerts, consent, rewards, crypto, Oura mapping) |
+| `npm test` | unit tests (alerts, consent, rewards, self-rewards, crypto, Oura mapping) |
 | `npm run db:generate` | create a new SQL migration after editing `src/db/schema.ts` |
 | `npm run db:migrate` | apply migrations to `DATABASE_URL` |
 | `npm run db:seed` | load synthetic demo data |
@@ -64,7 +64,7 @@ docs/               architecture, privacy, setup
 
 ## What is done, and what is not
 
-Done and verified: schema and migration (applied to a real Postgres 16), consent model with revocation, alert rules, bedtime-consistency rewards, token encryption, org group threshold, audit log, the three views, role guards, daily-sync route with secret, CI. Verified with unit tests, a seeded database, and a browser run (acknowledge an alert, revoke and re-grant consent, phone-width layout).
+Done and verified: schema and migration (applied to a real Postgres 16), consent model with revocation, alert rules, bedtime-consistency rewards, member self-rewards, token encryption, org group threshold, audit log, the three views, role guards, daily-sync route with secret, CI. Verified with unit tests, a seeded database, and a browser run (acknowledge an alert, revoke and re-grant consent, phone-width layout).
 
 **Not done / not verified** (details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#open-items)):
 

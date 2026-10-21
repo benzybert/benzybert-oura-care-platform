@@ -17,6 +17,7 @@ const {
   ouraConnections,
   doctorContacts,
   shareLinks,
+  selfRewards,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -112,6 +113,27 @@ export async function rewardTotal(memberId: string): Promise<{ points: number; e
     .from(rewardEvents)
     .where(eq(rewardEvents.memberId, memberId));
   return { points: rows.reduce((a, r) => a + r.points, 0), events: rows.length };
+}
+
+export type SelfRewardRow = typeof selfRewards.$inferSelect;
+
+/** The member's own goals and treats, newest first. Member-only: never call this from a staff page. */
+export async function getSelfRewards(memberId: string): Promise<SelfRewardRow[]> {
+  return getDb()
+    .select()
+    .from(selfRewards)
+    .where(eq(selfRewards.memberId, memberId))
+    .orderBy(desc(selfRewards.createdAt));
+}
+
+/** One goal, only if it belongs to this member. */
+export async function getOwnSelfReward(memberId: string, id: string): Promise<SelfRewardRow | null> {
+  const [row] = await getDb()
+    .select()
+    .from(selfRewards)
+    .where(and(eq(selfRewards.id, id), eq(selfRewards.memberId, memberId)))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function ouraStatus(memberId: string) {
