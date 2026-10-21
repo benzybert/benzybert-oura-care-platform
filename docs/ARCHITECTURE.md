@@ -27,6 +27,7 @@
 | `reward_events` | points, idempotent per member, kind and week |
 | `doctor_contacts` | the member's own doctors (name, email), used only for sends the member confirms |
 | `share_links` | read-only doctor dashboard links: token **hash** for lookup, token encrypted for re-copying, window, expiry, revocation, view count |
+| `self_rewards` | goals a member sets for themselves and the treat they promise themselves; member-only, never read by staff or org pages |
 | `audit_log` | every staff view, every consent change, every share-link create / open / revoke |
 
 Consent scopes: `care_team`, `org_aggregate`, `rewards`. One scope never implies another.
@@ -85,6 +86,16 @@ The member creates a link on `/member` (who it is for, optional name and note, 3
 5. Revoking sets `revoked_at`; the next request gets the same "link not active" page as an unknown token (404).
 
 It is the member's own sharing: it does not read `care_team` consent or alerts, and it does not widen any scope.
+
+## Self-rewards ("התגמולים שלי")
+
+A section on `/member` where the member sets a goal on their own data and names the treat they give themselves for reaching it. It is separate from the points above: nothing is awarded by the platform and nothing is shared.
+
+- **Goal kinds** (`src/lib/self-rewards.ts`): average over a period, X of Y days, streak (optional joker: one bad day does not break it, two in a row do), beat my own baseline (the member's 28-day mean before the start, fixed at creation, at least 14 days of data), and steady bedtime (same median logic as the bedtime points).
+- **Metrics:** sleep score, readiness, sleep hours, steps, HRV, resting heart rate, bedtime. Bedtime is compared on a scale shifted to 18:00 so 23:50 and 00:10 are close.
+- **Status is computed on read** from `daily_metrics`, so a late Oura revision is picked up. Days after the latest synced day count as pending, not as misses. Averages need data on 70 percent of the days. Only the claim is stored (`claimed_at`, `claimed_reward`).
+- **Rewards:** one option is a fixed reward; several options make a mystery reward, one drawn at random (server side, `crypto.randomInt`) when the member opens it. An optional shekel budget feeds the "treat jar" total.
+- **Server checks:** every action re-checks the member role and that the row belongs to the member; claiming re-evaluates the goal on the server before anything is stored. Limits: 12 open goals, 60 rows in total.
 
 ## Environments
 

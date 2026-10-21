@@ -2,8 +2,10 @@ import { disconnectOura, setConsent } from "@/app/actions";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
+import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { hasActiveConsent } from "@/lib/consent";
+import { todayInIsrael } from "@/lib/dates";
 import { fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
@@ -11,6 +13,7 @@ import {
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
+  getSelfRewards,
   listShareLinks,
   ouraStatus,
   rewardTotal,
@@ -47,7 +50,7 @@ export default async function MemberPage({
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, doctors, links, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -55,6 +58,7 @@ export default async function MemberPage({
     accessLogFor(member.id),
     getDoctorContacts(member.id),
     listShareLinks(member.id),
+    getSelfRewards(member.id),
     searchParams,
   ]);
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
@@ -103,6 +107,8 @@ export default async function MemberPage({
         <h2>14 הימים האחרונים</h2>
         <MetricsTable days={metrics} />
       </div>
+
+      <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />
 
       <div className="card">
         <h2>מה משותף ועם מי</h2>
