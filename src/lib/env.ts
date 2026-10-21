@@ -20,7 +20,6 @@ export function orgMinCohort(): number {
 }
 
 export function demoAuthEnabled(): boolean {
-  // Defense in depth: demo login can never be on in Vercel Production,
-  // even if DEMO_AUTH is set there by mistake.
-  return process.env.DEMO_AUTH === "true" && process.env.VERCEL_ENV !== "production";
+  // Owner's choice: demo login may be on in Production (side project, synthetic data).
+  return process.env.DEMO_AUTH === "true";
 }

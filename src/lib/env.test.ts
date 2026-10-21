@@ -15,10 +15,10 @@ describe("demoAuthEnabled", () => {
     expect(demoAuthEnabled()).toBe(true);
   });
 
-  it("stays off in Vercel Production even if DEMO_AUTH=true", () => {
+  it("is on in Vercel Production when DEMO_AUTH=true", () => {
     vi.stubEnv("DEMO_AUTH", "true");
     vi.stubEnv("VERCEL_ENV", "production");
-    expect(demoAuthEnabled()).toBe(false);
+    expect(demoAuthEnabled()).toBe(true);
   });
 });
 
