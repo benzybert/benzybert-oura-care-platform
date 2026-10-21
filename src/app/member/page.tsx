@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
+import { claimCoffee, disconnectOura, setConsent, syncNow } from "@/app/actions";
 import { ContextEventsCard } from "@/components/context-events-card";
 import { DoctorDashboard } from "@/components/doctor-dashboard/dashboard";
 import { OnboardingCard } from "@/components/onboarding-card";
@@ -41,12 +41,19 @@ import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+// "Sync now" runs the Oura sync inside this page's server action.
+export const maxDuration = 60;
 
 const OURA_MESSAGES: Record<string, string> = {
   connected: "הטבעת חוברה. הנתונים נטענים.",
   denied: "החיבור בוטל. אפשר לנסות שוב בכל זמן.",
   invalid_state: "החיבור נכשל מסיבות אבטחה. נסו שוב.",
   no_member: "לא נמצא פרופיל מתאמן.",
+  synced: "הסנכרון הושלם. הנתונים עודכנו.",
+  sync_recent: "סונכרן לפני רגע. אפשר שוב בעוד כמה דקות.",
+  needs_reconnect: "Oura דחתה את החיבור. חברו את הטבעת מחדש.",
+  sync_failed: "הסנכרון נכשל, ולא השתנה כלום. נסו שוב בעוד כמה דקות.",
+  not_connected: "הטבעת לא מחוברת.",
 };
 
 const DOCTOR_MESSAGES: Record<string, string> = {
@@ -239,11 +246,18 @@ export default async function MemberPage({
                 סנכרון אחרון: {oura.lastSyncAt ? fmtDateTime(oura.lastSyncAt) : "עוד לא"}
               </span>
             </span>
-            <form action={disconnectOura}>
-              <button className="btn secondary" type="submit">
-                נתק וימחק את הטוקנים
-              </button>
-            </form>
+            <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <form action={syncNow}>
+                <button className="btn" type="submit">
+                  סנכרן עכשיו
+                </button>
+              </form>
+              <form action={disconnectOura}>
+                <button className="btn secondary" type="submit">
+                  נתק וימחק את הטוקנים
+                </button>
+              </form>
+            </span>
           </div>
         ) : (
           <div className="row">

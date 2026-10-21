@@ -23,6 +23,8 @@ import { todayInIsrael } from "@/lib/dates";
 import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
+import { syncCooldownLeftMs } from "@/lib/oura/cooldown";
+import { syncMember } from "@/lib/oura/sync";
 import {
   assignedMembers,
   getActiveInstinctAccess,
@@ -37,6 +39,7 @@ import {
   getDashboardMetrics,
   getMetrics,
   getOwnSelfReward,
+  ouraStatus,
   getSelfRewards,
   logAudit,
   membersWithConsent,
@@ -119,6 +122,29 @@ export async function disconnectOura(): Promise<void> {
   await getDb().delete(ouraConnections).where(eq(ouraConnections.memberId, member.id));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "oura_disconnected" });
   revalidatePath("/member");
+}
+
+/**
+ * Member syncs their own ring now instead of waiting for the daily cron (also backfills fields added
+ * later). Own data only, with a short cooldown. Errors are never logged: they can carry Oura's text.
+ */
+export async function syncNow(): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  const connection = await ouraStatus(member.id);
+  if (!connection) redirect("/member?oura=not_connected#ring");
+  if (syncCooldownLeftMs(connection.lastSyncAt) > 0) redirect("/member?oura=sync_recent#ring");
+
+  let outcome = "sync_failed";
+  try {
+    const result = await syncMember(getDb(), member.id);
+    outcome = result.status === "synced" ? "synced" : result.status === "needs_reconnect" ? "needs_reconnect" : "not_connected";
+  } catch {
+    outcome = "sync_failed";
+  }
+  revalidatePath("/member");
+  redirect(`/member?oura=${outcome}#ring`);
 }
 
 /** Care-team user acknowledges an alert. Re-checks assignment and consent on the server. */
