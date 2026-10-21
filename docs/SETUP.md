@@ -8,7 +8,9 @@ Branches: `main` (production) and `dev` (integration and demos). Protect `main` 
 
 1. Import the repository as a Next.js project. Production branch: `main`.
 2. `dev` automatically gets Preview deployments with a stable branch URL.
-3. `vercel.json` registers a daily cron on `/api/cron/oura-sync`. On the Hobby plan cron can run once per day at most (check current limits), and Hobby is for personal, non-commercial use. A real pilot needs a paid plan.
+3. **Check this once:** in the Vercel project settings, confirm the production branch is `main`. When the project was first created through the API, deployments from both `main` and `dev` were labelled *production*, which would mix the two environments' variables. Until `dev` shows up as *Preview*, do not add secrets or `DEMO_AUTH`.
+4. As a safety net, the app refuses demo login whenever `VERCEL_ENV=production`, even if `DEMO_AUTH=true` is set there by mistake.
+5. `vercel.json` registers a daily cron on `/api/cron/oura-sync`. On the Hobby plan cron can run once per day at most (check current limits), and Hobby is for personal, non-commercial use. A real pilot needs a paid plan.
 
 ## 3. Database
 
