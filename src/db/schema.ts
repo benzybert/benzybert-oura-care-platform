@@ -335,6 +335,45 @@ export const actionDeliveries = pgTable(
   (t) => [unique("action_deliveries_uq").on(t.memberId, t.rule, t.day, t.provider)],
 );
 
+/**
+ * "Action center" rules: when a metric crosses a threshold, the member can fire a Home Assistant
+ * webhook. Private to the member: no staff or org query reads these tables, and the webhook
+ * carries no health values.
+ */
+export const automationRules = pgTable(
+  "automation_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** sleep_score | readiness_score | average_hrv | total_sleep_hours | steps | lowest_heart_rate */
+    metric: text("metric").notNull(),
+    /** "below" or "above" */
+    comparator: text("comparator").notNull(),
+    threshold: real("threshold").notNull(),
+    /** the Home Assistant webhook id; the base URL lives in src/config/home-assistant.ts */
+    webhookId: text("webhook_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("automation_rules_member_idx").on(t.memberId)],
+);
+
+/** One run per rule per day, so a bad night fires the lights once. The unique row is the lock. */
+export const automationRuns = pgTable(
+  "automation_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ruleId: uuid("rule_id")
+      .notNull()
+      .references(() => automationRules.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("automation_runs_rule_day").on(t.ruleId, t.day)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",

@@ -1,6 +1,7 @@
 import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
 import { ContextEventsCard } from "@/components/context-events-card";
 import { OnboardingCard } from "@/components/onboarding-card";
+import { ActionCenter } from "@/components/action-center";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
@@ -8,12 +9,14 @@ import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { suggestActions } from "@/lib/actions-engine";
 import { profileStrength } from "@/lib/profile-strength";
+import { automationsConfigured } from "@/lib/automations";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
+  getAutomationRules,
   getCoffeeClaimDays,
   getConsentRecords,
   getDeliveredActions,
@@ -55,6 +58,20 @@ const INTEGRATION_MESSAGES: Record<string, string> = {
   gone: "הפעולה כבר לא רלוונטית.",
 };
 
+const ACTION_MESSAGES: Record<string, string> = {
+  saved: "הפעולה נשמרה.",
+  removed: "הפעולה נמחקה.",
+  invalid: "הפרטים לא תקינים. נסו שוב.",
+  limit: "הגעת למספר הפעולות המקסימלי.",
+  missing: "הפעולה לא נמצאה.",
+  fired: "הפעולה נשלחה ל-Home Assistant.",
+  test_sent: "הבדיקה נשלחה ל-Home Assistant.",
+  already: "הפעולה הזאת כבר הופעלה היום.",
+  not_met: "התנאי לא מתקיים כרגע, ולכן לא נשלח כלום.",
+  not_configured: "כתובת Home Assistant עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
+  failed: "השליחה ל-Home Assistant נכשלה. בדקו שהכתובת וה-Webhook ID נכונים ושהשרת נגיש מהאינטרנט.",
+};
+
 const COFFEE_MESSAGES: Record<string, string> = {
   sent: "שלחנו לאימייל שלך קישור לקפה. תהנה ☕",
   already: "כבר קיבלת קפה על הלילה הזה.",
@@ -67,14 +84,14 @@ const COFFEE_MESSAGES: Record<string, string> = {
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string; action?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
   const today = todayInIsrael();
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, delivered, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, delivered, automations, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -86,6 +103,7 @@ export default async function MemberPage({
     getCoffeeClaimDays(member.id),
     getRecentEvents(addDays(today, -90)),
     getDeliveredActions(member.id, "whatsapp"),
+    getAutomationRules(member.id),
     searchParams,
   ]);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
@@ -101,6 +119,7 @@ export default async function MemberPage({
     instinctUsed: delivered.length > 0,
   });
   const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
+  const actionMessage = params.action ? ACTION_MESSAGES[params.action] : undefined;
   const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
   return (
@@ -126,6 +145,11 @@ export default async function MemberPage({
       {integrationMessage && (
         <div className="notice" role="status">
           {integrationMessage}
+        </div>
+      )}
+      {actionMessage && (
+        <div className="notice" role="status">
+          {actionMessage}
         </div>
       )}
       {coffeeMessage && (
@@ -181,6 +205,7 @@ export default async function MemberPage({
         <a href="#integrations">פרופיל ו-Instinct</a>
         <a href="#ring">הטבעת</a>
         <a href="#data">הנתונים</a>
+        <a href="#actions">מרכז פעולות</a>
         <a href="#goals">התגמולים שלי</a>
         <a href="#sharing">שיתוף</a>
         <a href="#doctors">רופאים</a>
@@ -218,6 +243,13 @@ export default async function MemberPage({
       </div>
 
       <ContextEventsCard events={events} metrics={metrics} today={today} />
+
+      <ActionCenter
+        rules={automations}
+        metrics={metrics}
+        today={todayInIsrael()}
+        configured={automationsConfigured()}
+      />
 
       <div id="goals">
         <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />

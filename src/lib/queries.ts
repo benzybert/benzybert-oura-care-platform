@@ -3,6 +3,7 @@ import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
+import type { AutomationMetric, Comparator } from "./automations";
 import type { ContextEvent } from "./context-events";
 import type { ConsentScope, DayMetric, DoctorRole } from "./types";
 
@@ -22,6 +23,8 @@ const {
   coffeeClaims,
   contextEvents,
   actionDeliveries,
+  automationRules,
+  automationRuns,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -288,4 +291,39 @@ export async function getDeliveredActions(memberId: string, provider: string): P
     .from(actionDeliveries)
     .where(and(eq(actionDeliveries.memberId, memberId), eq(actionDeliveries.provider, provider)));
   return rows.map((r) => `${r.rule}:${r.day}`);
+}
+
+export type AutomationRule = {
+  id: string;
+  title: string;
+  metric: AutomationMetric;
+  comparator: Comparator;
+  threshold: number;
+  webhookId: string;
+  /** days (YYYY-MM-DD) this rule already fired for */
+  ranDays: string[];
+};
+
+/** The member's own action-center rules with the days each already ran. */
+export async function getAutomationRules(memberId: string): Promise<AutomationRule[]> {
+  const db = getDb();
+  const rules = await db
+    .select()
+    .from(automationRules)
+    .where(eq(automationRules.memberId, memberId))
+    .orderBy(asc(automationRules.createdAt));
+  if (rules.length === 0) return [];
+  const runs = await db
+    .select({ ruleId: automationRuns.ruleId, day: automationRuns.day })
+    .from(automationRuns)
+    .where(inArray(automationRuns.ruleId, rules.map((r) => r.id)));
+  return rules.map((r) => ({
+    id: r.id,
+    title: r.title,
+    metric: r.metric as AutomationMetric,
+    comparator: r.comparator as Comparator,
+    threshold: r.threshold,
+    webhookId: r.webhookId,
+    ranDays: runs.filter((x) => x.ruleId === r.id).map((x) => x.day),
+  }));
 }
