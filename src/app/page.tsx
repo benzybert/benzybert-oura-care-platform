@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
-import { demoAuthEnabled } from "@/lib/env";
+import { databaseUrl, demoAuthEnabled } from "@/lib/env";
 import { getSessionUser, type Role } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ const HOME: Record<Role, string> = {
 export default async function Home() {
   let signedInAs: Role | null = null;
   try {
-    if (process.env.DATABASE_URL) signedInAs = (await getSessionUser())?.role ?? null;
+    if (databaseUrl()) signedInAs = (await getSessionUser())?.role ?? null;
   } catch {
     // Database unreachable: show the landing page anyway.
   }

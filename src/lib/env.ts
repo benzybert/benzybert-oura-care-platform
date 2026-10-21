@@ -23,3 +23,8 @@ export function demoAuthEnabled(): boolean {
   // Owner's choice: demo login may be on in Production (side project, synthetic data).
   return process.env.DEMO_AUTH === "true";
 }
+
+/** Postgres URL: DATABASE_URL, or the POSTGRES_URL the Vercel Supabase integration provides. */
+export function databaseUrl(): string | undefined {
+  return process.env.DATABASE_URL || process.env.POSTGRES_URL || undefined;
+}
