@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
+import { COFFEE_CONFIG } from "@/config/coffee";
 import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffee";
 import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
@@ -493,7 +494,7 @@ export async function claimCoffee(): Promise<void> {
   if (!claimId) redirect("/member?coffee=already");
 
   const message = buildCoffeeMessage(link);
-  const result = await sendMail({ to: user.email, subject: message.subject, text: message.body });
+  const result = await sendMail({ to: COFFEE_CONFIG.sendTo || user.email, subject: message.subject, text: message.body });
   if (!result.ok) {
     await getDb().delete(coffeeClaims).where(eq(coffeeClaims.id, claimId));
     redirect(`/member?coffee=${result.reason === "not_configured" ? "mail_not_configured" : "failed"}`);
