@@ -29,8 +29,12 @@ docs/               ARCHITECTURE, PRIVACY, SETUP
 Keep it simple: everything lives on **`main`**, and Vercel builds from it. This is a fast-moving side project: commit and push to `main` without asking for approval. No PRs or feature branches unless the user asks.
 
 1. Before pushing: `npm run typecheck && npm test && npm run build`.
-2. Schema change: edit `src/db/schema.ts`, run `npm run db:generate`, commit the SQL file. Make sure the new migration's `when` in `drizzle/meta/_journal.json` is later than the previous one, and enable RLS on any new table (see `0001`/`0002`). Do not run migrations against a real database without being asked; they must be applied to the Preview database for the Preview to work.
+2. Schema change: edit `src/db/schema.ts`, run `npm run db:generate`, commit the SQL file. Make sure the new migration's `when` in `drizzle/meta/_journal.json` is later than the previous one, and enable RLS on any new table (see `0001`/`0002`). Do not run migrations against a real database without being asked; they must be applied to the Production database for the app to work.
 3. Add or update a Vitest test for any change in `src/lib/` logic.
+
+## Config lives in files, not env vars
+
+Owner's instruction: this is a fast project and security matters less than speed. Put settings and keys (Resend API key, sender address) **in committed config files** such as `src/config/mail.ts`, not in Vercel env vars. Env vars may still override a file value but are never required. The owner explicitly accepts putting keys in code and accepts the security trade-off, and is switching the repo to **private**. Until the repo is private, a key in git is readable by anyone, so mention that once if you see it is still public.
 
 ## Rules that must not be broken
 
@@ -39,13 +43,13 @@ Keep it simple: everything lives on **`main`**, and Vercel builds from it. This 
 - **No per-person view for employers or HR.** Org views show group means only, hidden below `ORG_MIN_COHORT`.
 - **Minimal data.** Do not add Oura scopes beyond `daily`, heart-rate time series, names, phone numbers or emails to the care view.
 - **Audit.** Any new staff view or consent change writes to `audit_log`.
-- **Secrets.** Never commit real values. Tokens stay encrypted (AES-256-GCM). `.env.example` is the only env file in git. Never put credentials, tokens or other people's contact details in source; read them from env vars or the database.
+- **Secrets.** Never commit real values. Tokens stay encrypted (AES-256-GCM). `.env.example` is the only env file in git. Other people's contact details (e.g. doctor emails) stay in the database, never in source. Keys and settings follow "Config lives in files" above.
 - **`DEMO_AUTH` stays off** anywhere real member data exists.
 - **No health data in URLs, logs or analytics.** Responses stay `no-store`, `X-Frame-Options: DENY`.
 
 ## Feature: "send to my doctors" (member page)
 
-Built on `/member`: a card with two doctor roles (neurologist, family doctor). The member saves each doctor's name and email (table `doctor_contacts`, never in source), clicks "send", reviews the exact message on `/member/send/[role]`, and confirms. The server rebuilds the message from the database (`src/lib/doctor-share.ts`), sends it through Resend (`src/lib/mail.ts`, env `RESEND_API_KEY` and `MAIL_FROM`), and writes `share_to_doctor` to `audit_log` without the content.
+Built on `/member`: a card with two doctor roles (neurologist, family doctor). The member saves each doctor's name and email (table `doctor_contacts`, never in source), clicks "send", reviews the exact message on `/member/send/[role]`, and confirms. The server rebuilds the message from the database (`src/lib/doctor-share.ts`), sends it through Resend (`src/lib/mail.ts`, settings in `src/config/mail.ts`), and writes `share_to_doctor` to `audit_log` without the content.
 
 Rules to keep:
 

@@ -1,9 +1,18 @@
-import { env } from "./env";
+import { MAIL_CONFIG } from "../config/mail";
 
 export type MailResult = { ok: true } | { ok: false; reason: "not_configured" | "failed" };
 
+/** Env vars win over the values in src/config/mail.ts. */
+export function mailSettings(): { apiKey: string; from: string } {
+  return {
+    apiKey: process.env.RESEND_API_KEY || MAIL_CONFIG.resendApiKey,
+    from: process.env.MAIL_FROM || MAIL_CONFIG.mailFrom,
+  };
+}
+
 export function mailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
+  const { apiKey, from } = mailSettings();
+  return Boolean(apiKey && from);
 }
 
 /**
@@ -17,16 +26,17 @@ export async function sendMail(msg: {
   text: string;
 }): Promise<MailResult> {
   if (!mailConfigured()) return { ok: false, reason: "not_configured" };
+  const { apiKey, from } = mailSettings();
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env("RESEND_API_KEY")}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: env("MAIL_FROM"),
+        from,
         to: [msg.to],
         reply_to: msg.replyTo,
         subject: msg.subject,
