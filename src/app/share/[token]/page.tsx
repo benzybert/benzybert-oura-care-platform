@@ -6,7 +6,7 @@ import { ShareGate } from "@/components/doctor-dashboard/share-gate";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { findShareLinkByToken, getMetrics } from "@/lib/queries";
-import { SHARE_OPEN_COOKIE, isShareToken, shareLinkStatus, verifyOpenProof } from "@/lib/share-links";
+import { SHARE_OPEN_COOKIE, isShareToken, shareLinkStatus, sharePath, verifyOpenProof } from "@/lib/share-links";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +45,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         note: link.note,
         expiresAt: link.expiresAt,
         generatedAt: new Date(),
+        pdfHref: `${sharePath(token)}/pdf`,
       }}
     />
   );

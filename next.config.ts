@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The PDF generator reads the self-hosted font files at runtime; make sure serverless bundles carry them.
+  outputFileTracingIncludes: {
+    "/member/**/*": ["./node_modules/@fontsource/ibm-plex-sans-hebrew/files/*-{400,700}-normal.woff"],
+    "/share/**/*": ["./node_modules/@fontsource/ibm-plex-sans-hebrew/files/*-{400,700}-normal.woff"],
+  },
   async headers() {
     return [
       {

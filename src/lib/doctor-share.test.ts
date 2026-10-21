@@ -44,4 +44,20 @@ describe("buildDoctorMessage", () => {
     expect(body).not.toContain("הערה ממני:");
     expect(body).toContain("עוד אין נתונים זמינים.");
   });
+
+  it("adds the dashboard link and the PDF note only when asked", () => {
+    const plain = buildDoctorMessage({ role: "neurologist", doctorName: "ד״ר כהן", days: [d(0)] });
+    expect(plain.body).not.toContain("https://");
+    expect(plain.body).not.toContain("PDF");
+
+    const full = buildDoctorMessage({
+      role: "neurologist",
+      doctorName: "ד״ר כהן",
+      days: [d(0)],
+      dashboardUrl: "https://example.com/share/abc",
+      withPdf: true,
+    });
+    expect(full.body).toContain("https://example.com/share/abc");
+    expect(full.body).toContain("PDF");
+  });
 });

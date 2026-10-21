@@ -18,6 +18,10 @@ export function buildDoctorMessage(opts: {
   days: DayMetric[];
   note?: string;
   n?: number;
+  /** Personal dashboard link. Pass the real URL when sending; the confirmation page passes a placeholder text. */
+  dashboardUrl?: string;
+  /** True when a PDF of the dashboard is attached. */
+  withPdf?: boolean;
 }): DoctorMessage {
   const recent = sortByDay(opts.days).slice(-(opts.n ?? SHARE_DAYS));
   const note = (opts.note ?? "").trim().slice(0, NOTE_MAX_LENGTH);
@@ -30,6 +34,11 @@ export function buildDoctorMessage(opts: {
   ];
 
   if (note) lines.push("הערה ממני:", note, "");
+
+  if (opts.dashboardUrl) {
+    lines.push("דאשבורד עם גרפים ומגמות (נפתח בדפדפן, בלי הרשמה, בלחיצה על \"פתיחה\"):", opts.dashboardUrl, "");
+  }
+  if (opts.withPdf) lines.push("מצורף גם סיכום כקובץ PDF.", "");
 
   if (recent.length === 0) {
     lines.push("עוד אין נתונים זמינים.");

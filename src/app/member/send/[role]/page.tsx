@@ -4,6 +4,7 @@ import { buildDoctorMessage } from "@/lib/doctor-share";
 import { mailConfigured } from "@/lib/mail";
 import { getDoctorContacts, getMemberForUser, getMetrics } from "@/lib/queries";
 import { requireRole } from "@/lib/session";
+import { DEFAULT_SHARE_EXPIRY, DEFAULT_SHARE_WINDOW } from "@/lib/share-links";
 import { DOCTOR_LABELS_HE, DOCTOR_ROLES, type DoctorRole } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,14 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
   const contact = (await getDoctorContacts(member.id))[role];
   if (!contact) redirect("/member?doctor=missing");
 
-  const message = buildDoctorMessage({ role, doctorName: contact.name, days: await getMetrics(member.id) });
+  const message = buildDoctorMessage({
+    role,
+    doctorName: contact.name,
+    days: await getMetrics(member.id),
+    // The real link is created at the moment of sending; it is a new, personal link for this doctor.
+    dashboardUrl: "[כאן יופיע קישור אישי לדאשבורד, שנוצר ברגע השליחה]",
+    withPdf: true,
+  });
   const ready = mailConfigured();
 
   return (
@@ -47,6 +55,14 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
         <div className="row">
           <span className="muted">נושא</span>
           <span>{message.subject}</span>
+        </div>
+        <div className="row">
+          <span className="muted">מצורף</span>
+          <span>סיכום כקובץ PDF </span>
+        </div>
+        <div className="row">
+          <span className="muted">קישור</span>
+          <span>דאשבורד ל-{DEFAULT_SHARE_WINDOW} ימים, תקף {DEFAULT_SHARE_EXPIRY} ימים, אפשר לבטל בכל רגע</span>
         </div>
         <h2>תוכן ההודעה</h2>
         <pre className="preview">{message.body}</pre>

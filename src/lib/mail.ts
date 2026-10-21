@@ -16,7 +16,7 @@ export function mailConfigured(): boolean {
 }
 
 /**
- * Sends one plain-text email through Resend. Content goes in the request body over
+ * Sends one plain-text email (optionally with attachments) through Resend. Content goes in the request body over
  * HTTPS only: never in a URL, a log line or an error message.
  */
 export async function sendMail(msg: {
@@ -24,6 +24,7 @@ export async function sendMail(msg: {
   replyTo?: string;
   subject: string;
   text: string;
+  attachments?: Array<{ filename: string; content: Uint8Array }>;
 }): Promise<MailResult> {
   if (!mailConfigured()) return { ok: false, reason: "not_configured" };
   const { apiKey, from } = mailSettings();
@@ -41,6 +42,14 @@ export async function sendMail(msg: {
         reply_to: msg.replyTo,
         subject: msg.subject,
         text: msg.text,
+        ...(msg.attachments?.length
+          ? {
+              attachments: msg.attachments.map((a) => ({
+                filename: a.filename,
+                content: Buffer.from(a.content).toString("base64"),
+              })),
+            }
+          : {}),
       }),
       cache: "no-store",
     });

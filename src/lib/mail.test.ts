@@ -27,3 +27,29 @@ describe("mailSettings", () => {
     expect(mailConfigured()).toBe(true);
   });
 });
+
+describe("sendMail attachments", () => {
+  it("sends attachments base64-encoded in the Resend request body", async () => {
+    process.env.RESEND_API_KEY = "re_env";
+    process.env.MAIL_FROM = "Me <me@example.com>";
+    let sent: { attachments?: Array<{ filename: string; content: string }> } = {};
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      sent = JSON.parse(String(init?.body));
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    try {
+      const { sendMail } = await import("./mail");
+      const res = await sendMail({
+        to: "a@b.co",
+        subject: "s",
+        text: "t",
+        attachments: [{ filename: "x.pdf", content: new Uint8Array([37, 80, 68, 70]) }],
+      });
+      expect(res).toEqual({ ok: true });
+      expect(sent.attachments).toEqual([{ filename: "x.pdf", content: Buffer.from("%PDF").toString("base64") }]);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});
