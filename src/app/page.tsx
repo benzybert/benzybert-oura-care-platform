@@ -23,58 +23,56 @@ export default async function Home() {
 
   return (
     <>
-      <div className="topbar">
-        <div>
-          <h1>Oura Care</h1>
-          <p className="muted">הצוות הרפואי רואה מגמות ומקבל התראה כשמשהו חריג, בהסכמת המתאמן בלבד.</p>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2>שלוש תצוגות על אותם נתונים</h2>
-        <div className="row">
-          <span>
-            <strong>מתאמן</strong>: הנתונים שלו, תגמולים, שליטה במה משותף ומי ראה.
-          </span>
-        </div>
-        <div className="row">
-          <span>
-            <strong>צוות רפואי</strong>: רק מי ששיתף. מגמות והתראות לבדיקה, לא אבחון.
-          </span>
-        </div>
-        <div className="row">
-          <span>
-            <strong>ארגון</strong>: ממוצעים קבוצתיים אנונימיים, מעל סף מינימלי של משתתפים.
-          </span>
-        </div>
+      <div className="hero">
+        <h1>Oura Care</h1>
+        <p className="muted">
+          מעקב בריאות מבוסס טבעת Oura. הצוות הרפואי רואה מגמות ומקבל התראה כשמשהו חריג, בהסכמת המתאמן בלבד.
+        </p>
       </div>
 
       {signedInAs && (
-        <div className="card links">
-          <Link className="btn" href={HOME[signedInAs]}>
-            להמשך
-          </Link>
-          <LogoutButton />
-        </div>
-      )}
-
-      {demo && (
         <div className="card">
-          <h2>כניסת דמו</h2>
-          <p className="muted">נתונים סינתטיים מ-`npm run db:seed`.</p>
+          <h2>אתם מחוברים</h2>
           <div className="links">
-            <a className="btn" href="/api/demo-login?role=member">
-              כמתאמן
-            </a>
-            <a className="btn" href="/api/demo-login?role=care">
-              כצוות רפואי
-            </a>
-            <a className="btn" href="/api/demo-login?role=org">
-              כארגון
-            </a>
+            <Link className="btn" href={HOME[signedInAs]}>
+              המשך למסך שלי
+            </Link>
+            <LogoutButton />
           </div>
         </div>
       )}
+
+      <div className="role-cards">
+        <div className="card role-card">
+          <h2>מתאמן</h2>
+          <p className="muted">הנתונים שלך, תגמולים, שליטה במה משותף ומי ראה.</p>
+          {demo && (
+            <a className="btn" href="/api/demo-login?role=member">
+              כניסת דמו כמתאמן
+            </a>
+          )}
+        </div>
+        <div className="card role-card">
+          <h2>צוות רפואי</h2>
+          <p className="muted">רק מי ששיתף. מגמות והתראות לבדיקה, לא אבחון.</p>
+          {demo && (
+            <a className="btn secondary" href="/api/demo-login?role=care">
+              כניסת דמו לצוות רפואי
+            </a>
+          )}
+        </div>
+        <div className="card role-card">
+          <h2>ארגון</h2>
+          <p className="muted">ממוצעים קבוצתיים אנונימיים, מעל סף מינימלי של משתתפים.</p>
+          {demo && (
+            <a className="btn secondary" href="/api/demo-login?role=org">
+              כניסת דמו לארגון
+            </a>
+          )}
+        </div>
+      </div>
+
+      {demo && <p className="muted">נתוני הדמו סינתטיים (מ-`npm run db:seed`).</p>}
     </>
   );
 }

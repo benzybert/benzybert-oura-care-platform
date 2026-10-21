@@ -6,7 +6,7 @@ import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { hasActiveConsent } from "@/lib/consent";
 import { todayInIsrael } from "@/lib/dates";
-import { fmtDateTime } from "@/lib/format";
+import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
   getConsentRecords,
@@ -61,6 +61,7 @@ export default async function MemberPage({
     getSelfRewards(member.id),
     searchParams,
   ]);
+  const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
   const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
@@ -74,10 +75,47 @@ export default async function MemberPage({
         <LogoutButton />
       </div>
 
-      {ouraMessage && <div className="card">{ouraMessage}</div>}
-      {doctorMessage && <div className="card">{doctorMessage}</div>}
+      {ouraMessage && (
+        <div className="notice" role="status">
+          {ouraMessage}
+        </div>
+      )}
+      {doctorMessage && (
+        <div className="notice" role="status">
+          {doctorMessage}
+        </div>
+      )}
 
-      <div className="card">
+      {latest && (
+        <section className="today" aria-label={`הנתונים האחרונים, ${fmtDay(latest.day)}`}>
+          <div className="card">
+            <div className="label">ציון שינה</div>
+            <div className="value">{fmt(latest.sleepScore)}</div>
+          </div>
+          <div className="card">
+            <div className="label">מוכנות</div>
+            <div className="value">{fmt(latest.readinessScore)}</div>
+          </div>
+          <div className="card">
+            <div className="label">HRV</div>
+            <div className="value">{fmt(latest.averageHrv, 0)}</div>
+          </div>
+          <div className="card">
+            <div className="label">שעות שינה</div>
+            <div className="value">{fmt(latest.totalSleepHours, 1)}</div>
+          </div>
+        </section>
+      )}
+
+      <nav className="section-nav" aria-label="ניווט בעמוד">
+        <a href="#ring">הטבעת</a>
+        <a href="#data">הנתונים</a>
+        <a href="#goals">התגמולים שלי</a>
+        <a href="#sharing">שיתוף</a>
+        <a href="#doctors">רופאים</a>
+      </nav>
+
+      <div className="card" id="ring">
         <h2>הטבעת</h2>
         {oura ? (
           <div className="row">
@@ -103,14 +141,16 @@ export default async function MemberPage({
         )}
       </div>
 
-      <div className="card">
+      <div className="card" id="data">
         <h2>14 הימים האחרונים</h2>
         <MetricsTable days={metrics} />
       </div>
 
-      <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />
+      <div id="goals">
+        <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />
+      </div>
 
-      <div className="card">
+      <div className="card" id="sharing">
         <h2>מה משותף ועם מי</h2>
         {CONSENT_SCOPES.map((scope) => {
           const active = hasActiveConsent(records, scope);
@@ -133,9 +173,11 @@ export default async function MemberPage({
         })}
       </div>
 
-      <ShareLinkCard links={links} contacts={doctors} />
+      <div id="doctors">
+        <ShareLinkCard links={links} contacts={doctors} />
 
-      <DoctorShareCard contacts={doctors} />
+        <DoctorShareCard contacts={doctors} />
+      </div>
 
       <div className="grid">
         <div className="card stat">
