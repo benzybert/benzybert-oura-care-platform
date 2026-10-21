@@ -300,6 +300,41 @@ export const contextEvents = pgTable("context_events", {
   createdAt: createdAt(),
 });
 
+/**
+ * Outside services the member connected (Instinct, later Slack and iCal). `target` is where actions
+ * go (for Instinct: the member's own Instinct inbox address). It is a contact detail, so it lives
+ * here and never in source. Private to the member.
+ */
+export const integrations = pgTable(
+  "integrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    target: text("target").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("integrations_member_provider_uq").on(t.memberId, t.provider)],
+);
+
+/** One delivered action per member, rule, day and provider: the unique row is the lock against double sends. */
+export const actionDeliveries = pgTable(
+  "action_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    rule: text("rule").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    provider: text("provider").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("action_deliveries_uq").on(t.memberId, t.rule, t.day, t.provider)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",
