@@ -7,6 +7,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
+import {
+  MAX_AUTOMATION_RULES,
+  buildWebhookPayload,
+  fireWebhook,
+  parseRuleForm,
+  ruleStatus,
+} from "@/lib/automations";
 import { COFFEE_CONFIG } from "@/config/coffee";
 import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffee";
 import { encrypt } from "@/lib/crypto";
@@ -16,6 +23,7 @@ import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
   countActiveShareLinks,
+  getAutomationRules,
   findShareLinkByToken,
   getCoffeeClaimDays,
   getDoctorContacts,
@@ -51,7 +59,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims, automationRules, automationRuns } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -503,4 +511,77 @@ export async function claimCoffee(): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "coffee_claim" });
   revalidatePath("/member");
   redirect("/member?coffee=sent");
+}
+
+/** Adds one action-center rule for the signed-in member. */
+export async function saveAutomationRule(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  const rule = parseRuleForm(formData);
+  if (!rule) redirect("/member?action=invalid#actions");
+  const existing = await getAutomationRules(member.id);
+  if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member?action=limit#actions");
+  await getDb().insert(automationRules).values({ memberId: member.id, ...rule });
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_saved" });
+  revalidatePath("/member");
+  redirect("/member?action=saved#actions");
+}
+
+/** Deletes one of the member's own rules (and its run history). */
+export async function deleteAutomationRule(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) return;
+  await getDb()
+    .delete(automationRules)
+    .where(and(eq(automationRules.id, id), eq(automationRules.memberId, member.id)));
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_deleted" });
+  revalidatePath("/member");
+  redirect("/member?action=removed#actions");
+}
+
+/**
+ * Fires one rule's Home Assistant webhook. Member-initiated. The condition is re-checked here
+ * from the database, never trusted from the button, and a unique (rule, day) row stops a
+ * double fire. `test=1` skips the condition and the daily lock so the member can try the wiring.
+ */
+export async function runAutomationRule(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const test = formData.get("test") === "1";
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  const rule = (await getAutomationRules(member.id)).find((r) => r.id === id);
+  if (!rule) redirect("/member?action=missing#actions");
+
+  if (test) {
+    const result = await fireWebhook(rule.webhookId, buildWebhookPayload(rule, true));
+    await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_test" });
+    redirect(`/member?action=${result.ok ? "test_sent" : result.reason}#actions`);
+  }
+
+  const status = ruleStatus(rule, await getMetrics(member.id), todayInIsrael(), rule.ranDays);
+  if (status.state === "ran") redirect("/member?action=already#actions");
+  if (status.state !== "met") redirect("/member?action=not_met#actions");
+
+  const inserted = await getDb()
+    .insert(automationRuns)
+    .values({ ruleId: rule.id, day: status.day })
+    .onConflictDoNothing()
+    .returning({ id: automationRuns.id });
+  const runId = inserted[0]?.id;
+  if (!runId) redirect("/member?action=already#actions");
+
+  const result = await fireWebhook(rule.webhookId, buildWebhookPayload(rule, false));
+  if (!result.ok) {
+    await getDb().delete(automationRuns).where(eq(automationRuns.id, runId));
+    redirect(`/member?action=${result.reason}#actions`);
+  }
+
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_run" });
+  revalidatePath("/member");
+  redirect("/member?action=fired#actions");
 }

@@ -43,6 +43,13 @@
       "when": 1793002800000,
       "tag": "0005_coffee_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793089200000,
+      "tag": "0006_automations",
+      "breakpoints": true
     }
   ]
 }

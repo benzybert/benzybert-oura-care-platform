@@ -91,6 +91,17 @@ Rules to keep:
 - Status is computed on read from `daily_metrics`; only the claim is stored. Claiming re-evaluates on the server.
 - Separate from the platform's bedtime points (`reward_events`, `rewards` consent).
 
+## Feature: "מרכז פעולות" action center (member page)
+
+On `/member`, card `#actions`: the member defines rules on their own Oura data (metric below/above a threshold) that fire a **Home Assistant webhook** (tables `automation_rules`, `automation_runs`, migration `0006`; logic in `src/lib/automations.ts`, UI in `src/components/action-center.tsx`). If Home Assistant is not a good fit, the same webhook works with n8n: only the URL template changes.
+
+Rules to keep:
+
+- Member-only, no consent scope, no staff or org page reads it. Fires only when the member presses the button (no automatic firing yet: the daily cron runs at 03:00, before the night's data exists).
+- The server re-checks the condition from `daily_metrics`; the unique `(rule_id, day)` row in `automation_runs` allows one run per rule per day. A failed webhook deletes that row so the member can retry. "Test" skips both.
+- The webhook URL comes from `src/config/home-assistant.ts` (`webhookUrlTemplate` with `{id}`; env `HOME_ASSISTANT_WEBHOOK_URL` overrides). Members enter only a webhook id (validated `[A-Za-z0-9_-]`), so they cannot point the server at an arbitrary URL. Vercel needs an internet-reachable address (Nabu Casa `https://hooks.nabu.casa/{id}` or a public HA URL).
+- The payload names the rule only, never a health value. Never log the URL or body.
+
 ## Not built yet (do not assume it exists)
 
 Real authentication (only the demo login creates sessions), live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.

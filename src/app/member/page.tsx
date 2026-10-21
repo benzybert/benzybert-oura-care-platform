@@ -1,15 +1,18 @@
 import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
+import { ActionCenter } from "@/components/action-center";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
 import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
+import { automationsConfigured } from "@/lib/automations";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { todayInIsrael } from "@/lib/dates";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
+  getAutomationRules,
   getCoffeeClaimDays,
   getConsentRecords,
   getDoctorContacts,
@@ -43,6 +46,20 @@ const DOCTOR_MESSAGES: Record<string, string> = {
   failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
 };
 
+const ACTION_MESSAGES: Record<string, string> = {
+  saved: "הפעולה נשמרה.",
+  removed: "הפעולה נמחקה.",
+  invalid: "הפרטים לא תקינים. נסו שוב.",
+  limit: "הגעת למספר הפעולות המקסימלי.",
+  missing: "הפעולה לא נמצאה.",
+  fired: "הפעולה נשלחה ל-Home Assistant.",
+  test_sent: "הבדיקה נשלחה ל-Home Assistant.",
+  already: "הפעולה הזאת כבר הופעלה היום.",
+  not_met: "התנאי לא מתקיים כרגע, ולכן לא נשלח כלום.",
+  not_configured: "כתובת Home Assistant עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
+  failed: "השליחה ל-Home Assistant נכשלה. בדקו שהכתובת וה-Webhook ID נכונים ושהשרת נגיש מהאינטרנט.",
+};
+
 const COFFEE_MESSAGES: Record<string, string> = {
   sent: "שלחנו לאימייל שלך קישור לקפה. תהנה ☕",
   already: "כבר קיבלת קפה על הלילה הזה.",
@@ -55,13 +72,13 @@ const COFFEE_MESSAGES: Record<string, string> = {
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; action?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, automations, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -71,12 +88,14 @@ export default async function MemberPage({
     listShareLinks(member.id),
     getSelfRewards(member.id),
     getCoffeeClaimDays(member.id),
+    getAutomationRules(member.id),
     searchParams,
   ]);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
   const coffeeMessage = params.coffee ? COFFEE_MESSAGES[params.coffee] : undefined;
   const coffee = coffeeStatus(metrics, todayInIsrael(), coffeeClaimDays);
+  const actionMessage = params.action ? ACTION_MESSAGES[params.action] : undefined;
   const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
   return (
@@ -97,6 +116,11 @@ export default async function MemberPage({
       {doctorMessage && (
         <div className="notice" role="status">
           {doctorMessage}
+        </div>
+      )}
+      {actionMessage && (
+        <div className="notice" role="status">
+          {actionMessage}
         </div>
       )}
       {coffeeMessage && (
@@ -145,6 +169,7 @@ export default async function MemberPage({
       <nav className="section-nav" aria-label="ניווט בעמוד">
         <a href="#ring">הטבעת</a>
         <a href="#data">הנתונים</a>
+        <a href="#actions">מרכז פעולות</a>
         <a href="#goals">התגמולים שלי</a>
         <a href="#sharing">שיתוף</a>
         <a href="#doctors">רופאים</a>
@@ -180,6 +205,13 @@ export default async function MemberPage({
         <h2>14 הימים האחרונים</h2>
         <MetricsTable days={metrics} />
       </div>
+
+      <ActionCenter
+        rules={automations}
+        metrics={metrics}
+        today={todayInIsrael()}
+        configured={automationsConfigured()}
+      />
 
       <div id="goals">
         <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />
