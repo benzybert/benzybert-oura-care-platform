@@ -25,7 +25,7 @@ docs/               ARCHITECTURE, PRIVACY, SETUP
 
 ## Workflow
 
-Keep it simple: work on **one branch** (`feature/doctor-send` for now). Vercel builds a Preview from whatever is pushed to it, so there is no PR or merge step unless the user asks for one. Never commit to `main` (Production).
+Keep it simple: work on **one branch** (`feature/doctor-send` for now). Vercel builds a Preview from whatever is pushed to it, so there is no PR or merge step unless the user asks for one. This is a fast-moving project: commit and push to the branch without asking for approval. Never commit to `main` (Production).
 
 1. Before pushing: `npm run typecheck && npm test && npm run build`.
 2. Schema change: edit `src/db/schema.ts`, run `npm run db:generate`, commit the SQL file. Make sure the new migration's `when` in `drizzle/meta/_journal.json` is later than the previous one, and enable RLS on any new table (see `0001`/`0002`). Do not run migrations against a real database without being asked; they must be applied to the Preview database for the Preview to work.
