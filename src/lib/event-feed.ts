@@ -1,9 +1,11 @@
-import { and, eq, isNull, like } from "drizzle-orm";
+import { and, eq, isNull, like, sql } from "drizzle-orm";
 import { schema, type Db } from "../db";
 import { DETECTION_RULES, EVENT_FEEDS, MANUAL_EVENTS, type DetectionRule, type ManualEvent } from "../config/events";
+import { ALERT_FEED_URL, ALERT_RULE } from "../config/events";
+import { parseAlertHistory, sirenSignal, type AlertDay } from "./alert-feed";
 import { addDays, todayInIsrael } from "./dates";
 
-const { contextEvents } = schema;
+const { contextEvents, alertDays } = schema;
 
 export type FeedItem = { title: string; description: string };
 
@@ -81,7 +83,52 @@ async function fetchFeed(url: string): Promise<FeedItem[]> {
   return parseRss(await res.text());
 }
 
-export type EventSyncSummary = { feedsOk: number; feedsFailed: number; opened: number; closed: number; manual: number };
+/**
+ * Called after a member page renders. The source only shows its last 50 alerts, which in a heavy
+ * day is a few hours, so waiting for the daily job would lose most of the day. Throttled to one
+ * fetch per 20 minutes across all visitors. Reads and sends no member data.
+ */
+export async function refreshAlertsIfStale(db: Db, now: Date = new Date()): Promise<void> {
+  const [row] = await db.select({ at: sql<string | null>`max(${alertDays.updatedAt})` }).from(alertDays);
+  const last = row?.at ? new Date(row.at).getTime() : 0;
+  if (now.getTime() - last < 20 * 60 * 1000) return;
+  try {
+    await saveAlertDays(db, await fetchAlertDays());
+  } catch {
+    // best effort
+  }
+}
+
+export type EventSyncSummary = {
+  feedsOk: number;
+  feedsFailed: number;
+  opened: number;
+  closed: number;
+  manual: number;
+  alertDays: number | null;
+};
+
+async function fetchAlertDays(): Promise<AlertDay[]> {
+  const res = await fetch(ALERT_FEED_URL, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
+  if (!res.ok) throw new Error(`alerts ${res.status}`);
+  return parseAlertHistory(await res.json());
+}
+
+/** Raises each day's counts, never lowers them: the source only shows a recent window. */
+async function saveAlertDays(db: Db, days: AlertDay[]): Promise<void> {
+  if (days.length === 0) return;
+  await db
+    .insert(alertDays)
+    .values(days)
+    .onConflictDoUpdate({
+      target: alertDays.day,
+      set: {
+        alerts: sql`greatest(excluded.alerts, ${alertDays.alerts})`,
+        areas: sql`greatest(excluded.areas, ${alertDays.areas})`,
+        updatedAt: sql`now()`,
+      },
+    });
+}
 
 /**
  * Daily job. Fetches the feeds, applies the detection rules and mirrors MANUAL_EVENTS.
@@ -92,9 +139,20 @@ export async function syncEvents(
   db: Db,
   now: Date = new Date(),
   load: (url: string) => Promise<FeedItem[]> = fetchFeed,
+  loadAlerts: () => Promise<AlertDay[]> = fetchAlertDays,
 ): Promise<EventSyncSummary> {
   const today = todayInIsrael(now);
-  const summary: EventSyncSummary = { feedsOk: 0, feedsFailed: 0, opened: 0, closed: 0, manual: 0 };
+  const summary: EventSyncSummary = { feedsOk: 0, feedsFailed: 0, opened: 0, closed: 0, manual: 0, alertDays: null };
+
+  let sirens: boolean | null = null;
+  try {
+    const days = await loadAlerts();
+    await saveAlertDays(db, days);
+    summary.alertDays = days.length;
+    sirens = sirenSignal(days, today, ALERT_RULE.sirenDayAreas);
+  } catch {
+    // siren source down: fall back to headlines for the war rule
+  }
 
   const items: FeedItem[] = [];
   for (const url of EVENT_FEEDS) {
@@ -106,8 +164,11 @@ export async function syncEvents(
     }
   }
 
-  if (summary.feedsOk > 0) {
+  if (summary.feedsOk > 0 || sirens !== null) {
     for (const rule of DETECTION_RULES) {
+      const matches =
+        rule.kind === "war" && sirens !== null ? (sirens ? rule.minHeadlines : 0) : summary.feedsOk > 0 ? countMatches(items, rule) : -1;
+      if (matches < 0) continue;
       const [open] = await db
         .select({
           externalId: contextEvents.externalId,
@@ -122,7 +183,7 @@ export async function syncEvents(
           ),
         )
         .limit(1);
-      const change = planRule(rule, countMatches(items, rule), open, today);
+      const change = planRule(rule, matches, open, today);
       if (!change) continue;
       if (change.type === "open") {
         await db

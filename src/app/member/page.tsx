@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
 import { ContextEventsCard } from "@/components/context-events-card";
 import { OnboardingCard } from "@/components/onboarding-card";
@@ -23,12 +24,15 @@ import {
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
+  getAlertDays,
   getRecentEvents,
   getSelfRewards,
   listShareLinks,
   ouraStatus,
   rewardTotal,
 } from "@/lib/queries";
+import { getDb } from "@/db";
+import { refreshAlertsIfStale } from "@/lib/event-feed";
 import { requireRole } from "@/lib/session";
 import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
 
@@ -91,7 +95,8 @@ export default async function MemberPage({
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
   const today = todayInIsrael();
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, delivered, automations, params] = await Promise.all([
+  after(() => refreshAlertsIfStale(getDb()));
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, automations, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -102,6 +107,7 @@ export default async function MemberPage({
     getSelfRewards(member.id),
     getCoffeeClaimDays(member.id),
     getRecentEvents(addDays(today, -90)),
+    getAlertDays(addDays(today, -60)),
     getDeliveredActions(member.id, "whatsapp"),
     getAutomationRules(member.id),
     searchParams,
@@ -242,7 +248,7 @@ export default async function MemberPage({
         <MetricsTable days={metrics} showStress />
       </div>
 
-      <ContextEventsCard events={events} metrics={metrics} today={today} />
+      <ContextEventsCard events={events} metrics={metrics} today={today} alertDays={alertDays} />
 
       <ActionCenter
         rules={automations}

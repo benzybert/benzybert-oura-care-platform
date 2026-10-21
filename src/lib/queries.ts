@@ -25,6 +25,7 @@ const {
   actionDeliveries,
   automationRules,
   automationRuns,
+  alertDays,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -326,4 +327,13 @@ export async function getAutomationRules(memberId: string): Promise<AutomationRu
     webhookId: r.webhookId,
     ranDays: runs.filter((x) => x.ruleId === r.id).map((x) => x.day),
   }));
+}
+
+/** Public siren counts per day since `sinceDay`, oldest first. No member data. */
+export async function getAlertDays(sinceDay: string): Promise<Array<{ day: string; alerts: number; areas: number }>> {
+  return getDb()
+    .select({ day: alertDays.day, alerts: alertDays.alerts, areas: alertDays.areas })
+    .from(alertDays)
+    .where(sql`${alertDays.day} >= ${sinceDay}`)
+    .orderBy(asc(alertDays.day));
 }

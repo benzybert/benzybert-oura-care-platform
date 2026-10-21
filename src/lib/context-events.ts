@@ -196,3 +196,42 @@ export function eventsOverlapping(events: ContextEvent[], from: string, to: stri
     .filter((e) => e.startsOn <= to && (e.endsOn === null || e.endsOn >= from))
     .sort((a, b) => (a.startsOn < b.startsOn ? 1 : -1));
 }
+
+export type SirenEffect = {
+  sirenDays: number;
+  otherDays: number;
+  stress: { siren: number; other: number } | null;
+  /** sleep of the morning after (Oura files a night under the day you wake up) */
+  sleep: { siren: number; other: number } | null;
+};
+
+/** The member's own numbers on siren days vs other days. Needs 3 days on each side. */
+export function sirenEffect(
+  metrics: DayMetric[],
+  alertDays: Array<{ day: string; areas: number }>,
+  sirenDayAreas: number,
+): SirenEffect | null {
+  const siren = new Set(alertDays.filter((a) => a.areas >= sirenDayAreas).map((a) => a.day));
+  const known = new Set(alertDays.map((a) => a.day));
+  const byDay = new Map(metrics.map((m) => [m.day, m]));
+  const split = (pick: (day: string) => number | null | undefined, days: string[]) =>
+    days.map(pick).filter((x): x is number => x !== null && x !== undefined);
+
+  // only days the alert history covers, so a gap in our records is not read as a quiet day
+  const sirenList = [...siren].filter((d) => byDay.has(d));
+  const otherList = [...known].filter((d) => !siren.has(d) && byDay.has(d));
+  if (sirenList.length < 3 || otherList.length < 3) return null;
+
+  const pair = (a: number[], b: number[]) =>
+    a.length >= 3 && b.length >= 3 ? { siren: mean(a) as number, other: mean(b) as number } : null;
+  const stress = pair(
+    split((d) => byDay.get(d)?.stressMinutes, sirenList),
+    split((d) => byDay.get(d)?.stressMinutes, otherList),
+  );
+  const sleep = pair(
+    split((d) => byDay.get(addDays(d, 1))?.totalSleepHours, sirenList),
+    split((d) => byDay.get(addDays(d, 1))?.totalSleepHours, otherList),
+  );
+  if (!stress && !sleep) return null;
+  return { sirenDays: sirenList.length, otherDays: otherList.length, stress, sleep };
+}

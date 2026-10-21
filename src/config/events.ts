@@ -49,6 +49,21 @@ export const DETECTION_RULES: DetectionRule[] = [
   },
 ];
 
+/**
+ * Siren-based detection (preferred for the war event; headlines are the fallback if the siren
+ * source is down). Source: api.tzevaadom.co.il, an unofficial mirror: the official oref.org.il
+ * endpoints answer 403 to servers outside Israel (checked from Vercel). It may change or vanish.
+ */
+export const ALERT_FEED_URL = "https://api.tzevaadom.co.il/alerts-history";
+
+export const ALERT_RULE = {
+  /** a day with at least this many alerted localities counts as a siren day */
+  sirenDayAreas: 20,
+  /** national pressure level from the busiest of the last 3 days */
+  tenseAreas: 5,
+  intenseAreas: 40,
+};
+
 export type ManualEvent = {
   /** stable id, never reuse */
   id: string;

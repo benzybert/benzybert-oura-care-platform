@@ -64,6 +64,13 @@
       "when": 1793262000000,
       "tag": "0008_automations",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793348400000,
+      "tag": "0009_alert_days",
+      "breakpoints": true
     }
   ]
 }

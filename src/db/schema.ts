@@ -374,6 +374,20 @@ export const automationRuns = pgTable(
   (t) => [unique("automation_runs_rule_day").on(t.ruleId, t.day)],
 );
 
+/**
+ * Public siren counts per Israel day (all of Israel, no member data). Fed by the daily job from a
+ * third-party mirror of the Home Front Command alerts (src/lib/alert-feed.ts). A day is only ever
+ * raised, never lowered, because the source shows a limited window.
+ */
+export const alertDays = pgTable("alert_days", {
+  day: date("day", { mode: "string" }).primaryKey(),
+  /** alert events that day, drills excluded */
+  alerts: integer("alerts").notNull(),
+  /** distinct localities alerted that day */
+  areas: integer("areas").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",
