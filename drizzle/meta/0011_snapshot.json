@@ -1,5 +1,5 @@
 {
-  "id": "eb2ff95a-73c0-49f9-880c-b9c68231fcdb",
+  "id": "e09da838-23c0-4411-ac3c-a919f92914a9",
   "prevId": "3dc51b1a-dd7e-4900-be96-d816bc5e91fa",
   "version": "7",
   "dialect": "postgresql",
@@ -372,6 +372,19 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'home_assistant'"
+        },
+        "webhook_key_enc": {
+          "name": "webhook_key_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -836,126 +849,6 @@
         "stress_summary": {
           "name": "stress_summary",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deep_sleep_minutes": {
-          "name": "deep_sleep_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "light_sleep_minutes": {
-          "name": "light_sleep_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rem_sleep_minutes": {
-          "name": "rem_sleep_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "awake_minutes": {
-          "name": "awake_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "time_in_bed_minutes": {
-          "name": "time_in_bed_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sleep_efficiency": {
-          "name": "sleep_efficiency",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sleep_latency_minutes": {
-          "name": "sleep_latency_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "restless_periods": {
-          "name": "restless_periods",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "average_breath": {
-          "name": "average_breath",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "average_heart_rate": {
-          "name": "average_heart_rate",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bedtime_end_minute": {
-          "name": "bedtime_end_minute",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "temperature_deviation": {
-          "name": "temperature_deviation",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sleep_contributors": {
-          "name": "sleep_contributors",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "readiness_contributors": {
-          "name": "readiness_contributors",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "active_calories": {
-          "name": "active_calories",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "active_minutes": {
-          "name": "active_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sedentary_minutes": {
-          "name": "sedentary_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "hypnogram": {
-          "name": "hypnogram",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "night_heart_rate": {
-          "name": "night_heart_rate",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "night_hrv": {
-          "name": "night_hrv",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

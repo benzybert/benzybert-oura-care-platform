@@ -361,7 +361,7 @@ export const actionDeliveries = pgTable(
 
 /**
  * "Action center" rules: when a metric crosses a threshold, the member can fire a Home Assistant
- * webhook. Private to the member: no staff or org query reads these tables, and the webhook
+ * or IFTTT webhook. Private to the member: no staff or org query reads these tables, and the webhook
  * carries no health values.
  */
 export const automationRules = pgTable(
@@ -377,8 +377,12 @@ export const automationRules = pgTable(
     /** "below" or "above" */
     comparator: text("comparator").notNull(),
     threshold: real("threshold").notNull(),
-    /** the Home Assistant webhook id; the base URL lives in src/config/home-assistant.ts */
+    /** the Home Assistant webhook id (base URL in src/config/home-assistant.ts), or the IFTTT event name */
     webhookId: text("webhook_id").notNull(),
+    /** "home_assistant" | "ifttt" */
+    provider: text("provider").notNull().default("home_assistant"),
+    /** the member's IFTTT Webhooks key, AES-256-GCM like the Oura tokens; null for Home Assistant */
+    webhookKeyEnc: text("webhook_key_enc"),
     createdAt: createdAt(),
   },
   (t) => [index("automation_rules_member_idx").on(t.memberId)],
