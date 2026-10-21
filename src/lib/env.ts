@@ -5,9 +5,7 @@ export type EnvName =
   | "OURA_REDIRECT_URI"
   | "TOKEN_ENCRYPTION_KEY"
   | "SESSION_SECRET"
-  | "CRON_SECRET"
-  | "RESEND_API_KEY"
-  | "MAIL_FROM";
+  | "CRON_SECRET";
 
 /** Read a required env var lazily, so `next build` works without secrets. */
 export function env(name: EnvName): string {

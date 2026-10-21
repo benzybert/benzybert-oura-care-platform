@@ -55,7 +55,7 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
       {!ready && (
         <div className="card">
           <span className="badge">שליחת מייל עוד לא הוגדרה בשרת</span>
-          <p className="muted">צריך להגדיר RESEND_API_KEY ו-MAIL_FROM (ראה docs/SETUP.md). עד אז אי אפשר לשלוח.</p>
+          <p className="muted">צריך להדביק מפתח Resend בקובץ src/config/mail.ts. עד אז אי אפשר לשלוח.</p>
         </div>
       )}
 
