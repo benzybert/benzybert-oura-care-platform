@@ -2,22 +2,43 @@
 
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
+import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
+  countActiveShareLinks,
+  findShareLinkByToken,
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
   logAudit,
   membersWithConsent,
+  recordShareView,
 } from "@/lib/queries";
-import { requireRole } from "@/lib/session";
+import { cookieOptions, requireRole } from "@/lib/session";
+import {
+  MAX_ACTIVE_SHARE_LINKS,
+  SHARE_EXPIRY_OPTIONS,
+  SHARE_NAME_MAX,
+  SHARE_NOTE_MAX,
+  SHARE_OPEN_COOKIE,
+  SHARE_OPEN_TTL_MS,
+  SHARE_WINDOW_OPTIONS,
+  addDaysTo,
+  createOpenProof,
+  hashShareToken,
+  isShareToken,
+  newShareToken,
+  sharePath,
+  shareLinkStatus,
+} from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -176,4 +197,127 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_to_doctor", scope: role });
   revalidatePath("/member");
   redirect(`/member?doctor=sent_${role}`);
+}
+
+export type CreateShareLinkState =
+  | null
+  | { ok: true; path: string; windowDays: number; expiresAt: string }
+  | { ok: false; error: string };
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => (v === "" ? null : v));
+
+const shareLinkSchema = z.object({
+  recipient: z.enum(["family_doctor", "neurologist", "other"]),
+  recipientName: optionalText(SHARE_NAME_MAX),
+  patientName: optionalText(SHARE_NAME_MAX),
+  note: optionalText(SHARE_NOTE_MAX),
+  windowDays: z.coerce.number().refine((n) => (SHARE_WINDOW_OPTIONS as readonly number[]).includes(n)),
+  expiryDays: z.coerce.number().refine((n) => (SHARE_EXPIRY_OPTIONS as readonly number[]).includes(n)),
+});
+
+/**
+ * Member creates a read-only dashboard link for a doctor. Nothing is sent anywhere: the member
+ * gets the link back and decides how to pass it on. Only the token's hash is used for lookup;
+ * the token is also stored encrypted so the member can copy the link again later.
+ */
+export async function createShareLink(
+  _prev: CreateShareLinkState,
+  formData: FormData,
+): Promise<CreateShareLinkState> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) return { ok: false, error: "לא נמצא פרופיל מתאמן." };
+
+  const parsed = shareLinkSchema.safeParse({
+    recipient: formData.get("recipient"),
+    recipientName: String(formData.get("recipientName") ?? ""),
+    patientName: String(formData.get("patientName") ?? ""),
+    note: String(formData.get("note") ?? ""),
+    windowDays: formData.get("windowDays"),
+    expiryDays: formData.get("expiryDays"),
+  });
+  if (!parsed.success) return { ok: false, error: "חלק מהשדות לא תקינים. בדקו ונסו שוב." };
+  const input = parsed.data;
+
+  if ((await countActiveShareLinks(member.id)) >= MAX_ACTIVE_SHARE_LINKS) {
+    return { ok: false, error: `יש כבר ${MAX_ACTIVE_SHARE_LINKS} קישורים פעילים. בטלו אחד ונסו שוב.` };
+  }
+
+  const role = input.recipient === "other" ? null : input.recipient;
+  // A saved doctor's name wins, so the header always matches the member's own address book.
+  const saved = role ? (await getDoctorContacts(member.id))[role] : undefined;
+  const recipientLabel = saved?.name ?? input.recipientName;
+
+  const token = newShareToken();
+  let tokenEnc: string;
+  try {
+    tokenEnc = encrypt(token);
+  } catch {
+    return { ok: false, error: "השרת עוד לא הוגדר ליצירת קישורים (חסר מפתח הצפנה)." };
+  }
+  const expiresAt = addDaysTo(new Date(), input.expiryDays);
+
+  await getDb().insert(shareLinks).values({
+    memberId: member.id,
+    tokenHash: hashShareToken(token),
+    tokenEnc,
+    recipientRole: role,
+    recipientLabel,
+    patientName: input.patientName,
+    note: input.note,
+    windowDays: input.windowDays,
+    expiresAt,
+  });
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_created", scope: role ?? "share_link" });
+  revalidatePath("/member");
+
+  return { ok: true, path: sharePath(token), windowDays: input.windowDays, expiresAt: expiresAt.toISOString() };
+}
+
+/** Member revokes one of their own links. Takes effect on the doctor's next page load. */
+export async function revokeShareLink(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) return;
+  const id = z.uuid().parse(formData.get("id"));
+
+  const [row] = await getDb()
+    .update(shareLinks)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(shareLinks.id, id), eq(shareLinks.memberId, member.id), isNull(shareLinks.revokedAt)))
+    .returning({ role: shareLinks.recipientRole });
+  if (row) {
+    await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_revoked", scope: row.role ?? "share_link" });
+  }
+  revalidatePath("/member");
+}
+
+/**
+ * The doctor presses "open" on the share page. This is a POST on purpose: link previews in
+ * WhatsApp, Telegram or mail only GET the page, so they never receive health data and never
+ * count as a view. Records the view (shown to the member) and lets this browser in for 2 hours.
+ */
+export async function openShareLink(formData: FormData): Promise<void> {
+  const token = formData.get("token");
+  if (!isShareToken(token)) redirect("/");
+
+  const link = await findShareLinkByToken(token);
+  if (!link || shareLinkStatus(link) !== "active") redirect(sharePath(token));
+
+  const jar = await cookies();
+  // Path-scoped to this one link, so it is never sent anywhere else on the site.
+  jar.set(SHARE_OPEN_COOKIE, createOpenProof(link.id), cookieOptions(SHARE_OPEN_TTL_MS / 1000, sharePath(token)));
+  await recordShareView(link.id);
+  await logAudit({
+    actorUserId: null,
+    memberId: link.memberId,
+    action: "share_link_viewed",
+    scope: link.recipientRole ?? "share_link",
+  });
+  redirect(sharePath(token));
 }

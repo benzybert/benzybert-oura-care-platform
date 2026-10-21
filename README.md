@@ -7,6 +7,7 @@ Member health platform built on the Oura ring, with three views over the same da
 | Member | `/member` | the member | own metrics, rewards, what is shared, who looked |
 | Care team | `/care` | assigned nurse / doctor | only members who consented: trends, alerts to review |
 | Organization | `/org` | employer / provider admin | anonymous group means, hidden below a minimum group size |
+| Doctor link | `/share/<token>` | a doctor the member sent a link to | read-only dashboard of the member's last 30/60/90 days, until the link expires or is revoked |
 
 There is deliberately **no** per-person view for HR or employers. See [docs/PRIVACY.md](docs/PRIVACY.md).
 

@@ -10,8 +10,15 @@ export function fmtDay(day: string): string {
   });
 }
 
+/**
+ * "21.10.2026 בשעה 13:15". Not toLocaleString's "21.10.2026, 13:15": inside RTL text the comma
+ * between two numbers makes the bidi algorithm show the time first.
+ */
 export function fmtDateTime(d: Date): string {
-  return d.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" });
+  const tz = "Asia/Jerusalem";
+  const date = d.toLocaleDateString("he-IL", { timeZone: tz, day: "numeric", month: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString("he-IL", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${date} בשעה ${time}`;
 }
 
 export function signed(n: number | null, digits = 1): string {

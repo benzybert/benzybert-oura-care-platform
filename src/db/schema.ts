@@ -175,6 +175,39 @@ export const doctorContacts = pgTable(
   (t) => [unique("doctor_contacts_member_role_uq").on(t.memberId, t.role)],
 );
 
+/**
+ * Read-only dashboard links the member creates for a doctor. The link carries a random
+ * 256-bit token; only its SHA-256 hash is used for lookup. The token itself is also kept
+ * encrypted (AES-256-GCM) so the member can copy the link again. A link shows the member's
+ * last `window_days` days, works until `expires_at`, and dies at once when revoked.
+ * It is the member's own sharing: it does not read or widen any consent scope.
+ */
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenEnc: text("token_enc").notNull(),
+    /** which of the member's doctors it was made for; null = someone else */
+    recipientRole: doctorRoleEnum("recipient_role"),
+    /** shown on the dashboard header, e.g. the doctor's name; entered by the member */
+    recipientLabel: text("recipient_label"),
+    /** the name the member chose to show the doctor; optional */
+    patientName: text("patient_name"),
+    note: text("note"),
+    windowDays: integer("window_days").notNull(),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    viewCount: integer("view_count").notNull().default(0),
+    lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
+  },
+  (t) => [index("share_links_member_idx").on(t.memberId, t.createdAt)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",

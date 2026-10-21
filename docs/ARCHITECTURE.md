@@ -25,7 +25,9 @@
 | `daily_metrics` | one row per member per day, Oura-shaped; `source` is `oura` or `demo` |
 | `alerts` | rule hits for review; only created for members with active `care_team` consent |
 | `reward_events` | points, idempotent per member, kind and week |
-| `audit_log` | every staff view and every consent change |
+| `doctor_contacts` | the member's own doctors (name, email), used only for sends the member confirms |
+| `share_links` | read-only doctor dashboard links: token **hash** for lookup, token encrypted for re-copying, window, expiry, revocation, view count |
+| `audit_log` | every staff view, every consent change, every share-link create / open / revoke |
 
 Consent scopes: `care_team`, `org_aggregate`, `rewards`. One scope never implies another.
 
@@ -38,6 +40,9 @@ Consent scopes: `care_team`, `org_aggregate`, `rewards`. One scope never implies
 | see a member's summary | no | only if assigned **and** `care_team` consent active | never |
 | acknowledge an alert | no | only for assigned, consenting members (re-checked server-side) | no |
 | see group means | no | no | yes, and only when enough members consented |
+| create / revoke a doctor dashboard link | own only | no | no |
+
+A doctor opening a share link has no account: the link's token is the only key, and it is checked on every request.
 
 Every page re-checks the role on the server (`requireRole`). Server actions re-check ownership and consent; the UI is never the gatekeeper.
 
@@ -69,6 +74,18 @@ These are simple triage signals, not diagnoses. A rule that is already open for 
 
 Points are paid for **consistency** (bedtime within 45 minutes of the member's weekly median on at least 5 nights of a Sunday to Saturday week), not for a high score. 10 points per qualifying week, once per week.
 
+## Doctor dashboard links
+
+The member creates a link on `/member` (who it is for, optional name and note, 30/60/90 days of data, valid 7/14/30 days) and can preview exactly what the doctor will see on `/member/share/preview`. Nothing is sent: the member copies or shares the link themselves.
+
+1. `createShareLink` makes 32 random bytes (base64url, 43 chars). The database keeps `sha256(token)` for lookup and `encrypt(token)` (AES-256-GCM, `TOKEN_ENCRYPTION_KEY`) so the member can copy the link again. At most 10 active links per member.
+2. `GET /share/<token>` re-checks the link on every request (exists, not revoked, not expired). Without an "opened" cookie it shows a gate with **no health data and no name**, so WhatsApp / Telegram / mail link previews get nothing personal.
+3. The doctor presses "open" (a POST, `openShareLink`): the view is counted on the link, written to `audit_log` as `share_link_viewed` (no actor), and a signed cookie scoped to that one link's path lets this browser view the dashboard for 2 hours.
+4. The dashboard is server-rendered from `src/lib/doctor-dashboard.ts` (pure, tested): KPI tiles (last 7 days vs. the first 7 days of the window), findings with the same thresholds as the alert rules, 7 trend charts (inline SVG, no chart library), weekly and daily tables, definitions, print / PDF layout. Only the window's data reaches the browser.
+5. Revoking sets `revoked_at`; the next request gets the same "link not active" page as an unknown token (404).
+
+It is the member's own sharing: it does not read `care_team` consent or alerts, and it does not widen any scope.
+
 ## Environments
 
 `main` is Production, `dev` is the Preview environment with its own database. See [SETUP.md](SETUP.md).
@@ -80,6 +97,7 @@ Points are paid for **consistency** (bedtime within 45 minutes of the member's w
 - **Notifications** for alerts (care manager by email / WhatsApp), with the same consent checks.
 - **Rolling baseline** instead of the fixed first week, once members are enrolled for months.
 - **Data export / deletion** and a retention period.
+- **Share links**: no second factor (the URL is the key). If needed, add an access code sent separately, or tie links to a doctor's verified email.
 - **Integrations**: member and appointment data from the partner's own apps. No public Maccabi API was found; the realistic route is the partner's existing apps.
 - **Rate limiting** on the API routes and a Content-Security-Policy.
 - **Migrations in CI/CD** (today `npm run db:migrate` is run by hand against each environment).

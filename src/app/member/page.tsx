@@ -2,6 +2,7 @@ import { disconnectOura, setConsent } from "@/app/actions";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
+import { ShareLinkCard } from "@/components/share-link-card";
 import { hasActiveConsent } from "@/lib/consent";
 import { fmtDateTime } from "@/lib/format";
 import {
@@ -10,6 +11,7 @@ import {
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
+  listShareLinks,
   ouraStatus,
   rewardTotal,
 } from "@/lib/queries";
@@ -45,13 +47,14 @@ export default async function MemberPage({
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, doctors, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
     ouraStatus(member.id),
     accessLogFor(member.id),
     getDoctorContacts(member.id),
+    listShareLinks(member.id),
     searchParams,
   ]);
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
@@ -123,6 +126,8 @@ export default async function MemberPage({
           );
         })}
       </div>
+
+      <ShareLinkCard links={links} contacts={doctors} />
 
       <DoctorShareCard contacts={doctors} />
 

@@ -28,3 +28,6 @@ CREATE POLICY "oura_app full access" ON public.organizations FOR ALL TO oura_app
 CREATE POLICY "oura_app full access" ON public.oura_connections FOR ALL TO oura_app USING (true) WITH CHECK (true);
 CREATE POLICY "oura_app full access" ON public.reward_events FOR ALL TO oura_app USING (true) WITH CHECK (true);
 CREATE POLICY "oura_app full access" ON public.users FOR ALL TO oura_app USING (true) WITH CHECK (true);
+-- Added later (0002, 0003). Migration 0003 also creates these two when the role already exists.
+CREATE POLICY "oura_app full access" ON public.doctor_contacts FOR ALL TO oura_app USING (true) WITH CHECK (true);
+CREATE POLICY "oura_app full access" ON public.share_links FOR ALL TO oura_app USING (true) WITH CHECK (true);

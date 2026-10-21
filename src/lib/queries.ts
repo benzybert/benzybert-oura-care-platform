@@ -1,6 +1,8 @@
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
+import { decrypt } from "./crypto";
+import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
 import type { ConsentScope, DayMetric, DoctorRole } from "./types";
 
 const {
@@ -14,6 +16,7 @@ const {
   users,
   ouraConnections,
   doctorContacts,
+  shareLinks,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -132,11 +135,12 @@ export async function accessLogFor(memberId: string, limit = 10) {
 }
 
 export async function logAudit(entry: {
-  actorUserId: string;
+  /** null for someone without an account, e.g. a doctor opening a share link */
+  actorUserId: string | null;
   memberId?: string | null;
   action: string;
-  /** a consent scope, or the doctor role for "share_to_doctor" entries */
-  scope?: ConsentScope | DoctorRole | null;
+  /** a consent scope, the doctor role for doctor sends and share links, or "share_link" */
+  scope?: ConsentScope | DoctorRole | "share_link" | null;
 }) {
   await getDb().insert(auditLog).values({
     actorUserId: entry.actorUserId,
@@ -144,4 +148,81 @@ export async function logAudit(entry: {
     action: entry.action,
     scope: entry.scope ?? null,
   });
+}
+
+export type ShareLink = typeof shareLinks.$inferSelect;
+
+export type ShareLinkListItem = {
+  id: string;
+  status: ShareLinkStatus;
+  recipientRole: DoctorRole | null;
+  recipientLabel: string | null;
+  patientName: string | null;
+  windowDays: number;
+  createdAt: Date;
+  expiresAt: Date;
+  viewCount: number;
+  lastViewedAt: Date | null;
+  /** "/share/<token>" for active links whose token can be decrypted, else null */
+  path: string | null;
+};
+
+/** The member's own links, newest first. Only ever called with the signed-in member's id. */
+export async function listShareLinks(memberId: string, limit = 8): Promise<ShareLinkListItem[]> {
+  const rows = await getDb()
+    .select()
+    .from(shareLinks)
+    .where(eq(shareLinks.memberId, memberId))
+    .orderBy(desc(shareLinks.createdAt))
+    .limit(limit);
+  const now = new Date();
+  return rows.map((r) => {
+    const status = shareLinkStatus(r, now);
+    let path: string | null = null;
+    if (status === "active") {
+      try {
+        path = sharePath(decrypt(r.tokenEnc));
+      } catch {
+        path = null; // key rotated: the link still works, it just cannot be shown again
+      }
+    }
+    return {
+      id: r.id,
+      status,
+      recipientRole: r.recipientRole,
+      recipientLabel: r.recipientLabel,
+      patientName: r.patientName,
+      windowDays: r.windowDays,
+      createdAt: r.createdAt,
+      expiresAt: r.expiresAt,
+      viewCount: r.viewCount,
+      lastViewedAt: r.lastViewedAt,
+      path,
+    };
+  });
+}
+
+export async function countActiveShareLinks(memberId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(shareLinks)
+    .where(and(eq(shareLinks.memberId, memberId), isNull(shareLinks.revokedAt), gt(shareLinks.expiresAt, new Date())));
+  return row?.n ?? 0;
+}
+
+/** Looks a link up by its token (via the hash). Returns it whatever its status; callers check. */
+export async function findShareLinkByToken(token: string): Promise<ShareLink | null> {
+  const [row] = await getDb()
+    .select()
+    .from(shareLinks)
+    .where(eq(shareLinks.tokenHash, hashShareToken(token)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function recordShareView(linkId: string): Promise<void> {
+  await getDb()
+    .update(shareLinks)
+    .set({ viewCount: sql`${shareLinks.viewCount} + 1`, lastViewedAt: new Date() })
+    .where(eq(shareLinks.id, linkId));
 }

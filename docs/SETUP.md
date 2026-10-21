@@ -35,6 +35,8 @@ DATABASE_URL="postgres://postgres...." npm run db:migrate
 
 Seed synthetic data **only** into the dev database: `npm run db:seed`.
 
+Pending on the dev database as of this branch: `0002_doctor_contacts` and `0003_share_links` (0003 also adds the `oura_app` policies that 0002 left out). Without them `/member` fails on the Preview.
+
 ## 4. Oura application
 
 1. Register an application at developer.ouraring.com (OAuth2).
