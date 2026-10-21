@@ -18,6 +18,7 @@ const {
   doctorContacts,
   shareLinks,
   selfRewards,
+  coffeeClaims,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -247,4 +248,13 @@ export async function recordShareView(linkId: string): Promise<void> {
     .update(shareLinks)
     .set({ viewCount: sql`${shareLinks.viewCount} + 1`, lastViewedAt: new Date() })
     .where(eq(shareLinks.id, linkId));
+}
+
+/** Days (YYYY-MM-DD) the member already claimed a coffee for. */
+export async function getCoffeeClaimDays(memberId: string): Promise<string[]> {
+  const rows = await getDb()
+    .select({ day: coffeeClaims.day })
+    .from(coffeeClaims)
+    .where(eq(coffeeClaims.memberId, memberId));
+  return rows.map((r) => r.day);
 }
