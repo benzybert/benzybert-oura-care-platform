@@ -68,14 +68,6 @@ p {
   color: var(--muted);
 }
 
-.demo-banner {
-  background: var(--warn-bg);
-  color: var(--warn-text);
-  text-align: center;
-  padding: 6px 12px;
-  font-size: 0.9rem;
-}
-
 .topbar {
   display: flex;
   justify-content: space-between;
