@@ -12,6 +12,7 @@ import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffe
 import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
+import { buildInstinctMessage, suggestActions } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
@@ -51,7 +52,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims, integrations, actionDeliveries } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -503,4 +504,78 @@ export async function claimCoffee(): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "coffee_claim" });
   revalidatePath("/member");
   redirect("/member?coffee=sent");
+}
+
+/** Member saves the Instinct inbox address that receives their actions. */
+export async function connectInstinct(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  const parsed = z.string().trim().toLowerCase().email().max(200).safeParse(formData.get("target"));
+  if (!parsed.success) redirect("/member?integration=invalid#integrations");
+
+  await getDb()
+    .insert(integrations)
+    .values({ memberId: member.id, provider: "instinct", target: parsed.data })
+    .onConflictDoUpdate({ target: [integrations.memberId, integrations.provider], set: { target: parsed.data } });
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "integration_connected", scope: "instinct" });
+  revalidatePath("/member");
+  redirect("/member?integration=connected#integrations");
+}
+
+export async function disconnectInstinct(): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  await getDb()
+    .delete(integrations)
+    .where(and(eq(integrations.memberId, member.id), eq(integrations.provider, "instinct")));
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "integration_disconnected", scope: "instinct" });
+  revalidatePath("/member");
+  redirect("/member?integration=removed#integrations");
+}
+
+/**
+ * Member taps "send to Instinct" on one suggested action. The server recomputes the suggestions
+ * from the database (the form only names the rule), so the content cannot be forged, and the
+ * unique delivery row stops a double send. No health data is in the message or the audit entry.
+ */
+export async function sendActionToInstinct(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  const rule = z.enum(["low_sleep", "low_readiness", "low_hrv"]).safeParse(formData.get("rule"));
+  if (!rule.success) redirect("/member?integration=invalid#integrations");
+
+  const connected = (await getDb()
+    .select({ target: integrations.target })
+    .from(integrations)
+    .where(and(eq(integrations.memberId, member.id), eq(integrations.provider, "instinct")))
+    .limit(1))[0];
+  if (!connected) redirect("/member?integration=not_connected#integrations");
+
+  const action = suggestActions(await getMetrics(member.id), todayInIsrael()).find((a) => a.rule === rule.data);
+  if (!action) redirect("/member?integration=gone#integrations");
+
+  const inserted = await getDb()
+    .insert(actionDeliveries)
+    .values({ memberId: member.id, rule: action.rule, day: action.day, provider: "instinct" })
+    .onConflictDoNothing()
+    .returning({ id: actionDeliveries.id });
+  const deliveryId = inserted[0]?.id;
+  if (!deliveryId) redirect("/member?integration=already#integrations");
+
+  const message = buildInstinctMessage(action);
+  const result = await sendMail({ to: connected.target, replyTo: user.email, subject: message.subject, text: message.body });
+  if (!result.ok) {
+    await getDb().delete(actionDeliveries).where(eq(actionDeliveries.id, deliveryId));
+    redirect(`/member?integration=${result.reason === "not_configured" ? "mail_not_configured" : "failed"}#integrations`);
+  }
+
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_sent", scope: "instinct" });
+  revalidatePath("/member");
+  redirect("/member?integration=sent#integrations");
 }
