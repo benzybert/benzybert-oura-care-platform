@@ -103,14 +103,16 @@ Card on `/member` that puts public events (war, pandemic, disaster) next to the 
 
 ## Feature: "מרכז פעולות" action center (member page)
 
-On `/member`, card `#actions`: the member defines rules on their own Oura data (metric below/above a threshold) that fire a **Home Assistant webhook** (tables `automation_rules`, `automation_runs`, migration `0008`; logic in `src/lib/automations.ts`, UI in `src/components/action-center.tsx`). If Home Assistant is not a good fit, the same webhook works with n8n: only the URL template changes.
+On `/member`, card `#actions`: the member defines rules on their own Oura data (metric below/above a threshold) that fire a **webhook**, to either **Home Assistant** or **IFTTT** (tables `automation_rules`, `automation_runs`, migrations `0008` and `0011`; logic in `src/lib/automations.ts`, UI in `src/components/action-center.tsx`). Each rule has a `provider`. n8n also works through the Home Assistant path: only the URL template changes.
 
 Rules to keep:
 
 - Member-only, no consent scope, no staff or org page reads it. Fires only when the member presses the button (no automatic firing yet: the daily cron runs at 03:00, before the night's data exists).
 - The server re-checks the condition from `daily_metrics`; the unique `(rule_id, day)` row in `automation_runs` allows one run per rule per day. A failed webhook deletes that row so the member can retry. "Test" skips both.
-- The webhook URL comes from `src/config/home-assistant.ts` (`webhookUrlTemplate` with `{id}`; env `HOME_ASSISTANT_WEBHOOK_URL` overrides). Members enter only a webhook id (validated `[A-Za-z0-9_-]`), so they cannot point the server at an arbitrary URL. Vercel needs an internet-reachable address (Nabu Casa `https://hooks.nabu.casa/{id}` or a public HA URL).
-- The payload names the rule only, never a health value. Never log the URL or body.
+- **Home Assistant:** the URL comes from `src/config/home-assistant.ts` (`webhookUrlTemplate` with `{id}`; env `HOME_ASSISTANT_WEBHOOK_URL` overrides). Members enter only a webhook id (validated `[A-Za-z0-9_-]`), so they cannot point the server at an arbitrary URL. Vercel needs an internet-reachable address (Nabu Casa `https://hooks.nabu.casa/{id}` or a public HA URL). Payload: `buildWebhookPayload`.
+- **IFTTT:** needs no server setup. The host is fixed in `src/config/ifttt.ts` (`https://maker.ifttt.com/trigger/{event}/with/key/{key}`); the member enters an event name and their own Webhooks key (both charset-checked, so the URL cannot be changed). The key is a secret that can fire any of the member's applets: it is stored encrypted (`webhook_key_enc`, AES-256-GCM), is never sent to a page (`AutomationRule.hasKey` only), and a new IFTTT rule with an empty key field reuses the member's latest one. Payload: `buildIftttPayload`, i.e. `value1` = the rule title (free text the member wrote, so the UI warns against medical details), `value2` = `run`/`test`, `value3` = `oura-care-platform`. IFTTT is a US third party; do not send it anything else.
+- The payload names the rule only, never a health value. Never log the URL, body or key.
+- Connecting Oura to IFTTT directly (IFTTT's own Oura service) happens outside this platform and is not tracked in `consents` or `audit_log`.
 
 ## Not built yet (do not assume it exists)
 

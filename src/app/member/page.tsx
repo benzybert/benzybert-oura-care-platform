@@ -10,7 +10,7 @@ import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { suggestActions } from "@/lib/actions-engine";
 import { profileStrength } from "@/lib/profile-strength";
-import { automationsConfigured } from "@/lib/automations";
+import { homeAssistantConfigured } from "@/lib/automations";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
@@ -69,12 +69,14 @@ const ACTION_MESSAGES: Record<string, string> = {
   invalid: "הפרטים לא תקינים. נסו שוב.",
   limit: "הגעת למספר הפעולות המקסימלי.",
   missing: "הפעולה לא נמצאה.",
-  fired: "הפעולה נשלחה ל-Home Assistant.",
-  test_sent: "הבדיקה נשלחה ל-Home Assistant.",
+  fired: "הפעולה נשלחה.",
+  test_sent: "הבדיקה נשלחה.",
+  need_key: "ל-IFTTT צריך להזין את מפתח ה-Webhooks שלך בפעולה הראשונה.",
+  no_key: "חסר מפתח IFTTT תקין בפעולה הזאת. מחקו אותה וצרו אותה מחדש עם המפתח.",
   already: "הפעולה הזאת כבר הופעלה היום.",
   not_met: "התנאי לא מתקיים כרגע, ולכן לא נשלח כלום.",
   not_configured: "כתובת Home Assistant עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
-  failed: "השליחה ל-Home Assistant נכשלה. בדקו שהכתובת וה-Webhook ID נכונים ושהשרת נגיש מהאינטרנט.",
+  failed: "השליחה נכשלה. ב-Home Assistant בדקו את ה-Webhook ID ושהשרת נגיש מהאינטרנט. ב-IFTTT בדקו את המפתח ואת ה-Event name.",
 };
 
 const COFFEE_MESSAGES: Record<string, string> = {
@@ -257,7 +259,7 @@ export default async function MemberPage({
         rules={automations}
         metrics={metrics}
         today={todayInIsrael()}
-        configured={automationsConfigured()}
+        homeAssistantConfigured={homeAssistantConfigured()}
       />
 
       <div id="goals">

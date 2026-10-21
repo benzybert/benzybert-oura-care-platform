@@ -9,14 +9,13 @@ import { z } from "zod";
 import { getDb, schema } from "@/db";
 import {
   MAX_AUTOMATION_RULES,
-  buildWebhookPayload,
-  fireWebhook,
+  fireRule,
   parseRuleForm,
   ruleStatus,
 } from "@/lib/automations";
 import { COFFEE_CONFIG } from "@/config/coffee";
 import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffee";
-import { encrypt } from "@/lib/crypto";
+import { decrypt, encrypt } from "@/lib/crypto";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { buildDoctorPdf } from "@/lib/doctor-pdf";
 import { buildDoctorMessage } from "@/lib/doctor-share";
@@ -29,6 +28,8 @@ import {
   getActiveInstinctAccess,
   countActiveShareLinks,
   getAutomationRules,
+  getLatestIftttKeyEnc,
+  getRuleWebhookKeyEnc,
   findShareLinkByToken,
   getCoffeeClaimDays,
   getDoctorContacts,
@@ -632,7 +633,22 @@ export async function saveAutomationRule(formData: FormData): Promise<void> {
   if (!rule) redirect("/member?action=invalid#actions");
   const existing = await getAutomationRules(member.id);
   if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member?action=limit#actions");
-  await getDb().insert(automationRules).values({ memberId: member.id, ...rule });
+  // IFTTT: the member's Webhooks key is stored encrypted; leaving it empty reuses the one from their latest IFTTT rule.
+  let webhookKeyEnc: string | null = null;
+  if (rule.provider === "ifttt") {
+    webhookKeyEnc = rule.webhookKey ? encrypt(rule.webhookKey) : await getLatestIftttKeyEnc(member.id);
+    if (!webhookKeyEnc) redirect("/member?action=need_key#actions");
+  }
+  await getDb().insert(automationRules).values({
+    memberId: member.id,
+    title: rule.title,
+    metric: rule.metric,
+    comparator: rule.comparator,
+    threshold: rule.threshold,
+    webhookId: rule.webhookId,
+    provider: rule.provider,
+    webhookKeyEnc,
+  });
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_saved" });
   revalidatePath("/member");
   redirect("/member?action=saved#actions");
@@ -652,8 +668,20 @@ export async function deleteAutomationRule(formData: FormData): Promise<void> {
   redirect("/member?action=removed#actions");
 }
 
+/** The decrypted IFTTT key of one of the member's own rules, or null if there is none or it cannot be read. */
+async function readRuleWebhookKey(memberId: string, rule: { id: string; provider: string }): Promise<string | null> {
+  if (rule.provider !== "ifttt") return null;
+  const keyEnc = await getRuleWebhookKeyEnc(memberId, rule.id);
+  if (!keyEnc) return null;
+  try {
+    return decrypt(keyEnc);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Fires one rule's Home Assistant webhook. Member-initiated. The condition is re-checked here
+ * Fires one rule's webhook (Home Assistant or IFTTT). Member-initiated. The condition is re-checked here
  * from the database, never trusted from the button, and a unique (rule, day) row stops a
  * double fire. `test=1` skips the condition and the daily lock so the member can try the wiring.
  */
@@ -667,8 +695,10 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
   const rule = (await getAutomationRules(member.id)).find((r) => r.id === id);
   if (!rule) redirect("/member?action=missing#actions");
 
+  const webhookKey = await readRuleWebhookKey(member.id, rule);
+
   if (test) {
-    const result = await fireWebhook(rule.webhookId, buildWebhookPayload(rule, true));
+    const result = await fireRule(rule, webhookKey, true);
     await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_test" });
     redirect(`/member?action=${result.ok ? "test_sent" : result.reason}#actions`);
   }
@@ -685,7 +715,7 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
   const runId = inserted[0]?.id;
   if (!runId) redirect("/member?action=already#actions");
 
-  const result = await fireWebhook(rule.webhookId, buildWebhookPayload(rule, false));
+  const result = await fireRule(rule, webhookKey, false);
   if (!result.ok) {
     await getDb().delete(automationRuns).where(eq(automationRuns.id, runId));
     redirect(`/member?action=${result.reason}#actions`);

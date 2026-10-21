@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
 import { instinctPath } from "./instinct-brief";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
-import type { AutomationMetric, Comparator } from "./automations";
+import type { AutomationMetric, AutomationProvider, Comparator } from "./automations";
 import type { ContextEvent } from "./context-events";
 import type { ConsentScope, DayMetric, DoctorRole } from "./types";
 
@@ -303,6 +303,9 @@ export type AutomationRule = {
   comparator: Comparator;
   threshold: number;
   webhookId: string;
+  provider: AutomationProvider;
+  /** whether an IFTTT key is stored; the key itself never goes to a page */
+  hasKey: boolean;
   /** days (YYYY-MM-DD) this rule already fired for */
   ranDays: string[];
 };
@@ -327,8 +330,37 @@ export async function getAutomationRules(memberId: string): Promise<AutomationRu
     comparator: r.comparator as Comparator,
     threshold: r.threshold,
     webhookId: r.webhookId,
+    provider: r.provider as AutomationProvider,
+    hasKey: r.webhookKeyEnc !== null,
     ranDays: runs.filter((x) => x.ruleId === r.id).map((x) => x.day),
   }));
+}
+
+/** The encrypted IFTTT key of one of the member's own rules, for the server action that fires it. */
+export async function getRuleWebhookKeyEnc(memberId: string, ruleId: string): Promise<string | null> {
+  const [row] = await getDb()
+    .select({ keyEnc: automationRules.webhookKeyEnc })
+    .from(automationRules)
+    .where(and(eq(automationRules.id, ruleId), eq(automationRules.memberId, memberId)))
+    .limit(1);
+  return row?.keyEnc ?? null;
+}
+
+/** The newest stored IFTTT key of the member, so later rules do not need the key pasted again. */
+export async function getLatestIftttKeyEnc(memberId: string): Promise<string | null> {
+  const [row] = await getDb()
+    .select({ keyEnc: automationRules.webhookKeyEnc })
+    .from(automationRules)
+    .where(
+      and(
+        eq(automationRules.memberId, memberId),
+        eq(automationRules.provider, "ifttt"),
+        isNotNull(automationRules.webhookKeyEnc),
+      ),
+    )
+    .orderBy(desc(automationRules.createdAt))
+    .limit(1);
+  return row?.keyEnc ?? null;
 }
 
 /** Public siren counts per day since `sinceDay`, oldest first. No member data. */
