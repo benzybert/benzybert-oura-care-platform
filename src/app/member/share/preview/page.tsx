@@ -29,6 +29,7 @@ export default async function SharePreviewPage({ searchParams }: { searchParams:
         note: null,
         expiresAt: null,
         generatedAt: new Date(),
+        pdfHref: `/member/share/preview/pdf?days=${windowDays}`,
       }}
     />
   );

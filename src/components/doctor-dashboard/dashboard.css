@@ -217,6 +217,11 @@ body:has(.dash) {
   font-size: 1rem;
 }
 
+.dash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .dash-btn {
   display: inline-flex;
   align-items: center;

@@ -31,6 +31,8 @@ export type DashboardMeta = {
   note: string | null;
   expiresAt: Date | null;
   generatedAt: Date;
+  /** Where the PDF version of this dashboard is downloaded from. */
+  pdfHref?: string | null;
 };
 
 type MetricView = {
@@ -243,7 +245,12 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
               )}
             </p>
           </div>
-          <div className="no-print">
+          <div className="no-print dash-actions">
+            {meta.pdfHref && (
+              <a className="dash-btn" href={meta.pdfHref} download>
+                הורדת PDF
+              </a>
+            )}
             <PrintButton />
           </div>
         </div>
