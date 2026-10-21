@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { DoctorDashboard } from "@/components/doctor-dashboard/dashboard";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
-import { getMemberForUser, getMetrics } from "@/lib/queries";
+import { getDashboardMetrics, getMemberForUser } from "@/lib/queries";
 import { requireRole } from "@/lib/session";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 
@@ -16,7 +16,7 @@ export default async function SharePreviewPage({ searchParams }: { searchParams:
 
   const asked = Number((await searchParams).days);
   const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
-  const data = buildDashboard(await getMetrics(member.id), todayInIsrael(), windowDays);
+  const data = buildDashboard(await getDashboardMetrics(member.id, windowDays), todayInIsrael(), windowDays);
 
   return (
     <DoctorDashboard

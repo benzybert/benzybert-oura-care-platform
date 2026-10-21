@@ -1,7 +1,7 @@
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { buildDoctorPdf } from "@/lib/doctor-pdf";
-import { getMemberForUser, getMetrics } from "@/lib/queries";
+import { getDashboardMetrics, getMemberForUser } from "@/lib/queries";
 import { requireRole } from "@/lib/session";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const asked = Number(new URL(req.url).searchParams.get("days"));
   const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
   const today = todayInIsrael();
-  const pdf = await buildDoctorPdf(buildDashboard(await getMetrics(member.id), today, windowDays), {
+  const pdf = await buildDoctorPdf(buildDashboard(await getDashboardMetrics(member.id, windowDays), today, windowDays), {
     patientName: null,
     recipientLabel: null,
     recipientRole: null,

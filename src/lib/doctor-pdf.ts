@@ -92,6 +92,11 @@ const RULE = rgb(0.85, 0.87, 0.9);
 const DATA = rgb(0x0b / 255, 0x84 / 255, 0xa5 / 255);
 const ATTN = rgb(0xc9 / 255, 0x6a / 255, 0x12 / 255);
 const TINT = rgb(0.96, 0.97, 0.98);
+const STAGE_RGB = {
+  deep: rgb(0x4a / 255, 0x3f / 255, 0xc0 / 255),
+  light: rgb(0x3d / 255, 0x86 / 255, 0xd6 / 255),
+  rem: rgb(0x13 / 255, 0xa0 / 255, 0x8c / 255),
+} as const;
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -203,7 +208,8 @@ class Writer {
   }
 
   heading(s: string) {
-    this.ensure(40);
+    // keep a heading together with the first lines under it
+    this.ensure(90);
     this.y -= 26;
     this.text(s, { size: 14, bold: true });
     this.y -= 6;
@@ -264,6 +270,47 @@ function drawChart(
     if (v === null) return;
     const flagged = opts.flagBelow !== undefined && v < opts.flagBelow;
     page.drawCircle({ x: X(i), y: Y(v), size: flagged ? 2.2 : 1.5, color: flagged ? ATTN : DATA });
+  });
+}
+
+/** Per-night stacked columns: deep, light and REM minutes. Time runs left to right, newest on the right. */
+function drawStages(w: Writer, box: { x: number; top: number; width: number; height: number }, slots: DashboardData["slots"]) {
+  const { page } = w;
+  const { x, top, width, height } = box;
+  const bottom = top - height;
+  page.drawRectangle({ x, y: bottom, width, height, borderColor: RULE, borderWidth: 0.8 });
+  w.text("שלבי השינה בכל לילה (דקות)", { size: 9.5, bold: true, xRight: x + width - 8, y: top - 15 });
+  const keys = [
+    ["deep", "עמוקה"],
+    ["light", "קלה"],
+    ["rem", "REM"],
+  ] as const;
+  let lx = x + 8;
+  for (const [k, label] of [...keys].reverse()) {
+    page.drawRectangle({ x: lx, y: top - 17, width: 7, height: 7, color: STAGE_RGB[k] });
+    lx += 11;
+    lx += w.text(label, { size: 8, color: MUTED, xLeft: lx, y: top - 16 }) + 10;
+  }
+  const px = x + 30;
+  const pw = width - 40;
+  const pb = bottom + 14;
+  const ph = height - 44;
+  const totals = slots.map((s) => (s.deepSleepMinutes ?? 0) + (s.lightSleepMinutes ?? 0) + (s.remSleepMinutes ?? 0));
+  const max = Math.max(60, ...totals);
+  const top0 = Math.ceil(max / 120) * 120;
+  for (const v of [0, top0]) {
+    page.drawLine({ start: { x: px, y: pb + (v / top0) * ph }, end: { x: px + pw, y: pb + (v / top0) * ph }, thickness: 0.4, color: RULE });
+    page.drawText(String(v), { x: x + 4, y: pb + (v / top0) * ph - 3, size: 7, font: w.latin, color: MUTED });
+  }
+  const step = pw / Math.max(1, slots.length);
+  slots.forEach((s, i) => {
+    let yy = pb;
+    for (const k of ["deep", "light", "rem"] as const) {
+      const v = (k === "deep" ? s.deepSleepMinutes : k === "light" ? s.lightSleepMinutes : s.remSleepMinutes) ?? 0;
+      const h = (v / top0) * ph;
+      if (h > 0.2) page.drawRectangle({ x: px + i * step + step * 0.15, y: yy, width: step * 0.7, height: Math.max(0, h - 0.4), color: STAGE_RGB[k] });
+      yy += h;
+    }
   });
 }
 
@@ -376,6 +423,62 @@ export async function buildDoctorPdf(data: DashboardData, meta: DoctorPdfMeta): 
     color: MUTED,
   });
 
+  // Sleep structure (only when the ring reported stages)
+  const d = data.detail;
+  if (data.shares.period && d.deepSleepMinutes.count > 0) {
+    w.heading("מבנה השינה");
+    w.y -= 4;
+    w.paragraph("הערכות הטבעת לשלבי שינה, נשימה וטמפרטורה. ממוצעים בתקופה ובשבוע האחרון.", { size: 9.5, color: MUTED });
+    const scols = [
+      { label: "מדד", w: 150 },
+      { label: "7 ימים אחרונים", w: 120 },
+      { label: "תחילת התקופה", w: 120 },
+      { label: "כל התקופה", w: 110 },
+    ];
+    const srow = (cells: string[], bold = false, shade = false) => {
+      w.ensure(20);
+      w.y -= 20;
+      if (shade) w.page.drawRectangle({ x: LEFT, y: w.y - 5, width: CONTENT_W, height: 20, color: TINT });
+      let xr = RIGHT - 6;
+      cells.forEach((c, i) => {
+        w.text(c, { size: 10, bold, xRight: xr, color: bold ? MUTED : INK });
+        xr -= scols[i]!.w;
+      });
+    };
+    srow(scols.map((c) => c.label), true, true);
+    const trio = (key: "sleepEfficiency" | "sleepLatencyMinutes" | "deepSleepMinutes" | "lightSleepMinutes" | "remSleepMinutes" | "awakeMinutes" | "averageBreath" | "temperatureDeviation", digits: number, unit: string, signedValue = false) => {
+      const f = (v: number | null) => (v === null ? "–" : `${signedValue && v > 0 ? "+" : ""}${num(v, digits)}${unit ? ` ${unit}` : ""}`);
+      return [f(d[key].recent), f(d[key].reference), f(d[key].period)];
+    };
+    const rows: Array<[string, string[]]> = [
+      ["יעילות שינה", trio("sleepEfficiency", 0, "אחוז")],
+      ["זמן הירדמות", trio("sleepLatencyMinutes", 0, "דקות")],
+      ["שינה עמוקה", trio("deepSleepMinutes", 0, "דקות")],
+      ["שינה קלה", trio("lightSleepMinutes", 0, "דקות")],
+      ["REM", trio("remSleepMinutes", 0, "דקות")],
+      ["ערות במיטה", trio("awakeMinutes", 0, "דקות")],
+      ["קצב נשימה", trio("averageBreath", 1, "לדקה")],
+      ["סטיית טמפרטורה", trio("temperatureDeviation", 2, "°C", true)],
+    ];
+    rows
+      .filter(([, cells]) => cells.some((c) => c !== "–"))
+      .forEach(([label, cells], idx) => srow([label, ...cells], false, idx % 2 === 1));
+    const sh = data.shares.period;
+    w.y -= 20;
+    w.text(
+      `חלוקת זמן השינה: עמוקה ${num(sh.deep)} אחוז · קלה ${num(sh.light)} אחוז · REM ${num(sh.rem)} אחוז`,
+      { size: 9.5, color: MUTED },
+    );
+    const sbox = { x: LEFT, top: w.y - 10, width: CONTENT_W, height: 128 };
+    w.ensure(150);
+    sbox.top = w.y - 10;
+    drawStages(w, sbox, data.slots);
+    w.y = sbox.top - sbox.height;
+    w.y -= 4;
+    w.text(dm(data.from), { size: 8.5, color: MUTED, xLeft: LEFT });
+    w.text(dm(data.to), { size: 8.5, color: MUTED, xRight: RIGHT });
+  }
+
   // Findings
   const order = { attention: 0, info: 1, ok: 2 } as const;
   const findings = [...data.findings].sort((a, b) => order[a.status] - order[b.status]);
@@ -435,14 +538,16 @@ export async function buildDoctorPdf(data: DashboardData, meta: DoctorPdfMeta): 
   // Daily table, newest first
   w.heading("נתונים יומיים");
   const dcols = [
-    { label: "תאריך", w: 78 },
-    { label: "שינה (ש׳)", w: 72 },
-    { label: "ציון שינה", w: 70 },
-    { label: "מוכנות", w: 66 },
-    { label: "HRV", w: 56 },
-    { label: "דופק מנוחה", w: 76 },
-    { label: "הירדמות", w: 62 },
-    { label: "צעדים", w: 60 },
+    { label: "תאריך", w: 62 },
+    { label: "שינה (ש׳)", w: 52 },
+    { label: "הירדמות", w: 50 },
+    { label: "יעילות", w: 44 },
+    { label: "REM (דק׳)", w: 54 },
+    { label: "HRV", w: 38 },
+    { label: "דופק מנוחה", w: 62 },
+    { label: "מוכנות", w: 50 },
+    { label: "ציון שינה", w: 54 },
+    { label: "צעדים", w: 46 },
   ];
   const dRow = (cells: string[], bold = false, shade = false) => {
     w.ensure(16);
@@ -466,11 +571,13 @@ export async function buildDoctorPdf(data: DashboardData, meta: DoctorPdfMeta): 
       [
         dmy(s.day),
         num(s.totalSleepHours, 1),
-        num(s.sleepScore),
-        num(s.readinessScore),
+        s.bedtimeStartMinute === null ? "–" : fmtClock(s.bedtimeStartMinute),
+        num(s.sleepEfficiency ?? null),
+        num(s.remSleepMinutes ?? null),
         num(s.averageHrv),
         num(s.lowestHeartRate),
-        s.bedtimeStartMinute === null ? "–" : fmtClock(s.bedtimeStartMinute),
+        num(s.readinessScore),
+        num(s.sleepScore),
         num(s.steps),
       ],
       false,

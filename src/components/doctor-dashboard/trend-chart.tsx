@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { areaPath, barPath, linePath, longDay, niceTicks, shortDay } from "./chart-utils";
 import { formatTick, formatValue, type ChartFormat } from "./format";
 
 /**
@@ -37,65 +38,6 @@ export type TrendChartProps = {
 
 const M = { top: 14, right: 46, bottom: 26, left: 42 };
 
-function niceStep(range: number, count: number): number {
-  const raw = range / Math.max(1, count);
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const norm = raw / mag;
-  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
-  return nice * mag;
-}
-
-function niceTicks(min: number, max: number, count: number, clock: boolean): number[] {
-  if (min === max) {
-    min -= 1;
-    max += 1;
-  }
-  let step = niceStep(max - min, count);
-  if (clock) step = Math.max(30, Math.ceil(step / 30) * 30); // half-hour grid for clock times
-  const start = Math.floor(min / step) * step;
-  const end = Math.ceil(max / step) * step;
-  const ticks: number[] = [];
-  for (let v = start; v <= end + step / 1000; v += step) ticks.push(Math.round(v * 1000) / 1000);
-  return ticks;
-}
-
-function shortDay(day: string): string {
-  const [, m, d] = day.split("-");
-  return `${Number(d)}.${Number(m)}`;
-}
-
-function longDay(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", {
-    timeZone: "UTC",
-    weekday: "long",
-    day: "numeric",
-    month: "numeric",
-  });
-}
-
-/** Bar with a rounded data end and a square foot on the baseline. */
-function barPath(x: number, y: number, w: number, base: number): string {
-  const h = base - y;
-  if (h <= 0) return "";
-  const r = Math.min(4, w / 2, h);
-  return `M${x},${base}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${base}Z`;
-}
-
-/** Line path that breaks at missing values instead of bridging gaps. */
-function linePath(points: Array<[number, number] | null>): string {
-  let d = "";
-  let pen = false;
-  for (const p of points) {
-    if (!p) {
-      pen = false;
-      continue;
-    }
-    d += `${pen ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`;
-    pen = true;
-  }
-  return d;
-}
-
 export function TrendChart(props: TrendChartProps) {
   const {
     days,
@@ -119,6 +61,7 @@ export function TrendChart(props: TrendChartProps) {
   const [width, setWidth] = useState(640);
   const [active, setActive] = useState<number | null>(null);
   const descId = useId();
+  const gid = descId.replace(/[^a-zA-Z0-9_-]/g, "");
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -281,7 +224,18 @@ export function TrendChart(props: TrendChartProps) {
             ),
           )}
 
-        {avg && <path className="tc-line" d={linePath(avgPoints)} />}
+        {avg && (
+          <>
+            <defs>
+              <linearGradient id={`${gid}-area`} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="var(--viz-data)" stopOpacity="0.2" />
+                <stop offset="1" stopColor="var(--viz-data)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={areaPath(avgPoints, M.top + plotH)} fill={`url(#${gid}-area)`} />
+            <path className="tc-line" d={linePath(avgPoints)} />
+          </>
+        )}
 
         {/* direct label: the newest 7-day mean */}
         {avg && lastAvgIndex >= 0 && (

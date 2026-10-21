@@ -5,7 +5,7 @@ import { DoctorDashboard } from "@/components/doctor-dashboard/dashboard";
 import { ShareGate } from "@/components/doctor-dashboard/share-gate";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
-import { findShareLinkByToken, getMetrics } from "@/lib/queries";
+import { findShareLinkByToken, getDashboardMetrics } from "@/lib/queries";
 import { SHARE_OPEN_COOKIE, isShareToken, shareLinkStatus, sharePath, verifyOpenProof } from "@/lib/share-links";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   const opened = verifyOpenProof((await cookies()).get(SHARE_OPEN_COOKIE)?.value, link.id);
   if (!opened) return <ShareGate token={token} expiresAt={link.expiresAt} windowDays={link.windowDays} />;
 
-  const data = buildDashboard(await getMetrics(link.memberId), todayInIsrael(), link.windowDays);
+  const data = buildDashboard(await getDashboardMetrics(link.memberId, link.windowDays), todayInIsrael(), link.windowDays);
 
   return (
     <DoctorDashboard

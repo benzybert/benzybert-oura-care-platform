@@ -1,0 +1,20 @@
+ALTER TABLE "daily_metrics" ADD COLUMN "deep_sleep_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "light_sleep_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "rem_sleep_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "awake_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "time_in_bed_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "sleep_efficiency" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "sleep_latency_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "restless_periods" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "average_breath" real;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "average_heart_rate" real;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "bedtime_end_minute" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "temperature_deviation" real;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "sleep_contributors" jsonb;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "readiness_contributors" jsonb;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "active_calories" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "active_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "sedentary_minutes" integer;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "hypnogram" text;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "night_heart_rate" jsonb;--> statement-breakpoint
+ALTER TABLE "daily_metrics" ADD COLUMN "night_hrv" jsonb;

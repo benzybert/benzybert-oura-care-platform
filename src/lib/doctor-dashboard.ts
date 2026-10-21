@@ -1,6 +1,23 @@
 import { mean, sortByDay } from "./alerts";
 import { addDays, dayOfWeek } from "./dates";
+import {
+  buildContributors,
+  buildDetail,
+  buildDetailFindings,
+  buildNights,
+  buildPatterns,
+  buildShares,
+  type ContributorRow,
+  type DetailKey,
+  type DetailStat,
+  type NightDetail,
+  type Patterns,
+  type StageShares,
+} from "./doctor-dashboard-detail";
+import { fmtClock, median, rollingMean, stdDev, unwrapBedtime } from "./series-math";
 import type { DayMetric } from "./types";
+
+export { fmtClock, median, rollingMean, stdDev, unwrapBedtime };
 
 /**
  * Everything the doctor dashboard shows, computed from the member's own daily metrics over
@@ -79,7 +96,19 @@ export type Kpi = {
 export type FindingStatus = "attention" | "ok" | "info";
 
 export type Finding = {
-  id: "coverage" | "sleep" | "hrv" | "rhr" | "readiness" | "bedtime";
+  id:
+    | "coverage"
+    | "sleep"
+    | "hrv"
+    | "rhr"
+    | "readiness"
+    | "bedtime"
+    | "efficiency"
+    | "latency"
+    | "stages"
+    | "breathing"
+    | "temperature"
+    | "stress";
   status: FindingStatus;
   title: string;
   detail: string;
@@ -95,6 +124,9 @@ export type WeekRow = {
   readinessScore: number | null;
   sleepScore: number | null;
   steps: number | null;
+  sleepEfficiency: number | null;
+  deepSleepMinutes: number | null;
+  remSleepMinutes: number | null;
   /** unwrapped bedtime minutes (see unwrapBedtime) */
   bedtimeMedian: number | null;
 };
@@ -122,7 +154,17 @@ export type DashboardData = {
   bedtime: BedtimeStats;
   findings: Finding[];
   weeks: WeekRow[];
+  /** stats for the extra Oura fields (sleep structure, breathing, temperature, stress, activity) */
+  detail: Record<DetailKey, DetailStat>;
+  /** deep / light / REM as a share of time asleep */
+  shares: { recent: StageShares | null; period: StageShares | null };
+  /** the latest nights with a hypnogram, oldest first, for the night explorer */
+  nights: NightDetail[];
+  contributors: { sleep: ContributorRow[]; readiness: ContributorRow[] };
+  patterns: Patterns;
 };
+
+export type { ContributorRow, DetailKey, DetailStat, NightDetail, Patterns, StageShares };
 
 const EMPTY: Omit<DayMetric, "day"> = {
   sleepScore: null,
@@ -148,41 +190,6 @@ export function windowSlots(days: DayMetric[], endDay: string, n: number): DaySl
     out.push(d ? { ...d, hasData: hasAny(d) } : { day, ...EMPTY, hasData: false });
   }
   return out;
-}
-
-/** Trailing mean over `size` slots; null until at least `minCount` values are in the window. */
-export function rollingMean(values: Array<number | null>, size = 7, minCount = 3): Array<number | null> {
-  return values.map((_, i) => {
-    const w = values.slice(Math.max(0, i - size + 1), i + 1).filter((v): v is number => v !== null);
-    return w.length >= minCount ? w.reduce((a, b) => a + b, 0) / w.length : null;
-  });
-}
-
-/** Bedtimes after midnight count as late evening: 00:30 -> 24:30 (1470), so means and spreads work. */
-export function unwrapBedtime(minute: number | null): number | null {
-  if (minute === null) return null;
-  return minute < 12 * 60 ? minute + 24 * 60 : minute;
-}
-
-/** Clock string for any (possibly unwrapped) minute count. */
-export function fmtClock(minutes: number | null): string {
-  if (minutes === null) return "–";
-  const m = ((Math.round(minutes) % 1440) + 1440) % 1440;
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-}
-
-export function median(xs: Array<number | null>): number | null {
-  const v = xs.filter((x): x is number => x !== null).sort((a, b) => a - b);
-  if (v.length === 0) return null;
-  const mid = Math.floor(v.length / 2);
-  return v.length % 2 ? (v[mid] as number) : ((v[mid - 1] as number) + (v[mid] as number)) / 2;
-}
-
-export function stdDev(xs: Array<number | null>): number | null {
-  const v = xs.filter((x): x is number => x !== null);
-  if (v.length < 2) return null;
-  const m = v.reduce((a, b) => a + b, 0) / v.length;
-  return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1));
 }
 
 export function toneFor(key: MetricKey, delta: number | null, reference: number | null): Tone {
@@ -361,6 +368,9 @@ function buildWeeks(slots: DaySlot[]): WeekRow[] {
     readinessScore: mean(g.map((s) => s.readinessScore)),
     sleepScore: mean(g.map((s) => s.sleepScore)),
     steps: mean(g.map((s) => s.steps)),
+    sleepEfficiency: mean(g.map((s) => s.sleepEfficiency ?? null)),
+    deepSleepMinutes: mean(g.map((s) => s.deepSleepMinutes ?? null)),
+    remSleepMinutes: mean(g.map((s) => s.remSleepMinutes ?? null)),
     bedtimeMedian: median(g.map((s) => unwrapBedtime(s.bedtimeStartMinute))),
   }));
 }
@@ -405,6 +415,10 @@ export function buildDashboard(days: DayMetric[], endDay: string, windowDays: nu
 
   const withData = slots.filter((s) => s.hasData);
 
+  const detail = buildDetail(slots, recent, reference);
+  const shares = buildShares(detail);
+  const patterns = buildPatterns(slots, SHORT_SLEEP_HOURS);
+
   return {
     from: (slots[0] as DaySlot).day,
     to: endDay,
@@ -419,7 +433,12 @@ export function buildDashboard(days: DayMetric[], endDay: string, windowDays: nu
     kpis,
     rolling,
     bedtime,
-    findings: buildFindings(slots, kpis, bedtime),
+    findings: [...buildFindings(slots, kpis, bedtime), ...(withData.length ? buildDetailFindings(detail, shares, patterns) : [])],
     weeks: buildWeeks(slots),
+    detail,
+    shares,
+    nights: buildNights(slots),
+    contributors: buildContributors(slots, recent),
+    patterns,
   };
 }

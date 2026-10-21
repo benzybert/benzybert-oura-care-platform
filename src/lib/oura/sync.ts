@@ -9,7 +9,8 @@ import type { DayMetric } from "../types";
 import { OuraAuthError, fetchCollection, refreshTokens } from "./client";
 import {
   dailyActivityItem,
-  dailyScoreItem,
+  dailyReadinessItem,
+  dailySleepItem,
   dailyStressItem,
   mapToDayMetrics,
   sleepPeriodItem,
@@ -17,8 +18,12 @@ import {
 
 const { ouraConnections, dailyMetrics, consents, alerts, rewardEvents } = schema;
 
-/** How far back each sync looks. Oura can revise recent days, so we re-pull a window. */
-export const SYNC_WINDOW_DAYS = 14;
+/**
+ * How far back each sync looks. Oura can revise recent days, so we re-pull a window. It also
+ * backfills fields added later (sleep stages, night curves): the longest doctor-link window is 90 days,
+ * but 35 covers the default 30-day view without making the daily call heavy.
+ */
+export const SYNC_WINDOW_DAYS = 35;
 
 export type SyncResult =
   | { status: "synced"; days: number }
@@ -61,8 +66,8 @@ export async function syncMember(db: Db, memberId: string, now: Date = new Date(
     // Oura's end_date can be exclusive for some collections; ask for tomorrow to be safe.
     const range = { start: addDays(today, -SYNC_WINDOW_DAYS), end: addDays(today, 1) };
     const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods, dailyStress] = await Promise.all([
-      fetchCollection("daily_sleep", accessToken, range, dailyScoreItem),
-      fetchCollection("daily_readiness", accessToken, range, dailyScoreItem),
+      fetchCollection("daily_sleep", accessToken, range, dailySleepItem),
+      fetchCollection("daily_readiness", accessToken, range, dailyReadinessItem),
       fetchCollection("daily_activity", accessToken, range, dailyActivityItem),
       fetchCollection("sleep", accessToken, range, sleepPeriodItem),
       // Stress is a context signal, not essential: an account without Oura's stress feature must still sync.
@@ -91,6 +96,26 @@ export async function syncMember(db: Db, memberId: string, now: Date = new Date(
             stressMinutes: sql`coalesce(excluded.stress_minutes, ${dailyMetrics.stressMinutes})`,
             recoveryMinutes: sql`coalesce(excluded.recovery_minutes, ${dailyMetrics.recoveryMinutes})`,
             stressSummary: sql`coalesce(excluded.stress_summary, ${dailyMetrics.stressSummary})`,
+            deepSleepMinutes: sql`coalesce(excluded.deep_sleep_minutes, ${dailyMetrics.deepSleepMinutes})`,
+            lightSleepMinutes: sql`coalesce(excluded.light_sleep_minutes, ${dailyMetrics.lightSleepMinutes})`,
+            remSleepMinutes: sql`coalesce(excluded.rem_sleep_minutes, ${dailyMetrics.remSleepMinutes})`,
+            awakeMinutes: sql`coalesce(excluded.awake_minutes, ${dailyMetrics.awakeMinutes})`,
+            timeInBedMinutes: sql`coalesce(excluded.time_in_bed_minutes, ${dailyMetrics.timeInBedMinutes})`,
+            sleepEfficiency: sql`coalesce(excluded.sleep_efficiency, ${dailyMetrics.sleepEfficiency})`,
+            sleepLatencyMinutes: sql`coalesce(excluded.sleep_latency_minutes, ${dailyMetrics.sleepLatencyMinutes})`,
+            restlessPeriods: sql`coalesce(excluded.restless_periods, ${dailyMetrics.restlessPeriods})`,
+            averageBreath: sql`coalesce(excluded.average_breath, ${dailyMetrics.averageBreath})`,
+            averageHeartRate: sql`coalesce(excluded.average_heart_rate, ${dailyMetrics.averageHeartRate})`,
+            bedtimeEndMinute: sql`coalesce(excluded.bedtime_end_minute, ${dailyMetrics.bedtimeEndMinute})`,
+            temperatureDeviation: sql`coalesce(excluded.temperature_deviation, ${dailyMetrics.temperatureDeviation})`,
+            sleepContributors: sql`coalesce(excluded.sleep_contributors, ${dailyMetrics.sleepContributors})`,
+            readinessContributors: sql`coalesce(excluded.readiness_contributors, ${dailyMetrics.readinessContributors})`,
+            activeCalories: sql`coalesce(excluded.active_calories, ${dailyMetrics.activeCalories})`,
+            activeMinutes: sql`coalesce(excluded.active_minutes, ${dailyMetrics.activeMinutes})`,
+            sedentaryMinutes: sql`coalesce(excluded.sedentary_minutes, ${dailyMetrics.sedentaryMinutes})`,
+            hypnogram: sql`coalesce(excluded.hypnogram, ${dailyMetrics.hypnogram})`,
+            nightHeartRate: sql`coalesce(excluded.night_heart_rate, ${dailyMetrics.nightHeartRate})`,
+            nightHrv: sql`coalesce(excluded.night_hrv, ${dailyMetrics.nightHrv})`,
             updatedAt: sql`now()`,
           },
         });

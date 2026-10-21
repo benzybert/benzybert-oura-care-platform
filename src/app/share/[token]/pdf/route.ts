@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { buildDoctorPdf } from "@/lib/doctor-pdf";
-import { findShareLinkByToken, getMetrics } from "@/lib/queries";
+import { findShareLinkByToken, getDashboardMetrics } from "@/lib/queries";
 import { SHARE_OPEN_COOKIE, isShareToken, shareLinkStatus, verifyOpenProof } from "@/lib/share-links";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   if (!verifyOpenProof((await cookies()).get(SHARE_OPEN_COOKIE)?.value, link.id)) return notFound();
 
   const today = todayInIsrael();
-  const data = buildDashboard(await getMetrics(link.memberId), today, link.windowDays);
+  const data = buildDashboard(await getDashboardMetrics(link.memberId, link.windowDays), today, link.windowDays);
   const pdf = await buildDoctorPdf(data, {
     patientName: link.patientName,
     recipientLabel: link.recipientLabel,

@@ -14,6 +14,41 @@ export type DayMetric = {
   recoveryMinutes?: number | null;
   /** "restored" | "normal" | "stressful" */
   stressSummary?: string | null;
+} & Partial<DayDetail>;
+
+/**
+ * Extra fields from the same Oura calls (sleep period, daily sleep/readiness/activity).
+ * All optional: days synced before they existed simply lack them.
+ */
+export type DayDetail = {
+  deepSleepMinutes: number | null;
+  lightSleepMinutes: number | null;
+  remSleepMinutes: number | null;
+  awakeMinutes: number | null;
+  timeInBedMinutes: number | null;
+  /** percent of time in bed spent asleep (0-100), as Oura reports it */
+  sleepEfficiency: number | null;
+  sleepLatencyMinutes: number | null;
+  restlessPeriods: number | null;
+  /** breaths per minute during sleep */
+  averageBreath: number | null;
+  averageHeartRate: number | null;
+  /** minutes after local midnight when the main sleep ended (0-1439) */
+  bedtimeEndMinute: number | null;
+  /** deviation of skin temperature from the personal baseline, in degrees C */
+  temperatureDeviation: number | null;
+  /** Oura's 1-100 contributor scores behind the daily scores, keyed by Oura's own names */
+  sleepContributors: Record<string, number> | null;
+  readinessContributors: Record<string, number> | null;
+  activeCalories: number | null;
+  /** medium + high intensity minutes */
+  activeMinutes: number | null;
+  sedentaryMinutes: number | null;
+  /** one char per 5 minutes from bedtime: 1 deep, 2 light, 3 REM, 4 awake */
+  hypnogram: string | null;
+  /** 5-minute samples through the night (null where missing) */
+  nightHeartRate: Array<number | null> | null;
+  nightHrv: Array<number | null> | null;
 };
 
 export type ConsentScope = "care_team" | "org_aggregate" | "rewards";

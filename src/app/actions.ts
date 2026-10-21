@@ -33,6 +33,7 @@ import {
   getCoffeeClaimDays,
   getDoctorContacts,
   getMemberForUser,
+  getDashboardMetrics,
   getMetrics,
   getOwnSelfReward,
   getSelfRewards,
@@ -262,7 +263,7 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   const contact = (await getDoctorContacts(member.id))[role];
   if (!contact) redirect("/member?doctor=missing");
 
-  const days = await getMetrics(member.id);
+  const days = await getDashboardMetrics(member.id, DEFAULT_SHARE_WINDOW);
   const link = await issueShareLink(member.id, {
     role,
     recipientLabel: contact.name,

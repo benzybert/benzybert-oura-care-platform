@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
 import { buildDashboard } from "./doctor-dashboard";
 import { buildDoctorPdf, toVisual } from "./doctor-pdf";
+import { sampleDays } from "./sample-nights";
 import type { DayMetric } from "./types";
 
 const day = (i: number): DayMetric => ({
@@ -43,6 +44,32 @@ describe("buildDoctorPdf", () => {
     expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe("%PDF-");
     expect(bytes.length).toBeGreaterThan(10_000);
     if (process.env.PDF_OUT) (await import("node:fs")).writeFileSync(process.env.PDF_OUT, bytes);
+  });
+
+  it("renders the sleep structure section when the ring reported stages", async () => {
+    const days = sampleDays("2026-10-21", 30);
+    const data = buildDashboard(days, "2026-10-21", 30);
+    const withDetail = await buildDoctorPdf(data, meta);
+    const plain = await buildDoctorPdf(
+      buildDashboard(
+        days.map(({ day, sleepScore, readinessScore, averageHrv, lowestHeartRate, totalSleepHours, steps, bedtimeStartMinute }) => ({
+          day,
+          sleepScore,
+          readinessScore,
+          averageHrv,
+          lowestHeartRate,
+          totalSleepHours,
+          steps,
+          bedtimeStartMinute,
+        })),
+        "2026-10-21",
+        30,
+      ),
+      meta,
+    );
+    expect(Buffer.from(withDetail.slice(0, 5)).toString()).toBe("%PDF-");
+    expect(withDetail.length).toBeGreaterThan(plain.length);
+    if (process.env.PDF_OUT_DETAIL) (await import("node:fs")).writeFileSync(process.env.PDF_OUT_DETAIL, withDetail);
   });
 
   it("renders an empty window without throwing", async () => {

@@ -116,3 +116,67 @@ export const IconClock = (p: { size?: number }) => (
     <path d="M12 6v6l4 2" />
   </Icon>
 );
+
+export const IconMoon = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+  </Icon>
+);
+
+export const IconHeartPulse = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />
+  </Icon>
+);
+
+export const IconActivity = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+  </Icon>
+);
+
+export const IconWind = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" />
+    <path d="M9.6 4.6A2 2 0 1 1 11 8H2" />
+    <path d="M12.6 19.4A2 2 0 1 0 14 16H2" />
+  </Icon>
+);
+
+export const IconThermometer = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
+  </Icon>
+);
+
+export const IconCalendar = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M8 2v4" />
+    <path d="M16 2v4" />
+    <rect width="18" height="18" x="3" y="4" rx="2" />
+    <path d="M3 10h18" />
+  </Icon>
+);
+
+export const IconLayers = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.91a1 1 0 0 0 0-1.83Z" />
+    <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+    <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+  </Icon>
+);
+
+export const IconZap = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" />
+  </Icon>
+);
+
+export const IconDownload = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M12 15V3" />
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5" />
+  </Icon>
+);

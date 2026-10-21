@@ -19,3 +19,15 @@ export function formatTick(v: number, format: ChartFormat): string {
   }
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
+
+/** 432 -> "7:12" (hours:minutes), for durations such as time asleep. */
+export function formatHm(minutes: number | null): string {
+  if (minutes === null || Number.isNaN(minutes)) return "–";
+  const m = Math.round(minutes);
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** Hebrew weekday letter for a YYYY-MM-DD day: א׳ ... ש׳ */
+export function weekdayLetter(day: string): string {
+  return ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"][new Date(`${day}T00:00:00Z`).getUTCDay()] as string;
+}

@@ -7,6 +7,7 @@ import { createDb, schema } from "../src/db";
 import { addDays, dayOfWeek, todayInIsrael } from "../src/lib/dates";
 import { runInsights } from "../src/lib/oura/sync";
 import { shiftBedtime, unshiftBedtime } from "../src/lib/rewards";
+import { sampleDays } from "../src/lib/sample-nights";
 import { computeSelfBaseline, evaluateSelfReward } from "../src/lib/self-rewards";
 import type { DayMetric } from "../src/lib/types";
 
@@ -195,6 +196,37 @@ async function main() {
       });
     }
   });
+  // The demo member (T-01) also gets the sleep structure and night curves, so the doctor dashboard shows all of it.
+  const demoMember = memberRows[0];
+  if (demoMember) {
+    const detail = new Map(sampleDays(today, DAYS, { seed: 11 }).map((d) => [d.day, d]));
+    const keys = [
+      "deepSleepMinutes",
+      "lightSleepMinutes",
+      "remSleepMinutes",
+      "awakeMinutes",
+      "timeInBedMinutes",
+      "sleepEfficiency",
+      "sleepLatencyMinutes",
+      "restlessPeriods",
+      "averageBreath",
+      "averageHeartRate",
+      "bedtimeEndMinute",
+      "temperatureDeviation",
+      "sleepContributors",
+      "readinessContributors",
+      "activeCalories",
+      "activeMinutes",
+      "sedentaryMinutes",
+      "hypnogram",
+      "nightHeartRate",
+      "nightHrv",
+    ] as const;
+    for (const row of metricRows) {
+      const d = row.memberId === demoMember.id ? detail.get(row.day) : undefined;
+      if (d) Object.assign(row, Object.fromEntries(keys.map((k) => [k, d[k] ?? null])));
+    }
+  }
   for (let i = 0; i < metricRows.length; i += 400) {
     await db.insert(schema.dailyMetrics).values(metricRows.slice(i, i + 400));
   }

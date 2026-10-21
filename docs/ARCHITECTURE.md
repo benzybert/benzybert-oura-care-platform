@@ -22,7 +22,7 @@
 | `care_assignments` | which care-team user looks after which member |
 | `oura_connections` | OAuth tokens, **encrypted** (AES-256-GCM); deleted when the member disconnects |
 | `consents` | append-only history; a scope is active while a row has `revoked_at IS NULL` |
-| `daily_metrics` | one row per member per day, Oura-shaped; `source` is `oura` or `demo` |
+| `daily_metrics` | one row per member per day, Oura-shaped; `source` is `oura` or `demo`. Besides the scores it holds the main sleep's structure (stage minutes, efficiency, latency, breathing, temperature deviation), Oura's contributor scores, activity minutes, and the night detail (hypnogram plus 5-minute heart rate and HRV). Only the doctor dashboard reads the structure and night columns (`getDashboardMetrics`); care and org views keep selecting the original columns |
 | `alerts` | rule hits for review; only created for members with active `care_team` consent |
 | `reward_events` | points, idempotent per member, kind and week |
 | `doctor_contacts` | the member's own doctors (name, email), used only for sends the member confirms |
@@ -52,7 +52,7 @@ Every page re-checks the role on the server (`requireRole`). Server actions re-c
 1. Member clicks "connect": `/api/oura/connect` sets a signed, 10-minute state cookie bound to the user and redirects to Oura.
 2. `/api/oura/callback` verifies state and user, exchanges the code, stores both tokens encrypted, runs a first sync.
 3. `/api/cron/oura-sync` (Vercel Cron, daily, `Authorization: Bearer $CRON_SECRET`) syncs every active connection **sequentially**, because refresh tokens are single-use.
-4. Each sync re-pulls the last 14 days (Oura revises recent days), merges `daily_sleep`, `daily_readiness`, `daily_activity` and `sleep` periods into one row per day, and upserts without overwriting a good value with an empty one.
+4. Each sync re-pulls the last 35 days (Oura revises recent days, and it backfills fields added later), merges `daily_sleep`, `daily_readiness`, `daily_activity`, `daily_stress` and `sleep` periods into one row per day, and upserts without overwriting a good value with an empty one. The extra fields come from the same five calls: new fields are parsed leniently, so a field Oura leaves out becomes null and never fails the sync.
 5. If Oura rejects the tokens, the connection is marked revoked and the member must reconnect.
 6. After each sync, alerts and rewards run for the scopes the member has consented to.
 
@@ -82,7 +82,7 @@ The member creates a link on `/member` (who it is for, optional name and note, 3
 1. `createShareLink` makes 32 random bytes (base64url, 43 chars). The database keeps `sha256(token)` for lookup and `encrypt(token)` (AES-256-GCM, `TOKEN_ENCRYPTION_KEY`) so the member can copy the link again. At most 10 active links per member.
 2. `GET /share/<token>` re-checks the link on every request (exists, not revoked, not expired). Without an "opened" cookie it shows a gate with **no health data and no name**, so WhatsApp / Telegram / mail link previews get nothing personal.
 3. The doctor presses "open" (a POST, `openShareLink`): the view is counted on the link, written to `audit_log` as `share_link_viewed` (no actor), and a signed cookie scoped to that one link's path lets this browser view the dashboard for 2 hours.
-4. The dashboard is server-rendered from `src/lib/doctor-dashboard.ts` (pure, tested): KPI tiles (last 7 days vs. the first 7 days of the window), findings with the same thresholds as the alert rules, 7 trend charts (inline SVG, no chart library), weekly and daily tables, definitions, print / PDF layout. Only the window's data reaches the browser.
+4. The dashboard is server-rendered from `src/lib/doctor-dashboard.ts` and `doctor-dashboard-detail.ts` (pure, tested): a night-themed header with score rings and KPI tiles (last 7 days vs. the first 7 days of the window), findings (the alert-rule thresholds, plus informational ones on efficiency, latency, stage mix, breathing, temperature and stress), a night explorer (hypnogram with heart rate and HRV on one clock, last 14 nights), sleep architecture (stage shares, stacked nights), a sleep-clock regularity chart with weekday/weekend and short-night patterns, trend charts (inline SVG, no chart library), score contributors, a calendar heatmap, weekly and daily tables, definitions, print / PDF layout. Only the window's data reaches the browser; the client charts get plain arrays (no functions).
 5. Revoking sets `revoked_at`; the next request gets the same "link not active" page as an unknown token (404).
 
 It is the member's own sharing: it does not read `care_team` consent or alerts, and it does not widen any scope.

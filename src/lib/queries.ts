@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
+import { addDays, todayInIsrael } from "./dates";
 import { instinctPath } from "./instinct-brief";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
 import type { AutomationMetric, Comparator } from "./automations";
@@ -66,6 +67,20 @@ export async function getMetrics(memberId: string): Promise<DayMetric[]> {
     })
     .from(dailyMetrics)
     .where(eq(dailyMetrics.memberId, memberId))
+    .orderBy(asc(dailyMetrics.day));
+}
+
+/**
+ * The member's days for the doctor dashboard and PDF: everything getMetrics has, plus the sleep
+ * structure and night curves, limited to the window so the heavy columns of old days are never read.
+ * Only ever called for the signed-in member or for the member behind an active share link.
+ */
+export async function getDashboardMetrics(memberId: string, windowDays: number): Promise<DayMetric[]> {
+  const { memberId: _member, source: _source, updatedAt: _updated, ...columns } = getTableColumns(dailyMetrics);
+  return getDb()
+    .select(columns)
+    .from(dailyMetrics)
+    .where(and(eq(dailyMetrics.memberId, memberId), gte(dailyMetrics.day, addDays(todayInIsrael(), -windowDays))))
     .orderBy(asc(dailyMetrics.day));
 }
 
