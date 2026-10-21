@@ -13,6 +13,14 @@ export const dailyActivityItem = z.object({
   steps: z.number().nullable().optional(),
 });
 
+/** daily_stress: stress_high / recovery_high are seconds spent in that state during the day. */
+export const dailyStressItem = z.object({
+  day: z.string(),
+  stress_high: z.number().nullable().optional(),
+  recovery_high: z.number().nullable().optional(),
+  day_summary: z.string().nullable().optional(),
+});
+
 export const sleepPeriodItem = z.object({
   day: z.string(),
   type: z.string(),
@@ -24,6 +32,7 @@ export const sleepPeriodItem = z.object({
 
 export type DailyScoreItem = z.infer<typeof dailyScoreItem>;
 export type DailyActivityItem = z.infer<typeof dailyActivityItem>;
+export type DailyStressItem = z.infer<typeof dailyStressItem>;
 export type SleepPeriodItem = z.infer<typeof sleepPeriodItem>;
 
 /** "2026-10-20T23:12:33+03:00" -> 1392 (minutes after the member's local midnight). */
@@ -39,6 +48,7 @@ export function mapToDayMetrics(input: {
   dailyReadiness: DailyScoreItem[];
   dailyActivity: DailyActivityItem[];
   sleepPeriods: SleepPeriodItem[];
+  dailyStress?: DailyStressItem[];
 }): DayMetric[] {
   const sleepScore = new Map(input.dailySleep.map((x) => [x.day, x.score ?? null]));
   const readiness = new Map(input.dailyReadiness.map((x) => [x.day, x.score ?? null]));
@@ -54,7 +64,12 @@ export function mapToDayMetrics(input: {
     }
   }
 
+  const stress = new Map((input.dailyStress ?? []).map((x) => [x.day, x]));
+  const minutes = (seconds: number | null | undefined) =>
+    seconds === null || seconds === undefined ? null : Math.round(seconds / 60);
+
   const days = new Set<string>([
+    ...stress.keys(),
     ...sleepScore.keys(),
     ...readiness.keys(),
     ...steps.keys(),
@@ -73,6 +88,13 @@ export function mapToDayMetrics(input: {
       totalSleepHours: seconds === null ? null : Math.round((seconds / 3600) * 100) / 100,
       steps: steps.get(day) ?? null,
       bedtimeStartMinute: bedtimeMinute(s?.bedtime_start),
+      ...(input.dailyStress
+        ? {
+            stressMinutes: minutes(stress.get(day)?.stress_high),
+            recoveryMinutes: minutes(stress.get(day)?.recovery_high),
+            stressSummary: stress.get(day)?.day_summary ?? null,
+          }
+        : {}),
     };
   });
 }

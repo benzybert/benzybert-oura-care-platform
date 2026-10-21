@@ -91,6 +91,15 @@ Rules to keep:
 - Status is computed on read from `daily_metrics`; only the claim is stored. Claiming re-evaluates on the server.
 - Separate from the platform's bedtime points (`reward_events`, `rewards` consent).
 
+## Feature: "הקשר חיצוני" public events (member page)
+
+Card on `/member` that puts public events (war, pandemic, disaster) next to the member's own Oura data and says what to do. Migration `0005`: `daily_metrics.stress_minutes/recovery_minutes/stress_summary` (Oura `daily_stress`, same `daily` scope) and global table `context_events`.
+
+- `src/lib/context-events.ts` (pure, tested): impact of an event = member's days during it vs the 14 days before; stress tier (`calm`/`elevated`/`high`) from Oura's own day label; `playbook(kind, tier)` returns the Hebrew steps. Wellbeing guidance, never a diagnosis. The high tier ends with the doctor-summary pointer and ער"ן 1201.
+- `src/lib/event-feed.ts` + cron `/api/cron/events` (daily): counts headlines matching keywords in public RSS (ynet, see `src/config/events.ts`), opens an event at `minHeadlines`, closes it after `quietDaysToEnd` quiet days. Stores no headline, only our own label. A dead feed never closes an event. Keywords and thresholds are untuned guesses: tune them in `src/config/events.ts`, fix dates with `MANUAL_EVENTS`.
+- No member data goes to the news site or anywhere else; the comparison is computed on the page from the member's own rows. Events carry no health data, so no consent scope and no audit entry. The table has no per-member rows.
+- Not built: event shading on the doctor dashboard charts, push alerts when an event opens, Home Front Command (Oref) alerts feed.
+
 ## Not built yet (do not assume it exists)
 
 Real authentication (only the demo login creates sessions), live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.

@@ -176,6 +176,7 @@ async function main() {
       const bedSd = kind === "responder" ? 45 - 28 * ramp : 40;
       const bed = Math.round(bed0 + weekend * 40 + gauss(0, bedSd) + 1440) % 1440;
 
+      const stressMin = Math.round(clamp(150 - (rd - 60) * 2.2 + gauss(0, 20), 5, 360));
       metricRows.push({
         memberId: m.id,
         day,
@@ -186,6 +187,10 @@ async function main() {
         totalSleepHours: Math.round(clamp(sleepH, 3.8, 9.8) * 100) / 100,
         steps: Math.round(clamp(steps, 800, 22000)),
         bedtimeStartMinute: bed,
+        // Synthetic stress follows readiness: a bad day is a stressful day.
+        stressMinutes: stressMin,
+        recoveryMinutes: Math.round(clamp(120 - stressMin * 0.5 + gauss(0, 15), 10, 240)),
+        stressSummary: stressMin >= 150 ? "stressful" : stressMin <= 45 ? "restored" : "normal",
         source: "demo",
       });
     }
@@ -204,6 +209,18 @@ async function main() {
   console.log(
     `Seeded ${memberRows.length} members, ${metricRows.length} metric rows, ${alertCount?.n ?? 0} open alerts, ${rewardCount?.n ?? 0} reward events.`,
   );
+  // One synthetic ongoing event so the "הקשר חיצוני" card has something to show in the demo.
+  await db
+    .insert(schema.contextEvents)
+    .values({
+      externalId: "demo:war",
+      kind: "war",
+      titleHe: "אירוע לדוגמה (נתוני דמו)",
+      startsOn: addDays(todayInIsrael(), -10),
+      source: "demo",
+    })
+    .onConflictDoNothing();
+
   console.log("Demo logins (when DEMO_AUTH=true): /api/demo-login?role=member|care|org");
 }
 

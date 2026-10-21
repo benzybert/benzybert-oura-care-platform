@@ -1,7 +1,15 @@
 import { fmt, fmtDay } from "@/lib/format";
 import type { DayMetric } from "@/lib/types";
 
-export function MetricsTable({ days, limit = 14 }: { days: DayMetric[]; limit?: number }) {
+export function MetricsTable({
+  days,
+  limit = 14,
+  showStress = false,
+}: {
+  days: DayMetric[];
+  limit?: number;
+  showStress?: boolean;
+}) {
   const rows = [...days].sort((a, b) => (a.day < b.day ? 1 : -1)).slice(0, limit);
   if (rows.length === 0) return <p className="muted">עוד אין נתונים.</p>;
   return (
@@ -16,6 +24,7 @@ export function MetricsTable({ days, limit = 14 }: { days: DayMetric[]; limit?: 
             <th>דופק מנוחה</th>
             <th>שעות שינה</th>
             <th>צעדים</th>
+            {showStress && <th>מתח (דק׳)</th>}
           </tr>
         </thead>
         <tbody>
@@ -28,6 +37,7 @@ export function MetricsTable({ days, limit = 14 }: { days: DayMetric[]; limit?: 
               <td>{fmt(d.lowestHeartRate)}</td>
               <td>{fmt(d.totalSleepHours, 1)}</td>
               <td>{d.steps === null ? "–" : d.steps.toLocaleString("he-IL")}</td>
+              {showStress && <td>{fmt(d.stressMinutes)}</td>}
             </tr>
           ))}
         </tbody>

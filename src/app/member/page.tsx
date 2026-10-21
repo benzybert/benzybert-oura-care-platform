@@ -1,4 +1,5 @@
 import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
+import { ContextEventsCard } from "@/components/context-events-card";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
@@ -6,7 +7,7 @@ import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
-import { todayInIsrael } from "@/lib/dates";
+import { addDays, todayInIsrael } from "@/lib/dates";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
@@ -15,6 +16,7 @@ import {
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
+  getRecentEvents,
   getSelfRewards,
   listShareLinks,
   ouraStatus,
@@ -61,7 +63,8 @@ export default async function MemberPage({
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, params] = await Promise.all([
+  const today = todayInIsrael();
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -71,6 +74,7 @@ export default async function MemberPage({
     listShareLinks(member.id),
     getSelfRewards(member.id),
     getCoffeeClaimDays(member.id),
+    getRecentEvents(addDays(today, -90)),
     searchParams,
   ]);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
@@ -178,8 +182,10 @@ export default async function MemberPage({
 
       <div className="card" id="data">
         <h2>14 הימים האחרונים</h2>
-        <MetricsTable days={metrics} />
+        <MetricsTable days={metrics} showStress />
       </div>
+
+      <ContextEventsCard events={events} metrics={metrics} today={today} />
 
       <div id="goals">
         <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />

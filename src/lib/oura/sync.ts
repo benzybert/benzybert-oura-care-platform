@@ -10,6 +10,7 @@ import { OuraAuthError, fetchCollection, refreshTokens } from "./client";
 import {
   dailyActivityItem,
   dailyScoreItem,
+  dailyStressItem,
   mapToDayMetrics,
   sleepPeriodItem,
 } from "./map";
@@ -59,14 +60,19 @@ export async function syncMember(db: Db, memberId: string, now: Date = new Date(
     const today = todayInIsrael(now);
     // Oura's end_date can be exclusive for some collections; ask for tomorrow to be safe.
     const range = { start: addDays(today, -SYNC_WINDOW_DAYS), end: addDays(today, 1) };
-    const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods] = await Promise.all([
+    const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods, dailyStress] = await Promise.all([
       fetchCollection("daily_sleep", accessToken, range, dailyScoreItem),
       fetchCollection("daily_readiness", accessToken, range, dailyScoreItem),
       fetchCollection("daily_activity", accessToken, range, dailyActivityItem),
       fetchCollection("sleep", accessToken, range, sleepPeriodItem),
+      // Stress is a context signal, not essential: an account without Oura's stress feature must still sync.
+      fetchCollection("daily_stress", accessToken, range, dailyStressItem).catch((err) => {
+        if (err instanceof OuraAuthError) throw err;
+        return undefined;
+      }),
     ]);
 
-    const rows = mapToDayMetrics({ dailySleep, dailyReadiness, dailyActivity, sleepPeriods });
+    const rows = mapToDayMetrics({ dailySleep, dailyReadiness, dailyActivity, sleepPeriods, dailyStress });
     if (rows.length > 0) {
       await db
         .insert(dailyMetrics)
@@ -82,6 +88,9 @@ export async function syncMember(db: Db, memberId: string, now: Date = new Date(
             totalSleepHours: sql`coalesce(excluded.total_sleep_hours, ${dailyMetrics.totalSleepHours})`,
             steps: sql`coalesce(excluded.steps, ${dailyMetrics.steps})`,
             bedtimeStartMinute: sql`coalesce(excluded.bedtime_start_minute, ${dailyMetrics.bedtimeStartMinute})`,
+            stressMinutes: sql`coalesce(excluded.stress_minutes, ${dailyMetrics.stressMinutes})`,
+            recoveryMinutes: sql`coalesce(excluded.recovery_minutes, ${dailyMetrics.recoveryMinutes})`,
+            stressSummary: sql`coalesce(excluded.stress_summary, ${dailyMetrics.stressSummary})`,
             updatedAt: sql`now()`,
           },
         });

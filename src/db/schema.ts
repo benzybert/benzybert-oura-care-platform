@@ -19,6 +19,7 @@ export const consentScopeEnum = pgEnum("consent_scope", ["care_team", "org_aggre
 export const alertStatusEnum = pgEnum("alert_status", ["open", "acknowledged", "dismissed"]);
 export const metricSourceEnum = pgEnum("metric_source", ["oura", "demo"]);
 export const doctorRoleEnum = pgEnum("doctor_role", ["neurologist", "family_doctor"]);
+export const contextEventKindEnum = pgEnum("context_event_kind", ["war", "pandemic", "disaster", "other"]);
 export const selfRewardKindEnum = pgEnum("self_reward_kind", [
   "average",
   "days_hit",
@@ -134,6 +135,11 @@ export const dailyMetrics = pgTable(
     totalSleepHours: real("total_sleep_hours"),
     steps: integer("steps"),
     bedtimeStartMinute: integer("bedtime_start_minute"),
+    /** Oura daily_stress: minutes in a high-stress state / minutes of daytime recovery */
+    stressMinutes: integer("stress_minutes"),
+    recoveryMinutes: integer("recovery_minutes"),
+    /** Oura's own label for the day: restored | normal | stressful */
+    stressSummary: text("stress_summary"),
     source: metricSourceEnum("source").notNull().default("oura"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -273,6 +279,26 @@ export const coffeeClaims = pgTable(
   },
   (t) => [unique("coffee_claims_member_day").on(t.memberId, t.day)],
 );
+
+/**
+ * Public context for health data: a war, a pandemic, a disaster. Global, holds no member data
+ * and nothing copied from news sites (titles are our own labels). Opened by the feed detector
+ * (src/lib/event-feed.ts) or listed by hand in src/config/events.ts.
+ */
+export const contextEvents = pgTable("context_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** stable key: "feed:war" for the detector's current war event, "manual:<id>" for config entries */
+  externalId: text("external_id").notNull().unique(),
+  kind: contextEventKindEnum("kind").notNull(),
+  titleHe: text("title_he").notNull(),
+  startsOn: date("starts_on", { mode: "string" }).notNull(),
+  /** null while the event is ongoing */
+  endsOn: date("ends_on", { mode: "string" }),
+  /** the last day the detector still saw the event in the news */
+  lastSeenOn: date("last_seen_on", { mode: "string" }),
+  source: text("source").notNull(),
+  createdAt: createdAt(),
+});
 
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
