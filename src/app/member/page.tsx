@@ -177,6 +177,7 @@ export default async function MemberPage({
       )}
 
       <nav className="section-nav" aria-label="ניווט בעמוד">
+        <a href="#integrations">פרופיל ו-Instinct</a>
         <a href="#ring">הטבעת</a>
         <a href="#data">הנתונים</a>
         <a href="#goals">התגמולים שלי</a>

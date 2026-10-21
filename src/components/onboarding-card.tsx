@@ -29,6 +29,17 @@ export function OnboardingCard({ score, items, actions }: { score: number; items
         ))}
       </ul>
 
+      <h2 style={{ marginTop: 20 }}>Instinct, העוזר האישי</h2>
+      <div className="row">
+        <p className="muted">פתחו צ׳אט WhatsApp עם Instinct. הטקסט מוכן ואתם לוחצים שלח.</p>
+        <form action={openInstinctWhatsApp}>
+          <input type="hidden" name="rule" value="general" />
+          <button className="btn" type="submit">
+            פתח את Instinct ב-WhatsApp
+          </button>
+        </form>
+      </div>
+
       <h2 style={{ marginTop: 20 }}>פעולות להיום</h2>
       {actions.length === 0 ? (
         <p className="muted">אין פעולות מומלצות. הלילה האחרון היה בסדר.</p>

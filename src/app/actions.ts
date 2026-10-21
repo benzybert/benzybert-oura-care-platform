@@ -12,7 +12,7 @@ import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffe
 import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
-import { buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
+import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
@@ -516,8 +516,13 @@ export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
 
-  const rule = z.enum(["low_sleep", "low_readiness", "low_hrv"]).safeParse(formData.get("rule"));
+  const rule = z.enum(["general", "low_sleep", "low_readiness", "low_hrv"]).safeParse(formData.get("rule"));
   if (!rule.success) redirect("/member?integration=invalid#integrations");
+
+  if (rule.data === "general") {
+    await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
+    redirect(whatsappLink(instinctWhatsappNumber(), INSTINCT_GENERAL_PROMPT));
+  }
 
   const action = suggestActions(await getMetrics(member.id), todayInIsrael()).find((a) => a.rule === rule.data);
   if (!action) redirect("/member?integration=gone#integrations");

@@ -63,3 +63,6 @@ export function whatsappLink(number: string, text: string): string {
 export function instinctWhatsappNumber(): string {
   return process.env.INSTINCT_WHATSAPP || INSTINCT_CONFIG.whatsappNumber;
 }
+
+/** A general opener for when no rule fired: the member can still start a chat with Instinct. */
+export const INSTINCT_GENERAL_PROMPT = "היי, מ-Oura Care: אשמח שתעזור לי לתכנן את היום לפי איך שישנתי.";
