@@ -20,6 +20,7 @@ import {
   getAutomationRules,
   getCoffeeClaimDays,
   getConsentRecords,
+  getActiveInstinctAccess,
   getDeliveredActions,
   getDoctorContacts,
   getMemberForUser,
@@ -96,7 +97,7 @@ export default async function MemberPage({
 
   const today = todayInIsrael();
   after(() => refreshAlertsIfStale(getDb()));
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, automations, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -109,6 +110,7 @@ export default async function MemberPage({
     getRecentEvents(addDays(today, -90)),
     getAlertDays(addDays(today, -60)),
     getDeliveredActions(member.id, "whatsapp"),
+    getActiveInstinctAccess(member.id),
     getAutomationRules(member.id),
     searchParams,
   ]);
@@ -122,7 +124,7 @@ export default async function MemberPage({
     recentDays: metrics.filter((d) => d.day > addDays(today, -7)).length,
     reviewedSharing: records.length > 0,
     hasDoctor: Object.keys(doctors).length > 0,
-    instinctUsed: delivered.length > 0,
+    instinctUsed: delivered.length > 0 || Boolean(instinctAccess),
   });
   const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
   const actionMessage = params.action ? ACTION_MESSAGES[params.action] : undefined;
@@ -181,6 +183,7 @@ export default async function MemberPage({
       )}
 
       <OnboardingCard
+        access={instinctAccess ? { expiresAt: instinctAccess.row.expiresAt, readCount: instinctAccess.row.readCount, lastReadAt: instinctAccess.row.lastReadAt } : null}
         score={strength.score}
         items={strength.items}
         actions={actions}

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
+import { instinctPath } from "./instinct-brief";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
 import type { AutomationMetric, Comparator } from "./automations";
 import type { ContextEvent } from "./context-events";
@@ -26,6 +27,7 @@ const {
   automationRules,
   automationRuns,
   alertDays,
+  instinctAccess,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -336,4 +338,42 @@ export async function getAlertDays(sinceDay: string): Promise<Array<{ day: strin
     .from(alertDays)
     .where(sql`${alertDays.day} >= ${sinceDay}`)
     .orderBy(asc(alertDays.day));
+}
+
+export type InstinctAccess = typeof instinctAccess.$inferSelect;
+
+/** The member's newest data link that is neither revoked nor expired, with its path when it can be shown. */
+export async function getActiveInstinctAccess(
+  memberId: string,
+): Promise<{ row: InstinctAccess; path: string | null } | null> {
+  const [row] = await getDb()
+    .select()
+    .from(instinctAccess)
+    .where(and(eq(instinctAccess.memberId, memberId), isNull(instinctAccess.revokedAt), gt(instinctAccess.expiresAt, new Date())))
+    .orderBy(desc(instinctAccess.createdAt))
+    .limit(1);
+  if (!row) return null;
+  let path: string | null = null;
+  try {
+    path = instinctPath(decrypt(row.tokenEnc));
+  } catch {
+    path = null;
+  }
+  return { row, path };
+}
+
+export async function findInstinctAccessByToken(token: string): Promise<InstinctAccess | null> {
+  const [row] = await getDb()
+    .select()
+    .from(instinctAccess)
+    .where(eq(instinctAccess.tokenHash, hashShareToken(token)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function recordInstinctRead(id: string): Promise<void> {
+  await getDb()
+    .update(instinctAccess)
+    .set({ readCount: sql`${instinctAccess.readCount} + 1`, lastReadAt: new Date() })
+    .where(eq(instinctAccess.id, id));
 }

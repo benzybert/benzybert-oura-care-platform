@@ -21,10 +21,12 @@ import { buildDashboard } from "@/lib/doctor-dashboard";
 import { buildDoctorPdf } from "@/lib/doctor-pdf";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
+import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
+  getActiveInstinctAccess,
   countActiveShareLinks,
   getAutomationRules,
   findShareLinkByToken,
@@ -64,7 +66,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims, actionDeliveries, automationRules, automationRuns } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims, actionDeliveries, automationRules, automationRuns, instinctAccess } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -692,4 +694,51 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_run" });
   revalidatePath("/member");
   redirect("/member?action=fired#actions");
+}
+
+/**
+ * Member connects Instinct to their data: reuses the active data link or makes a new one, then
+ * opens WhatsApp with the link and the standing instructions typed in. The member sends it.
+ * The link carries a token, not health data; what it returns is limited in buildInstinctPayload.
+ */
+export async function connectInstinctData(): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  let path = (await getActiveInstinctAccess(member.id))?.path ?? null;
+  if (!path) {
+    const token = newShareToken();
+    await getDb().insert(instinctAccess).values({
+      memberId: member.id,
+      tokenHash: hashShareToken(token),
+      tokenEnc: encrypt(token),
+      expiresAt: addDaysTo(new Date(), INSTINCT_TOKEN_DAYS),
+    });
+    path = instinctPath(token);
+    await logAudit({ actorUserId: user.id, memberId: member.id, action: "instinct_access_created", scope: "instinct" });
+  }
+
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const url = host ? `${proto}://${host}${path}` : path;
+
+  revalidatePath("/member");
+  redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctInstructions(url)));
+}
+
+/** Member cuts Instinct's access at once. */
+export async function revokeInstinctAccess(): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  await getDb()
+    .update(instinctAccess)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(instinctAccess.memberId, member.id), isNull(instinctAccess.revokedAt)));
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "instinct_access_revoked", scope: "instinct" });
+  revalidatePath("/member");
+  redirect("/member#integrations");
 }

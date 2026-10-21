@@ -388,6 +388,30 @@ export const alertDays = pgTable("alert_days", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Read-only data links the member gives to Instinct (their personal assistant). The token is 256
+ * random bits; lookup is by SHA-256 hash only, and `token_enc` lets the member copy the link again.
+ * It returns the last 7 days of sleep, readiness, HRV and steps plus suggested actions, and nothing
+ * else. Separate from consent scopes and from doctor share links.
+ */
+export const instinctAccess = pgTable(
+  "instinct_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenEnc: text("token_enc").notNull(),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    readCount: integer("read_count").notNull().default(0),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+  },
+  (t) => [index("instinct_access_member_idx").on(t.memberId, t.createdAt)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",

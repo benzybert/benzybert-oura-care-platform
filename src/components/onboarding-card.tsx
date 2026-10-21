@@ -1,9 +1,24 @@
-import { openInstinctWhatsApp } from "@/app/actions";
+import { connectInstinctData, openInstinctWhatsApp, revokeInstinctAccess } from "@/app/actions";
+import { buildInstinctInstructions } from "@/lib/instinct-brief";
 import type { StrengthItem } from "@/lib/profile-strength";
 
 type ActionRow = { rule: string; title: string; task: string; opened: boolean };
 
-export function OnboardingCard({ score, items, actions }: { score: number; items: StrengthItem[]; actions: ActionRow[] }) {
+export type InstinctAccessView = { expiresAt: Date; readCount: number; lastReadAt: Date | null };
+
+const dateTime = (d: Date) => d.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" });
+
+export function OnboardingCard({
+  score,
+  items,
+  actions,
+  access,
+}: {
+  score: number;
+  items: StrengthItem[];
+  actions: ActionRow[];
+  access: InstinctAccessView | null;
+}) {
   return (
     <div className="card" id="integrations">
       <h2>חוזק הפרופיל: {score}%</h2>
@@ -39,6 +54,48 @@ export function OnboardingCard({ score, items, actions }: { score: number; items
           </button>
         </form>
       </div>
+
+      <h2 style={{ marginTop: 20 }}>חיבור הנתונים ל-Instinct</h2>
+      <p className="muted">
+        נפתח צ׳אט WhatsApp עם קישור אישי לנתונים שלך (קריאה בלבד) והוראות קבועות. ל-Instinct יהיו ציון שינה, מוכנות, HRV,
+        שעות שינה וצעדים של 7 הימים האחרונים, בלי שם ובלי אימייל. הקישור תקף 90 יום ואפשר לנתק אותו בכל רגע.
+      </p>
+      <div className="row">
+        {access ? (
+          <span>
+            <span className="badge ok">מחובר</span>{" "}
+            <span className="muted">
+              נקרא {access.readCount} פעמים{access.lastReadAt ? `, לאחרונה ${dateTime(access.lastReadAt)}` : ""}. תוקף עד {dateTime(access.expiresAt)}
+            </span>
+          </span>
+        ) : (
+          <span className="muted">עוד לא מחובר.</span>
+        )}
+        <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+          <form action={connectInstinctData}>
+            <button className="btn" type="submit">
+              {access ? "שלח שוב את ההוראות" : "חבר את Instinct לנתונים שלי"}
+            </button>
+          </form>
+          {access && (
+            <form action={revokeInstinctAccess}>
+              <button className="btn secondary" type="submit">
+                נתק גישה
+              </button>
+            </form>
+          )}
+        </span>
+      </div>
+      <details>
+        <summary>הוראות לדוגמה (כך ייראה ההסבר שיישלח)</summary>
+        <pre dir="rtl" style={{ whiteSpace: "pre-wrap", margin: "8px 0" }}>
+          {buildInstinctInstructions("https://<האתר שלך>/api/instinct/<קישור אישי יווצר בלחיצה>")}
+        </pre>
+        <p className="muted">
+          ההוראות מבקשות אישור שלך לפני ביטול פגישות או הודעה לאחרים. הספים (מוכנות מתחת ל-65, שינה מתחת ל-70) נקבעים ב-
+          <code>src/lib/actions-engine.ts</code>.
+        </p>
+      </details>
 
       <h2 style={{ marginTop: 20 }}>פעולות להיום</h2>
       {actions.length === 0 ? (
