@@ -21,6 +21,7 @@ const {
   selfRewards,
   coffeeClaims,
   contextEvents,
+  actionDeliveries,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -168,7 +169,7 @@ export async function logAudit(entry: {
   memberId?: string | null;
   action: string;
   /** a consent scope, the doctor role for doctor sends and share links, or "share_link" */
-  scope?: ConsentScope | DoctorRole | "share_link" | null;
+  scope?: ConsentScope | DoctorRole | "share_link" | "instinct" | null;
 }) {
   await getDb().insert(auditLog).values({
     actorUserId: entry.actorUserId,
@@ -278,4 +279,13 @@ export async function getRecentEvents(sinceDay: string): Promise<ContextEvent[]>
     .where(sql`${contextEvents.endsOn} is null or ${contextEvents.endsOn} >= ${sinceDay}`)
     .orderBy(desc(contextEvents.startsOn));
   return rows;
+}
+
+/** "rule:day" keys already delivered to a provider. */
+export async function getDeliveredActions(memberId: string, provider: string): Promise<string[]> {
+  const rows = await getDb()
+    .select({ rule: actionDeliveries.rule, day: actionDeliveries.day })
+    .from(actionDeliveries)
+    .where(and(eq(actionDeliveries.memberId, memberId), eq(actionDeliveries.provider, provider)));
+  return rows.map((r) => `${r.rule}:${r.day}`);
 }

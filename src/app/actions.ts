@@ -12,6 +12,7 @@ import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffe
 import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
+import { buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
 import {
   assignedMembers,
@@ -51,7 +52,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims, actionDeliveries } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -503,4 +504,29 @@ export async function claimCoffee(): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "coffee_claim" });
   revalidatePath("/member");
   redirect("/member?coffee=sent");
+}
+
+/**
+ * Member taps the WhatsApp button on one suggested action. The form only names the rule: the
+ * server recomputes the task from the database, records that it was opened (audit, no content),
+ * and redirects to a wa.me chat with the text pre-filled. The member reads and sends it themselves.
+ */
+export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  const rule = z.enum(["low_sleep", "low_readiness", "low_hrv"]).safeParse(formData.get("rule"));
+  if (!rule.success) redirect("/member?integration=invalid#integrations");
+
+  const action = suggestActions(await getMetrics(member.id), todayInIsrael()).find((a) => a.rule === rule.data);
+  if (!action) redirect("/member?integration=gone#integrations");
+
+  await getDb()
+    .insert(actionDeliveries)
+    .values({ memberId: member.id, rule: action.rule, day: action.day, provider: "whatsapp" })
+    .onConflictDoNothing();
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
+  revalidatePath("/member");
+  redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctPrompt(action)));
 }

@@ -1,10 +1,13 @@
 import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
 import { ContextEventsCard } from "@/components/context-events-card";
+import { OnboardingCard } from "@/components/onboarding-card";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
 import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
+import { suggestActions } from "@/lib/actions-engine";
+import { profileStrength } from "@/lib/profile-strength";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
@@ -13,6 +16,7 @@ import {
   accessLogFor,
   getCoffeeClaimDays,
   getConsentRecords,
+  getDeliveredActions,
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
@@ -45,6 +49,11 @@ const DOCTOR_MESSAGES: Record<string, string> = {
   failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
 };
 
+const INTEGRATION_MESSAGES: Record<string, string> = {
+  invalid: "הפעולה לא תקינה. נסו שוב.",
+  gone: "הפעולה כבר לא רלוונטית.",
+};
+
 const COFFEE_MESSAGES: Record<string, string> = {
   sent: "שלחנו לאימייל שלך קישור לקפה. תהנה ☕",
   already: "כבר קיבלת קפה על הלילה הזה.",
@@ -57,14 +66,14 @@ const COFFEE_MESSAGES: Record<string, string> = {
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
   const today = todayInIsrael();
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, delivered, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -75,12 +84,22 @@ export default async function MemberPage({
     getSelfRewards(member.id),
     getCoffeeClaimDays(member.id),
     getRecentEvents(addDays(today, -90)),
+    getDeliveredActions(member.id, "whatsapp"),
     searchParams,
   ]);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
   const coffeeMessage = params.coffee ? COFFEE_MESSAGES[params.coffee] : undefined;
   const coffee = coffeeStatus(metrics, todayInIsrael(), coffeeClaimDays);
+  const integrationMessage = params.integration ? INTEGRATION_MESSAGES[params.integration] : undefined;
+  const strength = profileStrength({
+    ouraConnected: Boolean(oura),
+    recentDays: metrics.filter((d) => d.day > addDays(today, -7)).length,
+    reviewedSharing: records.length > 0,
+    hasDoctor: Object.keys(doctors).length > 0,
+    instinctUsed: delivered.length > 0,
+  });
+  const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
   const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
   return (
@@ -101,6 +120,11 @@ export default async function MemberPage({
       {doctorMessage && (
         <div className="notice" role="status">
           {doctorMessage}
+        </div>
+      )}
+      {integrationMessage && (
+        <div className="notice" role="status">
+          {integrationMessage}
         </div>
       )}
       {coffeeMessage && (
@@ -124,6 +148,12 @@ export default async function MemberPage({
           </div>
         </div>
       )}
+
+      <OnboardingCard
+        score={strength.score}
+        items={strength.items}
+        actions={actions}
+      />
 
       {latest && (
         <section className="today" aria-label={`הנתונים האחרונים, ${fmtDay(latest.day)}`}>
