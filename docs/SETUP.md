@@ -14,13 +14,23 @@ Branches: `main` (production) and `dev` (integration and demos). Protect `main` 
 
 ## 3. Database
 
-Use **two separate databases**: one for Production, one for Preview/dev. Neon or Supabase can be added from the Vercel Marketplace, which sets `DATABASE_URL`. Pick a region close to the users and check the data-residency question in [PRIVACY.md](PRIVACY.md).
+Use **two separate databases**: one for Production, one for Preview/dev. Pick a region close to the users and check the data-residency question in [PRIVACY.md](PRIVACY.md).
 
-Apply migrations to each database:
+### Supabase (current setup)
+
+- Dev: project `oura-care-dev`, region `eu-central-1` (Frankfurt). Production gets its own project when real members join (do not reuse the dev project).
+- **Public API is locked.** Supabase exposes every table in `public` through REST/GraphQL with the anon key. Migration `0001_lock_down_public_api.sql` enables RLS on all tables with no policies and revokes `anon`/`authenticated`. Verify with the Supabase security advisor after any schema change; the only expected finding is the INFO "RLS enabled, no policy".
+- **The app connects as `oura_app`**, not `postgres` (see [supabase-app-role.sql](supabase-app-role.sql)). It is subject to RLS and has explicit policies. New tables need `ENABLE ROW LEVEL SECURITY` plus a policy for `oura_app`.
+- **Connection string.** Vercel is IPv4-only, so use the shared pooler in transaction mode (port 6543, user `oura_app.<project-ref>`). The app already sets `prepare: false`, which transaction mode requires. The direct `db.<ref>.supabase.co` host is IPv6-only on the Free plan.
+- The password lives only in Vercel (`DATABASE_URL`, Sensitive). Rotate it with `ALTER ROLE oura_app PASSWORD '...'` and update the env var.
+
+### Applying migrations
+
+The dev database was migrated through the Supabase tooling, and Drizzle's journal (`drizzle.__drizzle_migrations`) was filled to match, so `npm run db:migrate` will only run migrations added later. Migrations need an owner connection (`postgres`), not `oura_app`:
 
 ```bash
-vercel env pull .env.local            # or export DATABASE_URL yourself
-npm run db:migrate
+# direct (IPv6) or session-pooler URL for the owner role, from the Supabase dashboard
+DATABASE_URL="postgres://postgres...." npm run db:migrate
 ```
 
 Seed synthetic data **only** into the dev database: `npm run db:seed`.
@@ -37,7 +47,7 @@ Seed synthetic data **only** into the dev database: `npm run db:seed`.
 
 | Name | Production | Preview (dev) | Notes |
 | --- | --- | --- | --- |
-| `DATABASE_URL` | prod DB | dev DB | |
+| `DATABASE_URL` | prod DB | dev DB | pooler URL for the `oura_app` role (see section 3) |
 | `OURA_CLIENT_ID`, `OURA_CLIENT_SECRET` | yes | yes | |
 | `OURA_REDIRECT_URI` | prod callback URL | dev callback URL | must match the Oura app exactly |
 | `TOKEN_ENCRYPTION_KEY` | yes | yes | `openssl rand -base64 32`; **different per environment**; losing it makes stored tokens unreadable |
