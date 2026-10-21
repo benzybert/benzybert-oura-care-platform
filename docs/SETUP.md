@@ -53,6 +53,7 @@ Seed synthetic data **only** into the dev database: `npm run db:seed`.
 | `TOKEN_ENCRYPTION_KEY` | yes | yes | `openssl rand -base64 32`; **different per environment**; losing it makes stored tokens unreadable |
 | `SESSION_SECRET` | yes | yes | `openssl rand -base64 32` |
 | `CRON_SECRET` | yes | yes | Vercel Cron sends it as a bearer token |
+| `RESEND_API_KEY`, `MAIL_FROM` | optional | optional | needed for the member "send to my doctors" button; `MAIL_FROM` must be on a domain verified in Resend |
 | `ORG_MIN_COHORT` | `5` or more | `5` | |
 | `DEMO_AUTH` | **never `true`** | `true` | |
 

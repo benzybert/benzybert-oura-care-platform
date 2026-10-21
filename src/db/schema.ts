@@ -17,6 +17,7 @@ export const orgKindEnum = pgEnum("org_kind", ["clinic", "employer", "provider"]
 export const consentScopeEnum = pgEnum("consent_scope", ["care_team", "org_aggregate", "rewards"]);
 export const alertStatusEnum = pgEnum("alert_status", ["open", "acknowledged", "dismissed"]);
 export const metricSourceEnum = pgEnum("metric_source", ["oura", "demo"]);
+export const doctorRoleEnum = pgEnum("doctor_role", ["neurologist", "family_doctor"]);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -153,6 +154,25 @@ export const rewardEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [unique("reward_member_kind_day_uq").on(t.memberId, t.kind, t.day)],
+);
+
+/**
+ * The member's own doctors, entered by the member. Used only for sends the member
+ * starts and confirms; it is not the care team and grants no one access to anything.
+ */
+export const doctorContacts = pgTable(
+  "doctor_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    role: doctorRoleEnum("role").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("doctor_contacts_member_role_uq").on(t.memberId, t.role)],
 );
 
 /** Who looked at whose data, and why. Members can be shown their own access log. */

@@ -1,0 +1,75 @@
+import { notFound, redirect } from "next/navigation";
+import { sendToDoctor } from "@/app/actions";
+import { buildDoctorMessage } from "@/lib/doctor-share";
+import { mailConfigured } from "@/lib/mail";
+import { getDoctorContacts, getMemberForUser, getMetrics } from "@/lib/queries";
+import { requireRole } from "@/lib/session";
+import { DOCTOR_LABELS_HE, DOCTOR_ROLES, type DoctorRole } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+
+/** Confirmation step: shows exactly who gets what, and sends nothing until the member confirms. */
+export default async function ConfirmSendPage({ params }: { params: Promise<{ role: string }> }) {
+  const { role: raw } = await params;
+  if (!DOCTOR_ROLES.includes(raw as DoctorRole)) notFound();
+  const role = raw as DoctorRole;
+
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  const contact = (await getDoctorContacts(member.id))[role];
+  if (!contact) redirect("/member?doctor=missing");
+
+  const message = buildDoctorMessage({ role, doctorName: contact.name, days: await getMetrics(member.id) });
+  const ready = mailConfigured();
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <h1>שליחה ל{DOCTOR_LABELS_HE[role]}</h1>
+          <p className="muted">בדוק מה יישלח. שום דבר לא נשלח עד שתאשר.</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="row">
+          <span className="muted">אל</span>
+          <span>
+            {contact.name} · <span dir="ltr">{contact.email}</span>
+          </span>
+        </div>
+        <div className="row">
+          <span className="muted">תשובות יגיעו אל</span>
+          <span dir="ltr">{user.email}</span>
+        </div>
+        <div className="row">
+          <span className="muted">נושא</span>
+          <span>{message.subject}</span>
+        </div>
+        <h2>תוכן ההודעה</h2>
+        <pre className="preview">{message.body}</pre>
+      </div>
+
+      {!ready && (
+        <div className="card">
+          <span className="badge">שליחת מייל עוד לא הוגדרה בשרת</span>
+          <p className="muted">צריך להגדיר RESEND_API_KEY ו-MAIL_FROM (ראה docs/SETUP.md). עד אז אי אפשר לשלוח.</p>
+        </div>
+      )}
+
+      <div className="links">
+        <form action={sendToDoctor}>
+          <input type="hidden" name="role" value={role} />
+          <button className="btn" type="submit" disabled={!ready}>
+            אשר ושלח
+          </button>
+        </form>
+        <a className="btn secondary" href="/member">
+          ביטול
+        </a>
+      </div>
+    </>
+  );
+}

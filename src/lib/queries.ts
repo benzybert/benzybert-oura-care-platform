@@ -1,10 +1,31 @@
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
-import type { ConsentScope, DayMetric } from "./types";
+import type { ConsentScope, DayMetric, DoctorRole } from "./types";
 
-const { members, dailyMetrics, consents, careAssignments, alerts, rewardEvents, auditLog, users, ouraConnections } =
-  schema;
+const {
+  members,
+  dailyMetrics,
+  consents,
+  careAssignments,
+  alerts,
+  rewardEvents,
+  auditLog,
+  users,
+  ouraConnections,
+  doctorContacts,
+} = schema;
+
+export type DoctorContact = { role: DoctorRole; name: string; email: string };
+
+/** The member's saved doctors, keyed by role. Only ever called with the signed-in member's id. */
+export async function getDoctorContacts(memberId: string): Promise<Partial<Record<DoctorRole, DoctorContact>>> {
+  const rows = await getDb()
+    .select({ role: doctorContacts.role, name: doctorContacts.name, email: doctorContacts.email })
+    .from(doctorContacts)
+    .where(eq(doctorContacts.memberId, memberId));
+  return Object.fromEntries(rows.map((r) => [r.role, r]));
+}
 
 export type Member = typeof members.$inferSelect;
 
@@ -114,7 +135,8 @@ export async function logAudit(entry: {
   actorUserId: string;
   memberId?: string | null;
   action: string;
-  scope?: ConsentScope | null;
+  /** a consent scope, or the doctor role for "share_to_doctor" entries */
+  scope?: ConsentScope | DoctorRole | null;
 }) {
   await getDb().insert(auditLog).values({
     actorUserId: entry.actorUserId,

@@ -1,4 +1,5 @@
 import { disconnectOura, setConsent } from "@/app/actions";
+import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
 import { hasActiveConsent } from "@/lib/consent";
@@ -6,6 +7,7 @@ import { fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
   getConsentRecords,
+  getDoctorContacts,
   getMemberForUser,
   getMetrics,
   ouraStatus,
@@ -23,24 +25,37 @@ const OURA_MESSAGES: Record<string, string> = {
   no_member: "לא נמצא פרופיל מתאמן.",
 };
 
+const DOCTOR_MESSAGES: Record<string, string> = {
+  saved: "הרופא נשמר.",
+  removed: "הרופא הוסר.",
+  invalid: "השם או האימייל לא תקינים. נסו שוב.",
+  missing: "לא הוגדר רופא לתפקיד הזה.",
+  sent_neurologist: "ההודעה נשלחה לנוירולוג.",
+  sent_family_doctor: "ההודעה נשלחה לרופא המשפחה.",
+  not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
+  failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
+};
+
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
     ouraStatus(member.id),
     accessLogFor(member.id),
+    getDoctorContacts(member.id),
     searchParams,
   ]);
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
+  const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
   return (
     <>
@@ -53,6 +68,7 @@ export default async function MemberPage({
       </div>
 
       {ouraMessage && <div className="card">{ouraMessage}</div>}
+      {doctorMessage && <div className="card">{doctorMessage}</div>}
 
       <div className="card">
         <h2>הטבעת</h2>
@@ -107,6 +123,8 @@ export default async function MemberPage({
           );
         })}
       </div>
+
+      <DoctorShareCard contacts={doctors} />
 
       <div className="grid">
         <div className="card stat">

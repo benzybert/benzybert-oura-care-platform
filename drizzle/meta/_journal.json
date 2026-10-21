@@ -15,6 +15,13 @@
       "when": 1792657153938,
       "tag": "0001_lock_down_public_api",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792743553938,
+      "tag": "0002_doctor_contacts",
+      "breakpoints": true
     }
   ]
 }

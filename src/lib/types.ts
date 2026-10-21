@@ -13,6 +13,15 @@ export type DayMetric = {
 
 export type ConsentScope = "care_team" | "org_aggregate" | "rewards";
 
+export type DoctorRole = "neurologist" | "family_doctor";
+
+export const DOCTOR_ROLES: DoctorRole[] = ["neurologist", "family_doctor"];
+
+export const DOCTOR_LABELS_HE: Record<DoctorRole, string> = {
+  neurologist: "נוירולוג",
+  family_doctor: "רופא משפחה",
+};
+
 export const CONSENT_SCOPES: ConsentScope[] = ["care_team", "org_aggregate", "rewards"];
 
 export const CONSENT_LABELS_HE: Record<ConsentScope, { title: string; description: string }> = {
