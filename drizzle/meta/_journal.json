@@ -36,6 +36,13 @@
       "when": 1792916400000,
       "tag": "0004_self_rewards",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793002800000,
+      "tag": "0005_coffee_claims",
+      "breakpoints": true
     }
   ]
 }

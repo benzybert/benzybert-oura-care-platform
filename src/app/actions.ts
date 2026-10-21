@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
+import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffee";
 import { encrypt } from "@/lib/crypto";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
@@ -15,6 +16,7 @@ import {
   assignedMembers,
   countActiveShareLinks,
   findShareLinkByToken,
+  getCoffeeClaimDays,
   getDoctorContacts,
   getMemberForUser,
   getMetrics,
@@ -48,7 +50,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -462,4 +464,42 @@ export async function deleteSelfReward(formData: FormData): Promise<void> {
     .delete(selfRewards)
     .where(and(eq(selfRewards.id, id), eq(selfRewards.memberId, member.id)));
   revalidatePath("/member");
+}
+
+/**
+ * "Coffee on me": after a poor night (decided here from the database, not by the button) the
+ * member gets one email per day with the payment link from src/config/coffee.ts, sent to their
+ * own address. No money moves automatically.
+ */
+export async function claimCoffee(): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+
+  const link = coffeePaymentLink();
+  if (!link) redirect("/member?coffee=not_configured");
+
+  const status = coffeeStatus(await getMetrics(member.id), todayInIsrael(), await getCoffeeClaimDays(member.id));
+  if (status.state === "claimed") redirect("/member?coffee=already");
+  if (status.state !== "eligible") redirect("/member?coffee=not_eligible");
+
+  // The unique (member, day) row is the lock: a double click cannot send two emails.
+  const inserted = await getDb()
+    .insert(coffeeClaims)
+    .values({ memberId: member.id, day: status.day })
+    .onConflictDoNothing()
+    .returning({ id: coffeeClaims.id });
+  const claimId = inserted[0]?.id;
+  if (!claimId) redirect("/member?coffee=already");
+
+  const message = buildCoffeeMessage(link);
+  const result = await sendMail({ to: user.email, subject: message.subject, text: message.body });
+  if (!result.ok) {
+    await getDb().delete(coffeeClaims).where(eq(coffeeClaims.id, claimId));
+    redirect(`/member?coffee=${result.reason === "not_configured" ? "mail_not_configured" : "failed"}`);
+  }
+
+  await logAudit({ actorUserId: user.id, memberId: member.id, action: "coffee_claim" });
+  revalidatePath("/member");
+  redirect("/member?coffee=sent");
 }

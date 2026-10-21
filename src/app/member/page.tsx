@@ -1,14 +1,16 @@
-import { disconnectOura, setConsent } from "@/app/actions";
+import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
 import { MetricsTable } from "@/components/metrics-table";
 import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
+import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { todayInIsrael } from "@/lib/dates";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
+  getCoffeeClaimDays,
   getConsentRecords,
   getDoctorContacts,
   getMemberForUser,
@@ -41,16 +43,25 @@ const DOCTOR_MESSAGES: Record<string, string> = {
   failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
 };
 
+const COFFEE_MESSAGES: Record<string, string> = {
+  sent: "שלחנו לאימייל שלך קישור לקפה. תהנה ☕",
+  already: "כבר קיבלת קפה על הלילה הזה.",
+  not_eligible: "הלילה האחרון לא היה חלש מספיק, אז אין קפה הפעם.",
+  not_configured: "קישור התשלום עוד לא הוגדר בשרת, ולכן לא נשלח כלום.",
+  mail_not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
+  failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
+};
+
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string; doctor?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -59,10 +70,13 @@ export default async function MemberPage({
     getDoctorContacts(member.id),
     listShareLinks(member.id),
     getSelfRewards(member.id),
+    getCoffeeClaimDays(member.id),
     searchParams,
   ]);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
+  const coffeeMessage = params.coffee ? COFFEE_MESSAGES[params.coffee] : undefined;
+  const coffee = coffeeStatus(metrics, todayInIsrael(), coffeeClaimDays);
   const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
   return (
@@ -83,6 +97,27 @@ export default async function MemberPage({
       {doctorMessage && (
         <div className="notice" role="status">
           {doctorMessage}
+        </div>
+      )}
+      {coffeeMessage && (
+        <div className="notice" role="status">
+          {coffeeMessage}
+        </div>
+      )}
+
+      {coffee.state === "eligible" && (
+        <div className="card">
+          <div className="row">
+            <div>
+              <h2>לילה קשה? קפה על חשבוני ☕</h2>
+              <p className="muted">ציון השינה האחרון שלך היה {coffee.sleepScore}. מגיע לך קפה.</p>
+            </div>
+            <form action={claimCoffee}>
+              <button className="btn" type="submit">
+                שלחו לי כסף לקפה
+              </button>
+            </form>
+          </div>
         </div>
       )}
 

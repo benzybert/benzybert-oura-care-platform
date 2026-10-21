@@ -260,6 +260,20 @@ export const selfRewards = pgTable(
   (t) => [index("self_rewards_member_idx").on(t.memberId)],
 );
 
+/** One "coffee on me" claim per member per day, so a bad night pays out once. */
+export const coffeeClaims = pgTable(
+  "coffee_claims",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("coffee_claims_member_day").on(t.memberId, t.day)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",
