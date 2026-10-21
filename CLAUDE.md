@@ -70,6 +70,10 @@ Rules to keep:
 - Doctor roles were not pre-filled: the user enters who is the neurologist and who is the family doctor.
 - Not built: attachments, a free-text note (the lib supports one, the UI does not), retry or delivery tracking.
 
+## Feature: the member's own dashboard (member page)
+
+The same dashboard component is the main data view on `/member`, in the `#data` section ("הנתונים שלי", replacing the old 14-day table): `DoctorDashboard` with `meta.mode = "member"`, built from `getDashboardMetrics(member.id, windowDays)` (30/60/90 days via `?days=`, same options as share links). Member mode drops the recipient and expiry wording, shows the window switch, a PDF link (`/member/share/preview/pdf`) and a "share with a doctor" jump to `#doctors`, and has no print button (the page is not the printout; the PDF is). Own data only, so it is not audited and needs no consent. Keep the `.dash` wrapper out of `main > .dash` position on `/member` (the full-width and page-background rules target a direct child of `main`).
+
 ## Feature: doctor dashboard link (member page)
 
 On `/member`, card "דאשבורד לרופא": the member creates a read-only link (`/share/<token>`) for a doctor, previews it on `/member/share/preview?days=30`, copies or shares it, sees how many times it was opened, and revokes it. Details in `docs/ARCHITECTURE.md#doctor-dashboard-links`.

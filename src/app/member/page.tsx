@@ -1,11 +1,11 @@
 import { after } from "next/server";
 import { claimCoffee, disconnectOura, setConsent } from "@/app/actions";
 import { ContextEventsCard } from "@/components/context-events-card";
+import { DoctorDashboard } from "@/components/doctor-dashboard/dashboard";
 import { OnboardingCard } from "@/components/onboarding-card";
 import { ActionCenter } from "@/components/action-center";
 import { DoctorShareCard } from "@/components/doctor-share-card";
 import { LogoutButton } from "@/components/logout-button";
-import { MetricsTable } from "@/components/metrics-table";
 import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { suggestActions } from "@/lib/actions-engine";
@@ -14,12 +14,14 @@ import { homeAssistantConfigured } from "@/lib/automations";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
+import { buildDashboard } from "@/lib/doctor-dashboard";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
   getAutomationRules,
   getCoffeeClaimDays,
   getConsentRecords,
+  getDashboardMetrics,
   getActiveInstinctAccess,
   getDeliveredActions,
   getDoctorContacts,
@@ -35,6 +37,7 @@ import {
 import { getDb } from "@/db";
 import { refreshAlertsIfStale } from "@/lib/event-feed";
 import { requireRole } from "@/lib/session";
+import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -91,7 +94,7 @@ const COFFEE_MESSAGES: Record<string, string> = {
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string; action?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string; action?: string; days?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
@@ -99,8 +102,12 @@ export default async function MemberPage({
 
   const today = todayInIsrael();
   after(() => refreshAlertsIfStale(getDb()));
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations, params] = await Promise.all([
+  const params = await searchParams;
+  const asked = Number(params.days);
+  const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
+  const [metrics, dashboardMetrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations] = await Promise.all([
     getMetrics(member.id),
+    getDashboardMetrics(member.id, windowDays),
     getConsentRecords(member.id),
     rewardTotal(member.id),
     ouraStatus(member.id),
@@ -114,8 +121,8 @@ export default async function MemberPage({
     getDeliveredActions(member.id, "whatsapp"),
     getActiveInstinctAccess(member.id),
     getAutomationRules(member.id),
-    searchParams,
   ]);
+  const dashboard = buildDashboard(dashboardMetrics, today, windowDays);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
   const coffeeMessage = params.coffee ? COFFEE_MESSAGES[params.coffee] : undefined;
@@ -215,7 +222,7 @@ export default async function MemberPage({
       <nav className="section-nav" aria-label="ניווט בעמוד">
         <a href="#integrations">פרופיל ו-Instinct</a>
         <a href="#ring">הטבעת</a>
-        <a href="#data">הנתונים</a>
+        <a href="#data">הנתונים שלי</a>
         <a href="#actions">מרכז פעולות</a>
         <a href="#goals">התגמולים שלי</a>
         <a href="#sharing">שיתוף</a>
@@ -248,10 +255,23 @@ export default async function MemberPage({
         )}
       </div>
 
-      <div className="card" id="data">
-        <h2>14 הימים האחרונים</h2>
-        <MetricsTable days={metrics} showStress />
-      </div>
+      <section id="data" className="data-section" aria-label="הנתונים שלי">
+        <DoctorDashboard
+          data={dashboard}
+          meta={{
+            mode: "member",
+            patientName: null,
+            recipientLabel: null,
+            recipientRole: null,
+            note: null,
+            expiresAt: null,
+            generatedAt: new Date(),
+            pdfHref: `/member/share/preview/pdf?days=${windowDays}`,
+            shareHref: "#doctors",
+            windowLinks: SHARE_WINDOW_OPTIONS.map((d) => ({ days: d, href: `/member?days=${d}#data`, active: d === windowDays })),
+          }}
+        />
+      </section>
 
       <ContextEventsCard events={events} metrics={metrics} today={today} alertDays={alertDays} />
 

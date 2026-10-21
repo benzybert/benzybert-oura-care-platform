@@ -41,6 +41,7 @@ import {
   IconLayers,
   IconMinus,
   IconMoon,
+  IconShare,
   IconShield,
   IconThermometer,
   IconWind,
@@ -55,7 +56,8 @@ import { formatHm, formatValue, weekdayLetter } from "./format";
 import { TrendChart, type TrendChartProps } from "./trend-chart";
 
 export type DashboardMeta = {
-  mode: "doctor" | "preview";
+  /** doctor: a shared link; preview: the member checking that; member: the member's own main dashboard */
+  mode: "doctor" | "preview" | "member";
   patientName: string | null;
   recipientLabel: string | null;
   recipientRole: DoctorRole | null;
@@ -64,6 +66,10 @@ export type DashboardMeta = {
   generatedAt: Date;
   /** Where the PDF version of this dashboard is downloaded from. */
   pdfHref?: string | null;
+  /** member mode: the window choices (30/60/90 days) as plain links */
+  windowLinks?: Array<{ days: number; href: string; active: boolean }>;
+  /** member mode: where "share with a doctor" leads */
+  shareHref?: string;
 };
 
 type MetricView = {
@@ -439,8 +445,10 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
     { id: "weekly", label: "טבלאות" },
   ];
 
+  const isMember = meta.mode === "member";
+
   return (
-    <div className="dash">
+    <div className={isMember ? "dash is-member" : "dash"}>
       {meta.mode === "preview" && (
         <div className="dash-preview no-print" role="note">
           <IconEye size={18} />
@@ -457,36 +465,57 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
           <div>
             <p className="hero-eyebrow">
               <IconShield size={16} />
-              סיכום ששותף ביוזמת המטופל · לקריאה בלבד
+              {isMember ? "הנתונים שלי · רק אתה רואה אותם" : "סיכום ששותף ביוזמת המטופל · לקריאה בלבד"}
             </p>
-            <h1>סיכום שינה והתאוששות</h1>
+            {isMember ? <h2 className="hero-title">שינה והתאוששות</h2> : <h1>סיכום שינה והתאוששות</h1>}
             <p className="hero-who">
-              {meta.patientName ? (
-                <>
-                  מטופל: <bdi>{meta.patientName}</bdi>
-                </>
+              {isMember ? (
+                "ככה נראים השינה וההתאוששות שלך. זה גם מה שרופא יראה אם תשתף איתו קישור."
               ) : (
-                "מטופל: השם לא צוין"
-              )}
-              {(meta.recipientLabel || meta.recipientRole) && (
                 <>
-                  {" "}
-                  · עבור{" "}
-                  {meta.recipientLabel ? <bdi>{meta.recipientLabel}</bdi> : null}
-                  {meta.recipientLabel && meta.recipientRole ? ", " : ""}
-                  {meta.recipientRole ? DOCTOR_LABELS_HE[meta.recipientRole] : ""}
+                  {meta.patientName ? (
+                    <>
+                      מטופל: <bdi>{meta.patientName}</bdi>
+                    </>
+                  ) : (
+                    "מטופל: השם לא צוין"
+                  )}
+                  {(meta.recipientLabel || meta.recipientRole) && (
+                    <>
+                      {" "}
+                      · עבור{" "}
+                      {meta.recipientLabel ? <bdi>{meta.recipientLabel}</bdi> : null}
+                      {meta.recipientLabel && meta.recipientRole ? ", " : ""}
+                      {meta.recipientRole ? DOCTOR_LABELS_HE[meta.recipientRole] : ""}
+                    </>
+                  )}
                 </>
               )}
             </p>
           </div>
           <div className="no-print hero-actions">
+            {isMember && meta.windowLinks && (
+              <div className="hero-windows" role="group" aria-label="טווח הנתונים">
+                {meta.windowLinks.map((w) => (
+                  <a key={w.days} href={w.href} aria-current={w.active ? "true" : undefined} className={w.active ? "is-sel" : undefined}>
+                    {w.days} ימים
+                  </a>
+                ))}
+              </div>
+            )}
             {meta.pdfHref && (
               <a className="dash-btn" href={meta.pdfHref} download>
                 <IconDownload size={18} />
                 הורדת PDF
               </a>
             )}
-            <PrintButton />
+            {isMember && meta.shareHref ? (
+              <a className="dash-btn" href={meta.shareHref}>
+                <IconShare size={18} />
+                שיתוף עם רופא
+              </a>
+            ) : null}
+            {!isMember && <PrintButton />}
           </div>
         </div>
 
@@ -573,10 +602,12 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             </dd>
           </div>
           <div>
-            <dt>{meta.mode === "preview" ? "תוקף" : "הקישור בתוקף עד"}</dt>
+            <dt>{isMember ? "מי רואה" : meta.mode === "preview" ? "תוקף" : "הקישור בתוקף עד"}</dt>
             <dd>
-              {meta.expiresAt ? fmtStamp(meta.expiresAt) : "ייקבע ביצירת הקישור"}
-              <span className="hero-meta-sub">כל צפייה נרשמת אצל המטופל</span>
+              {isMember ? "רק אתה" : meta.expiresAt ? fmtStamp(meta.expiresAt) : "ייקבע ביצירת הקישור"}
+              <span className="hero-meta-sub">
+                {isMember ? "רופא רואה רק אחרי שתיצור לו קישור" : "כל צפייה נרשמת אצל המטופל"}
+              </span>
             </dd>
           </div>
         </dl>
@@ -603,7 +634,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
 
       {empty ? (
         <Section id="empty" title="אין עדיין נתונים">
-          <p className="dash-empty">לא התקבלו נתונים מהטבעת בתקופה הזו. אפשר לבקש מהמטופל קישור חדש בהמשך.</p>
+          <p className="dash-empty">{isMember ? "לא התקבלו נתונים מהטבעת בתקופה הזו. אחרי הסנכרון הבא הם יופיעו כאן." : "לא התקבלו נתונים מהטבעת בתקופה הזו. אפשר לבקש מהמטופל קישור חדש בהמשך."}</p>
         </Section>
       ) : (
         <>
@@ -611,7 +642,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             id="findings"
             icon={<IconAlert size={20} />}
             title={attentionCount > 0 ? `ממצאים (${attentionCount} לתשומת לב)` : "ממצאים"}
-            lead="סיכום אוטומטי לפי ספים קבועים ופשוטים, ביחס לערכים של המטופל עצמו. זה כלי סינון, לא אבחנה."
+            lead={`סיכום אוטומטי לפי ספים קבועים ופשוטים, ביחס לערכים ${isMember ? "שלך" : "של המטופל"} עצמו. זה כלי סינון, לא אבחנה.`}
           >
             <Signals findings={data.findings} />
           </Section>
@@ -851,7 +882,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
                           · HRV <bdi>{fmtNum(patterns.shortNights.hrvShort)}</bdi> לעומת <bdi>{fmtNum(patterns.shortNights.hrvOther)}</bdi>
                         </>
                       ) : null}
-                      . קשר סטטיסטי בנתונים של המטופל, לא הוכחה לסיבתיות.
+                      . קשר סטטיסטי בנתונים {isMember ? "שלך" : "של המטופל"}, לא הוכחה לסיבתיות.
                     </p>
                   </>
                 ) : (
@@ -911,7 +942,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
               />
               <Trend
                 title="HRV"
-                caption="שונות קצב הלב הממוצעת בשינה. חשובה המגמה ביחס לערכים של המטופל."
+                caption={`שונות קצב הלב הממוצעת בשינה. חשובה המגמה ביחס לערכים ${isMember ? "שלך" : "של המטופל"}.`}
                 stat={
                   <>
                     <strong>{fmtNum(kpis.averageHrv.recent)}</strong> ms לאחרונה
@@ -1090,7 +1121,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
                   <Trend
                     wide={wideLast === "temp"}
                     title="טמפרטורת עור בלילה"
-                    caption="הסטייה מהקו האישי של המטופל, במעלות. עלייה מתמשכת יכולה ללוות מחלה."
+                    caption="הסטייה מהקו האישי, במעלות. עלייה מתמשכת יכולה ללוות מחלה."
                     stat={
                       <>
                         <strong>{detail.temperatureDeviation.recent === null ? "–" : signed(detail.temperatureDeviation.recent, 2)}</strong> לאחרונה
@@ -1295,7 +1326,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             </div>
             <div>
               <dt>HRV</dt>
-              <dd>ממוצע שונות קצב הלב (rMSSD) בזמן השינה, במילישניות. משתנה מאוד בין אנשים, ולכן משווים לערכים של המטופל עצמו.</dd>
+              <dd>ממוצע שונות קצב הלב (rMSSD) בזמן השינה, במילישניות. משתנה מאוד בין אנשים, ולכן משווים לערכים של אותו אדם עצמו.</dd>
             </div>
             <div>
               <dt>דופק מנוחה</dt>
@@ -1304,7 +1335,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             <div>
               <dt>קצב נשימה וטמפרטורה</dt>
               <dd>
-                נשימות לדקה בממוצע הלילה, וסטיית טמפרטורת העור מהקו האישי של המטופל (לא טמפרטורת גוף מוחלטת). שינוי מתמשך מעניין יותר מערך בודד.
+                נשימות לדקה בממוצע הלילה, וסטיית טמפרטורת העור מהקו האישי (לא טמפרטורת גוף מוחלטת). שינוי מתמשך מעניין יותר מערך בודד.
               </dd>
             </div>
             <div>
@@ -1336,15 +1367,16 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
           <p className="about-disclaimer">
             <IconInfo size={18} />
             <span>
-              הנתונים מגיעים ממכשיר צרכני (טבעת Oura), שאינו מכשיר רפואי. המטופל בחר לשתף אותם, לקריאה בלבד ולזמן מוגבל, ויכול
-              לבטל את הקישור בכל רגע.
+              {isMember
+                ? "הנתונים מגיעים ממכשיר צרכני (טבעת Oura), שאינו מכשיר רפואי. הם לא משותפים עם אף אחד אלא אם בחרת בכך, ושיתוף עם רופא הוא קישור לקריאה בלבד, לזמן מוגבל, שאפשר לבטל בכל רגע."
+                : "הנתונים מגיעים ממכשיר צרכני (טבעת Oura), שאינו מכשיר רפואי. המטופל בחר לשתף אותם, לקריאה בלבד ולזמן מוגבל, ויכול לבטל את הקישור בכל רגע."}
             </span>
           </p>
         </div>
       </Section>
 
       <footer className="dash-foot">
-        <span>Oura Care · סיכום לקריאה בלבד</span>
+        <span>{isMember ? "Oura Care · הנתונים שלי" : "Oura Care · סיכום לקריאה בלבד"}</span>
         <span>הופק {fmtStamp(meta.generatedAt)}</span>
       </footer>
     </div>

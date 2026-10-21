@@ -348,14 +348,14 @@ export function buildDetailFindings(
         id: "temperature",
         status: "info",
         title: "סטייה בטמפרטורת העור",
-        detail: `ב-7 הימים האחרונים הטמפרטורה בלילה ${temp.recent > 0 ? "גבוהה" : "נמוכה"} ב-${Math.abs(temp.recent).toFixed(1)} מעלות מהקו האישי של המטופל.`,
+        detail: `ב-7 הימים האחרונים הטמפרטורה בלילה ${temp.recent > 0 ? "גבוהה" : "נמוכה"} ב-${Math.abs(temp.recent).toFixed(1)} מעלות מהקו האישי.`,
       });
     } else {
       out.push({
         id: "temperature",
         status: "ok",
         title: "טמפרטורת עור יציבה",
-        detail: "הטמפרטורה בלילה קרובה לקו האישי של המטופל.",
+        detail: "הטמפרטורה בלילה קרובה לקו האישי.",
       });
     }
   }
