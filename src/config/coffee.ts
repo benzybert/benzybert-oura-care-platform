@@ -13,5 +13,5 @@ export const COFFEE_CONFIG = {
    */
   sendTo: "benzybert1@gmail.com",
   /** A night with a sleep score below this counts as a bad night. */
-  sleepScoreBelow: 70,
+  sleepScoreBelow: 80,
 };

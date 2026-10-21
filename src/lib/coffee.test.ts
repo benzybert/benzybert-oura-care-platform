@@ -14,7 +14,7 @@ const day = (d: string, sleepScore: number | null): DayMetric => ({
 });
 
 describe("coffeeStatus", () => {
-  it("is eligible after a night under 70", () => {
+  it("is eligible after a night under 80", () => {
     expect(coffeeStatus([day("2026-10-21", 64)], "2026-10-21", [])).toEqual({
       state: "eligible",
       day: "2026-10-21",
@@ -25,8 +25,8 @@ describe("coffeeStatus", () => {
     expect(coffeeStatus([day("2026-10-20", 50)], "2026-10-21", []).state).toBe("eligible");
     expect(coffeeStatus([day("2026-10-19", 50)], "2026-10-21", []).state).toBe("no_data");
   });
-  it("70 and above is a good night", () => {
-    expect(coffeeStatus([day("2026-10-21", 70)], "2026-10-21", []).state).toBe("slept_well");
+  it("80 and above is a good night", () => {
+    expect(coffeeStatus([day("2026-10-21", 80)], "2026-10-21", []).state).toBe("slept_well");
   });
   it("one coffee per day", () => {
     expect(coffeeStatus([day("2026-10-21", 60)], "2026-10-21", ["2026-10-21"]).state).toBe("claimed");
