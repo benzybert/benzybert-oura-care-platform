@@ -47,9 +47,14 @@ export default async function Home() {
           <h2>מתאמן</h2>
           <p className="muted">הנתונים שלך, תגמולים, שליטה במה משותף ומי ראה.</p>
           {demo && (
-            <a className="btn" href="/api/demo-login?role=member">
-              כניסת דמו כמתאמן
-            </a>
+            <>
+              <a className="btn" href="/api/demo-login?role=me">
+                כניסה עם הנתונים האמיתיים שלי
+              </a>{" "}
+              <a className="btn secondary" href="/api/demo-login?role=member">
+                כניסת דמו כמתאמן
+              </a>
+            </>
           )}
         </div>
         <div className="card role-card">
