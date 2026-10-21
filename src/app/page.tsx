@@ -47,37 +47,20 @@ export default async function Home() {
           <h2>מתאמן</h2>
           <p className="muted">הנתונים שלך, תגמולים, שליטה במה משותף ומי ראה.</p>
           {demo && (
-            <>
-              <a className="btn" href="/api/demo-login?role=me">
-                כניסה עם הנתונים האמיתיים שלי
-              </a>{" "}
-              <a className="btn secondary" href="/api/demo-login?role=member">
-                כניסת דמו כמתאמן
-              </a>
-            </>
+            <a className="btn" href="/api/demo-login?role=me">
+              כניסה עם הנתונים האמיתיים שלי
+            </a>
           )}
         </div>
         <div className="card role-card">
           <h2>צוות רפואי</h2>
           <p className="muted">רק מי ששיתף. מגמות והתראות לבדיקה, לא אבחון.</p>
-          {demo && (
-            <a className="btn secondary" href="/api/demo-login?role=care">
-              כניסת דמו לצוות רפואי
-            </a>
-          )}
         </div>
         <div className="card role-card">
           <h2>ארגון</h2>
           <p className="muted">ממוצעים קבוצתיים אנונימיים, מעל סף מינימלי של משתתפים.</p>
-          {demo && (
-            <a className="btn secondary" href="/api/demo-login?role=org">
-              כניסת דמו לארגון
-            </a>
-          )}
         </div>
       </div>
-
-      {demo && <p className="muted">נתוני הדמו סינתטיים (מ-`npm run db:seed`).</p>}
     </>
   );
 }
