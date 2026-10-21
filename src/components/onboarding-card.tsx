@@ -1,27 +1,13 @@
-import { connectInstinct, disconnectInstinct, sendActionToInstinct } from "@/app/actions";
+import { openInstinctWhatsApp } from "@/app/actions";
 import type { StrengthItem } from "@/lib/profile-strength";
 
-type ActionRow = { rule: string; title: string; task: string; sent: boolean };
+type ActionRow = { rule: string; title: string; task: string; opened: boolean };
 
-export function OnboardingCard({
-  score,
-  items,
-  instinctTarget,
-  actions,
-}: {
-  score: number;
-  items: StrengthItem[];
-  instinctTarget: string | null;
-  actions: ActionRow[];
-}) {
+export function OnboardingCard({ score, items, actions }: { score: number; items: StrengthItem[]; actions: ActionRow[] }) {
   return (
     <div className="card" id="integrations">
-      <div className="row">
-        <div>
-          <h2>חוזק הפרופיל: {score}%</h2>
-          <p className="muted">ככל שהפרופיל שלם יותר, הנתונים שלך הופכים ליותר פעולות.</p>
-        </div>
-      </div>
+      <h2>חוזק הפרופיל: {score}%</h2>
+      <p className="muted">ככל שהפרופיל שלם יותר, הנתונים שלך הופכים ליותר פעולות.</p>
       <div
         role="progressbar"
         aria-label="חוזק הפרופיל"
@@ -36,53 +22,12 @@ export function OnboardingCard({
         {items.map((it) => (
           <li className="row" key={it.id}>
             <span>
-              <span aria-hidden="true">{it.done ? "✓" : "○"}</span>{" "}
-              {it.done ? it.label : <a href={it.href}>{it.label}</a>}
+              <span aria-hidden="true">{it.done ? "✓" : "○"}</span> {it.done ? it.label : <a href={it.href}>{it.label}</a>}
             </span>
             <span className="muted">{it.weight}%</span>
           </li>
         ))}
       </ul>
-
-      <h2 style={{ marginTop: 20 }}>חיבורים</h2>
-      <div className="row">
-        <div>
-          <strong>Instinct</strong>
-          <p className="muted">
-            {instinctTarget
-              ? `פעולות נשלחות אל ${instinctTarget}`
-              : "העוזר האישי שלך. הזינו את כתובת הקלט של Instinct כדי לשלוח אליו משימות."}
-          </p>
-        </div>
-        {instinctTarget ? (
-          <form action={disconnectInstinct}>
-            <button className="btn secondary" type="submit">
-              נתק
-            </button>
-          </form>
-        ) : (
-          <form action={connectInstinct} className="share-form">
-            <input name="target" type="email" required dir="ltr" placeholder="you@inbox.instinct" aria-label="כתובת Instinct" />
-            <button className="btn" type="submit">
-              חבר
-            </button>
-          </form>
-        )}
-      </div>
-      <div className="row">
-        <div>
-          <strong>Slack</strong>
-          <p className="muted">בקרוב</p>
-        </div>
-        <span className="badge">בקרוב</span>
-      </div>
-      <div className="row">
-        <div>
-          <strong>iCal</strong>
-          <p className="muted">בקרוב</p>
-        </div>
-        <span className="badge">בקרוב</span>
-      </div>
 
       <h2 style={{ marginTop: 20 }}>פעולות להיום</h2>
       {actions.length === 0 ? (
@@ -94,22 +39,24 @@ export function OnboardingCard({
               <strong>{a.title}</strong>
               <p className="muted">{a.task}</p>
             </div>
-            {a.sent ? (
-              <span className="badge ok">נשלח</span>
-            ) : instinctTarget ? (
-              <form action={sendActionToInstinct}>
-                <input type="hidden" name="rule" value={a.rule} />
-                <button className="btn" type="submit">
-                  שלח ל-Instinct
-                </button>
-              </form>
-            ) : (
-              <span className="muted">חברו את Instinct כדי לשלוח</span>
-            )}
+            <form action={openInstinctWhatsApp}>
+              <input type="hidden" name="rule" value={a.rule} />
+              <button className={a.opened ? "btn secondary" : "btn"} type="submit">
+                {a.opened ? "פתח שוב ב-WhatsApp" : "שלח ל-Instinct ב-WhatsApp"}
+              </button>
+            </form>
           </div>
         ))
       )}
-      <p className="muted">ההודעה ל-Instinct כוללת רק את המשימה, בלי ציונים ובלי שם, ונשלחת רק כשאתם לוחצים.</p>
+      <p className="muted">נפתח צ׳אט WhatsApp עם Instinct והטקסט מוכן. בלי ציונים ובלי שם, ואתם לוחצים שלח.</p>
+
+      <h2 style={{ marginTop: 20 }}>חיבורים נוספים</h2>
+      {["Slack", "iCal"].map((name) => (
+        <div className="row" key={name}>
+          <strong>{name}</strong>
+          <span className="badge">בקרוב</span>
+        </div>
+      ))}
     </div>
   );
 }

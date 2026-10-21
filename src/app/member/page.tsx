@@ -17,7 +17,6 @@ import {
   getConsentRecords,
   getDeliveredActions,
   getDoctorContacts,
-  getIntegrations,
   getMemberForUser,
   getMetrics,
   getSelfRewards,
@@ -49,15 +48,8 @@ const DOCTOR_MESSAGES: Record<string, string> = {
 };
 
 const INTEGRATION_MESSAGES: Record<string, string> = {
-  connected: "Instinct חובר. אפשר לשלוח אליו פעולות.",
-  removed: "Instinct נותק.",
-  invalid: "הכתובת לא תקינה. נסו שוב.",
-  not_connected: "Instinct לא מחובר.",
+  invalid: "הפעולה לא תקינה. נסו שוב.",
   gone: "הפעולה כבר לא רלוונטית.",
-  already: "הפעולה הזו כבר נשלחה.",
-  sent: "הפעולה נשלחה ל-Instinct.",
-  mail_not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
-  failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
 };
 
 const COFFEE_MESSAGES: Record<string, string> = {
@@ -78,7 +70,7 @@ export default async function MemberPage({
   const member = await getMemberForUser(user.id);
   if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
 
-  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, integrationRows, delivered, params] = await Promise.all([
+  const [metrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, delivered, params] = await Promise.all([
     getMetrics(member.id),
     getConsentRecords(member.id),
     rewardTotal(member.id),
@@ -88,8 +80,7 @@ export default async function MemberPage({
     listShareLinks(member.id),
     getSelfRewards(member.id),
     getCoffeeClaimDays(member.id),
-    getIntegrations(member.id),
-    getDeliveredActions(member.id, "instinct"),
+    getDeliveredActions(member.id, "whatsapp"),
     searchParams,
   ]);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
@@ -98,15 +89,14 @@ export default async function MemberPage({
   const coffee = coffeeStatus(metrics, todayInIsrael(), coffeeClaimDays);
   const integrationMessage = params.integration ? INTEGRATION_MESSAGES[params.integration] : undefined;
   const today = todayInIsrael();
-  const instinct = integrationRows.instinct;
   const strength = profileStrength({
     ouraConnected: Boolean(oura),
     recentDays: metrics.filter((d) => d.day > addDays(today, -7)).length,
     reviewedSharing: records.length > 0,
     hasDoctor: Object.keys(doctors).length > 0,
-    instinctConnected: Boolean(instinct),
+    instinctUsed: delivered.length > 0,
   });
-  const actions = suggestActions(metrics, today).map((a) => ({ ...a, sent: delivered.includes(`${a.rule}:${a.day}`) }));
+  const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
   const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
 
   return (
@@ -159,7 +149,6 @@ export default async function MemberPage({
       <OnboardingCard
         score={strength.score}
         items={strength.items}
-        instinctTarget={instinct?.target ?? null}
         actions={actions}
       />
 

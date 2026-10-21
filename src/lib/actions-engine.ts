@@ -1,3 +1,4 @@
+import { INSTINCT_CONFIG } from "../config/instinct";
 import { addDays } from "./dates";
 import type { DayMetric } from "./types";
 
@@ -49,10 +50,16 @@ export function suggestActions(days: DayMetric[], today: string): SuggestedActio
   return out;
 }
 
-/** What Instinct receives. No scores, no name: only the task, sent because the member asked. */
-export function buildInstinctMessage(action: Pick<SuggestedAction, "title" | "task">): { subject: string; body: string } {
-  return {
-    subject: `משימה: ${action.title}`,
-    body: [action.task, "", "נשלח מפלטפורמת Oura Care לבקשתך."].join("\n"),
-  };
+/** The text pre-filled in the WhatsApp chat. No scores, no name: only the task. The member reads it and presses send. */
+export function buildInstinctPrompt(action: Pick<SuggestedAction, "task">): string {
+  return `היי, מ-Oura Care: ${action.task} תעזור לי לתכנן את היום בהתאם?`;
+}
+
+/** wa.me link that opens a chat with the number and the text typed in. */
+export function whatsappLink(number: string, text: string): string {
+  return `https://wa.me/${number.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+}
+
+export function instinctWhatsappNumber(): string {
+  return process.env.INSTINCT_WHATSAPP || INSTINCT_CONFIG.whatsappNumber;
 }

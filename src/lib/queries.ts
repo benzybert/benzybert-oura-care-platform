@@ -19,7 +19,6 @@ const {
   shareLinks,
   selfRewards,
   coffeeClaims,
-  integrations,
   actionDeliveries,
 } = schema;
 
@@ -259,14 +258,6 @@ export async function getCoffeeClaimDays(memberId: string): Promise<string[]> {
     .from(coffeeClaims)
     .where(eq(coffeeClaims.memberId, memberId));
   return rows.map((r) => r.day);
-}
-
-export async function getIntegrations(memberId: string): Promise<Record<string, { target: string }>> {
-  const rows = await getDb()
-    .select({ provider: integrations.provider, target: integrations.target })
-    .from(integrations)
-    .where(eq(integrations.memberId, memberId));
-  return Object.fromEntries(rows.map((r) => [r.provider, { target: r.target }]));
 }
 
 /** "rule:day" keys already delivered to a provider. */
