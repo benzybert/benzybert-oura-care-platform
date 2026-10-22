@@ -37,6 +37,8 @@ import {
 import { getDb } from "@/db";
 import { refreshAlertsIfStale } from "@/lib/event-feed";
 import { requireRole } from "@/lib/session";
+import { isSyncStale } from "@/lib/oura/cooldown";
+import { syncMember } from "@/lib/oura/sync";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
 
@@ -111,13 +113,24 @@ export default async function MemberPage({
   after(() => refreshAlertsIfStale(getDb()));
   const params = await searchParams;
   const asked = Number(params.days);
+
+  // The daily cron runs before the ring has uploaded the night, so a visit pulls fresh data itself.
+  // Best effort: a slow or failing Oura never blocks the page, and errors are not logged (they can carry Oura's text).
+  const connection = await ouraStatus(member.id);
+  if (connection && isSyncStale(connection.lastSyncAt)) {
+    await Promise.race([
+      syncMember(getDb(), member.id).catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, 12_000)),
+    ]);
+  }
+
   const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
   const [metrics, dashboardMetrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations] = await Promise.all([
     getMetrics(member.id),
     getDashboardMetrics(member.id, windowDays),
     getConsentRecords(member.id),
     rewardTotal(member.id),
-    ouraStatus(member.id),
+    ouraStatus(member.id), // re-read: the sync above updates lastSyncAt or revokes the connection
     accessLogFor(member.id),
     getDoctorContacts(member.id),
     listShareLinks(member.id),
