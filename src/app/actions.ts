@@ -20,6 +20,13 @@ import { buildDashboard } from "@/lib/doctor-dashboard";
 import { buildDoctorPdf } from "@/lib/doctor-pdf";
 import { buildDoctorMessage } from "@/lib/doctor-share";
 import { todayInIsrael } from "@/lib/dates";
+import {
+  MAX_EXPERIMENTS,
+  experimentNights,
+  nightsOverlap,
+  parseExperimentForm,
+  parseExperimentText,
+} from "@/lib/experiments";
 import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
@@ -37,7 +44,9 @@ import {
   getDoctorContacts,
   getMemberForUser,
   getDashboardMetrics,
+  getExperiments,
   getMetrics,
+  getOwnExperiment,
   getOwnSelfReward,
   ouraStatus,
   getSelfRewards,
@@ -71,7 +80,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, coffeeClaims, actionDeliveries, automationRules, automationRuns, instinctAccess } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, actionDeliveries, automationRules, automationRuns, instinctAccess } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -581,6 +590,67 @@ export async function deleteSelfReward(formData: FormData): Promise<void> {
     .delete(selfRewards)
     .where(and(eq(selfRewards.id, id), eq(selfRewards.memberId, member.id)));
   revalidatePath("/member");
+}
+
+export type ExperimentFormState = { ok: boolean; error: string | null; at: number };
+
+/**
+ * Member starts a weekly experiment (or adds one that already ran). Used with useActionState; on
+ * success it goes straight to the new experiment's page. One experiment at a time: two overlapping
+ * ones could not be told apart.
+ */
+export async function createExperiment(_prev: ExperimentFormState, formData: FormData): Promise<ExperimentFormState> {
+  const fail = (error: string): ExperimentFormState => ({ ok: false, error, at: Date.now() });
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) return fail("לא נמצא פרופיל מתאמן.");
+
+  const parsed = parseExperimentForm(formValue(formData), todayInIsrael());
+  if (!parsed.ok) return fail(parsed.error);
+
+  const existing = await getExperiments(member.id);
+  if (existing.length >= MAX_EXPERIMENTS) return fail("ההיסטוריה מלאה. מחק כמה ניסויים ישנים ונסה שוב.");
+  const clash = existing.find((e) => nightsOverlap(e, parsed.value));
+  if (clash) return fail(`הניסוי ״${clash.title}״ חופף לתאריכים האלה. ניסוי אחד בכל פעם, אחרת אי אפשר לדעת מה גרם למה.`);
+
+  const [created] = await getDb()
+    .insert(experiments)
+    .values({ memberId: member.id, ...parsed.value })
+    .returning({ id: experiments.id });
+  revalidatePath("/member");
+  redirect(`/member/experiments/${created?.id}`);
+}
+
+/** Saves the member's own words on one of their experiments: hypothesis, a note per night, conclusion. */
+export async function saveExperimentText(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  const row = await getOwnExperiment(member.id, id);
+  if (!row) redirect("/member#experiments");
+
+  const parsed = parseExperimentText(formValue(formData), experimentNights(row));
+  if (!parsed.ok) redirect(`/member/experiments/${id}?saved=invalid`);
+  await getDb()
+    .update(experiments)
+    .set(parsed.value)
+    .where(and(eq(experiments.id, row.id), eq(experiments.memberId, member.id)));
+  revalidatePath(`/member/experiments/${id}`);
+  redirect(`/member/experiments/${id}?saved=ok`);
+}
+
+/** Deletes one of the member's own experiments. Deleted, not hidden: it is their data. */
+export async function deleteExperiment(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  await getDb()
+    .delete(experiments)
+    .where(and(eq(experiments.id, id), eq(experiments.memberId, member.id)));
+  revalidatePath("/member");
+  redirect("/member#experiments");
 }
 
 /**

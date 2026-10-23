@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
@@ -22,6 +22,7 @@ const {
   doctorContacts,
   shareLinks,
   selfRewards,
+  experiments,
   coffeeClaims,
   contextEvents,
   actionDeliveries,
@@ -162,6 +163,56 @@ export async function getOwnSelfReward(memberId: string, id: string): Promise<Se
     .where(and(eq(selfRewards.id, id), eq(selfRewards.memberId, memberId)))
     .limit(1);
   return row ?? null;
+}
+
+export type ExperimentRow = typeof experiments.$inferSelect;
+
+/** The member's experiments, newest first. Only ever called with the signed-in member's id. */
+export async function getExperiments(memberId: string): Promise<ExperimentRow[]> {
+  return getDb()
+    .select()
+    .from(experiments)
+    .where(eq(experiments.memberId, memberId))
+    .orderBy(desc(experiments.startNight));
+}
+
+/** One experiment, only if it belongs to this member. */
+export async function getOwnExperiment(memberId: string, id: string): Promise<ExperimentRow | null> {
+  const [row] = await getDb()
+    .select()
+    .from(experiments)
+    .where(and(eq(experiments.id, id), eq(experiments.memberId, memberId)))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * The member's days between two Oura days (inclusive) with the sleep structure an experiment
+ * compares. No night curves or contributors: the experiment only needs the daily numbers.
+ */
+export async function getExperimentMetrics(memberId: string, fromDay: string, toDay: string): Promise<DayMetric[]> {
+  return getDb()
+    .select({
+      day: dailyMetrics.day,
+      sleepScore: dailyMetrics.sleepScore,
+      readinessScore: dailyMetrics.readinessScore,
+      averageHrv: dailyMetrics.averageHrv,
+      lowestHeartRate: dailyMetrics.lowestHeartRate,
+      totalSleepHours: dailyMetrics.totalSleepHours,
+      steps: dailyMetrics.steps,
+      bedtimeStartMinute: dailyMetrics.bedtimeStartMinute,
+      bedtimeEndMinute: dailyMetrics.bedtimeEndMinute,
+      deepSleepMinutes: dailyMetrics.deepSleepMinutes,
+      remSleepMinutes: dailyMetrics.remSleepMinutes,
+      awakeMinutes: dailyMetrics.awakeMinutes,
+      sleepEfficiency: dailyMetrics.sleepEfficiency,
+      sleepLatencyMinutes: dailyMetrics.sleepLatencyMinutes,
+      averageBreath: dailyMetrics.averageBreath,
+      temperatureDeviation: dailyMetrics.temperatureDeviation,
+    })
+    .from(dailyMetrics)
+    .where(and(eq(dailyMetrics.memberId, memberId), gte(dailyMetrics.day, fromDay), lte(dailyMetrics.day, toDay)))
+    .orderBy(asc(dailyMetrics.day));
 }
 
 export async function ouraStatus(memberId: string) {

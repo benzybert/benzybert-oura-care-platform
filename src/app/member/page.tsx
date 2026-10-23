@@ -5,6 +5,7 @@ import { DoctorDashboard } from "@/components/doctor-dashboard/dashboard";
 import { OnboardingCard } from "@/components/onboarding-card";
 import { ActionCenter } from "@/components/action-center";
 import { DoctorShareCard } from "@/components/doctor-share-card";
+import { ExperimentsSection, pickFeatured } from "@/components/experiments-section";
 import { LogoutButton } from "@/components/logout-button";
 import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { ShareLinkCard } from "@/components/share-link-card";
@@ -15,6 +16,7 @@ import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
+import { loadExperimentView } from "@/lib/experiment-view";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
   accessLogFor,
@@ -25,6 +27,7 @@ import {
   getActiveInstinctAccess,
   getDeliveredActions,
   getDoctorContacts,
+  getExperiments,
   getMemberForUser,
   getMetrics,
   getAlertDays,
@@ -37,8 +40,7 @@ import {
 import { getDb } from "@/db";
 import { refreshAlertsIfStale } from "@/lib/event-feed";
 import { requireRole } from "@/lib/session";
-import { isSyncStale } from "@/lib/oura/cooldown";
-import { syncMember } from "@/lib/oura/sync";
+import { syncOnVisit } from "@/lib/oura/visit-sync";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
 
@@ -114,18 +116,10 @@ export default async function MemberPage({
   const params = await searchParams;
   const asked = Number(params.days);
 
-  // The daily cron runs before the ring has uploaded the night, so a visit pulls fresh data itself.
-  // Best effort: a slow or failing Oura never blocks the page, and errors are not logged (they can carry Oura's text).
-  const connection = await ouraStatus(member.id);
-  if (connection && isSyncStale(connection.lastSyncAt)) {
-    await Promise.race([
-      syncMember(getDb(), member.id).catch(() => undefined),
-      new Promise((resolve) => setTimeout(resolve, 12_000)),
-    ]);
-  }
+  await syncOnVisit(member.id);
 
   const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
-  const [metrics, dashboardMetrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations] = await Promise.all([
+  const [metrics, dashboardMetrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations, experimentRows] = await Promise.all([
     getMetrics(member.id),
     getDashboardMetrics(member.id, windowDays),
     getConsentRecords(member.id),
@@ -141,7 +135,10 @@ export default async function MemberPage({
     getDeliveredActions(member.id, "whatsapp"),
     getActiveInstinctAccess(member.id),
     getAutomationRules(member.id),
+    getExperiments(member.id),
   ]);
+  const featuredRow = pickFeatured(experimentRows, today);
+  const featured = featuredRow ? await loadExperimentView(featuredRow, today, experimentRows) : null;
   const dashboard = buildDashboard(dashboardMetrics, today, windowDays);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
   const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
@@ -243,6 +240,7 @@ export default async function MemberPage({
         <a href="#integrations">פרופיל ו-Instinct</a>
         <a href="#ring">הטבעת</a>
         <a href="#data">הנתונים שלי</a>
+        <a href="#experiments">ניסוי שבועי</a>
         <a href="#actions">מרכז פעולות</a>
         <a href="#goals">התגמולים שלי</a>
         <a href="#sharing">שיתוף</a>
@@ -299,6 +297,8 @@ export default async function MemberPage({
           }}
         />
       </section>
+
+      <ExperimentsSection rows={experimentRows} featured={featured} today={today} />
 
       <ContextEventsCard events={events} metrics={metrics} today={today} alertDays={alertDays} />
 

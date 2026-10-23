@@ -92,6 +92,13 @@
       "when": 1793607600000,
       "tag": "0012_sleep_detail",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793694000000,
+      "tag": "0013_experiments",
+      "breakpoints": true
     }
   ]
 }

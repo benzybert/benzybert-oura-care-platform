@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -288,6 +290,39 @@ export const selfRewards = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("self_rewards_member_idx").on(t.memberId)],
+);
+
+/**
+ * Weekly self-experiments ("שינה בחוץ"): the member changes one thing for a few nights and compares
+ * those Oura nights with their own nights just before (src/lib/experiments.ts). Private to the
+ * member: no staff or org query reads this table. Results are computed on read from daily_metrics;
+ * only the member's own words (hypothesis, per-night notes, conclusion) are stored.
+ */
+export const experiments = pgTable(
+  "experiments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    hypothesis: text("hypothesis"),
+    /** first and last night: the calendar date the evening starts on. Oura files the night under the next morning. */
+    startNight: date("start_night", { mode: "string" }).notNull(),
+    endNight: date("end_night", { mode: "string" }).notNull(),
+    /** how many days before the first night make up "my usual nights" */
+    baselineDays: integer("baseline_days").notNull().default(14),
+    /** key of the metric that decides the experiment (src/lib/experiments.ts) */
+    primaryMetric: text("primary_metric").notNull().default("sleepScore"),
+    /** the member's note per night, keyed by the night's date */
+    nightNotes: jsonb("night_notes").$type<Record<string, string>>().notNull().default({}),
+    conclusion: text("conclusion"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("experiments_member_idx").on(t.memberId, t.startNight),
+    check("experiments_nights_ck", sql`${t.endNight} >= ${t.startNight}`),
+  ],
 );
 
 /** One "coffee on me" claim per member per day, so a bad night pays out once. */

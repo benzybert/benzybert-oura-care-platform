@@ -920,3 +920,167 @@ td {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ---- Weekly experiment ---- */
+.badge.plain {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+td .badge.plain {
+  margin-inline-start: 6px;
+}
+.xp-num {
+  display: inline-block;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.xp-featured {
+  margin: 12px 0;
+}
+.xp-summary {
+  margin: 8px 0;
+}
+.xp-figure {
+  margin: 12px auto 0;
+  max-width: 680px;
+}
+.xp-table th,
+.xp-table td {
+  padding: 8px 4px;
+  vertical-align: middle;
+}
+.xp-table .badge {
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: center;
+}
+.xp-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.xp-chart text {
+  fill: var(--muted);
+  font-size: 14px;
+  font-family: inherit;
+}
+.xp-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.xp-band {
+  fill: var(--track);
+}
+.xp-mean-base {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.xp-split {
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+.xp-line-base {
+  fill: none;
+  stroke: var(--muted);
+  stroke-opacity: 0.5;
+  stroke-width: 1.2;
+}
+.xp-line-exp {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.xp-mean-exp {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+.xp-dot-base {
+  fill: var(--surface);
+  stroke: var(--muted);
+  stroke-width: 1.6;
+}
+.xp-dot-exp {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.xp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.xp-key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-inline-end: 6px;
+  vertical-align: -1px;
+  border-radius: 50%;
+}
+.xp-key.base {
+  border: 1.6px solid var(--muted);
+}
+.xp-key.exp {
+  background: var(--accent);
+}
+.xp-key.band {
+  border-radius: 3px;
+  background: var(--track);
+  border: 1px solid var(--line);
+}
+.xp-caution {
+  font-size: 0.88rem;
+}
+.xp-nights {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+.xp-nights li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.xp-nights label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.xp-note,
+.xp-notes textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+}
+.xp-note:focus-visible,
+.xp-notes textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.xp-warnings {
+  margin: 4px 0 0;
+  padding-inline-start: 18px;
+}
+.xp-method summary,
+.card > summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.xp-method ul {
+  margin: 10px 0 0;
+  padding-inline-start: 18px;
+}
+.xp-method li {
+  margin-bottom: 6px;
+}
