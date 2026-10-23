@@ -78,3 +78,87 @@ export const CONSENT_LABELS_HE: Record<ConsentScope, { title: string; descriptio
     description: "אנחנו מחשבים עקביות בשעת השינה כדי לתת לך נקודות.",
   },
 };
+
+/**
+ * The rest of what Oura reports per day (table daily_extras). Read only by the member's own page.
+ * Every field is nullable: an account or ring generation without that feature simply has no value.
+ */
+export type DayExtras = {
+  day: string;
+  activityScore: number | null;
+  /** Oura's 1-100 contributors: meet_daily_targets, move_every_hour, recovery_time, stay_active, training_frequency, training_volume */
+  activityContributors: Record<string, number> | null;
+  totalCalories: number | null;
+  targetCalories: number | null;
+  equivalentWalkingDistanceM: number | null;
+  targetMeters: number | null;
+  metersToTarget: number | null;
+  inactivityAlerts: number | null;
+  nonWearMinutes: number | null;
+  restingMinutes: number | null;
+  lowActivityMinutes: number | null;
+  mediumActivityMinutes: number | null;
+  highActivityMinutes: number | null;
+  averageMetMinutes: number | null;
+  /** one char per 5 minutes from 04:00: 0 non-wear, 1 rest, 2 inactive, 3 low, 4 medium, 5 high */
+  activityClass5Min: string | null;
+  sleepScoreDelta: number | null;
+  readinessScoreDelta: number | null;
+  /** one char per 30 seconds: 1 no motion, 2 restless, 3 tossing and turning, 4 active */
+  movement30Sec: string | null;
+  napCount: number | null;
+  napMinutes: number | null;
+  lowBatteryAlert: boolean | null;
+  temperatureTrendDeviation: number | null;
+  /** percent, average during sleep */
+  spo2Average: number | null;
+  breathingDisturbanceIndex: number | null;
+  /** limited | adequate | solid | strong | exceptional */
+  resilienceLevel: string | null;
+  /** sleep_recovery, daytime_recovery, stress (0-100) */
+  resilienceContributors: Record<string, number> | null;
+  vascularAge: number | null;
+  vo2Max: number | null;
+  /** minutes from midnight of the bedtime day; can be negative (before midnight) */
+  optimalBedtimeStart: number | null;
+  optimalBedtimeEnd: number | null;
+  bedtimeRecommendation: string | null;
+  bedtimeStatus: string | null;
+  /** 288 five-minute averages from local midnight, null where the ring recorded nothing */
+  heartRateBuckets: Array<number | null> | null;
+  /** per source (awake, rest, sleep, workout, session, live): min / avg / max bpm and sample count */
+  heartRateSummary: Record<string, { min: number; avg: number; max: number; n: number }> | null;
+};
+
+export type OuraEventKind = "workout" | "session" | "tag" | "rest_mode" | "nap";
+
+export type OuraEvent = {
+  id: string;
+  kind: OuraEventKind;
+  day: string;
+  startAt: Date | null;
+  endAt: Date | null;
+  label: string | null;
+  data: Record<string, unknown>;
+};
+
+export type CollectionCoverage = { status: "ok" | "forbidden" | "error"; rows: number; at: string };
+
+/** The ring and the person, as Oura reports them (table oura_profile). */
+export type OuraProfileData = {
+  ringColor: string | null;
+  ringDesign: string | null;
+  ringHardware: string | null;
+  ringFirmware: string | null;
+  ringSize: number | null;
+  ringSetUpAt: Date | null;
+  batteryLevel: number | null;
+  batteryCharging: boolean | null;
+  batteryAt: Date | null;
+  age: number | null;
+  weightKg: number | null;
+  heightM: number | null;
+  biologicalSex: string | null;
+  coverage: Record<string, CollectionCoverage> | null;
+  updatedAt: Date;
+};

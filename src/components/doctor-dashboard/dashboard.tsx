@@ -70,7 +70,28 @@ export type DashboardMeta = {
   windowLinks?: Array<{ days: number; href: string; active: boolean }>;
   /** member mode: where "share with a doctor" leads */
   shareHref?: string;
+  /**
+   * member mode: render only these parts of the dashboard (the member's data tab splits it into views).
+   * Absent = everything, which is what a doctor link, the preview and the PDF show.
+   */
+  sections?: DashSection[];
+  /** member mode: which contributor lists the "what drives the scores" section shows (default both) */
+  contributorSets?: Array<"sleep" | "readiness">;
 };
+
+export type DashSection =
+  | "hero"
+  | "findings"
+  | "night"
+  | "architecture"
+  | "rhythm"
+  | "trends"
+  | "physiology"
+  | "drivers"
+  | "calendar"
+  | "weekly"
+  | "daily"
+  | "about";
 
 type MetricView = {
   title: string;
@@ -90,15 +111,15 @@ const METRICS: Record<MetricKey, MetricView> = {
   steps: { title: "צעדים", unit: "ביום", unitShort: "", digits: 0, percent: true },
 };
 
-const fmtDate = (day: string) =>
+export const fmtDate = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", { timeZone: "UTC", day: "numeric", month: "numeric", year: "numeric" });
 
-const fmtShort = (day: string) =>
+export const fmtShort = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", { timeZone: "UTC", day: "numeric", month: "numeric" });
 
 const fmtStamp = fmtDateTime;
 
-const fmtNum = (v: number | null, digits = 0) =>
+export const fmtNum = (v: number | null, digits = 0) =>
   v === null ? "–" : v.toLocaleString("he-IL", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 function Sparkline({ values }: { values: Array<number | null> }) {
@@ -239,7 +260,7 @@ function Signals({ findings }: { findings: Finding[] }) {
   );
 }
 
-function ChartCard({
+export function ChartCard({
   title,
   caption,
   wide,
@@ -266,7 +287,7 @@ function ChartCard({
   );
 }
 
-function Trend({ title, caption, wide, stat, chart }: { title: string; caption: string; wide?: boolean; stat?: ReactNode; chart: TrendChartProps }) {
+export function Trend({ title, caption, wide, stat, chart }: { title: string; caption: string; wide?: boolean; stat?: ReactNode; chart: TrendChartProps }) {
   return (
     <ChartCard title={title} caption={caption} wide={wide} stat={stat}>
       <TrendChart {...chart} />
@@ -274,19 +295,23 @@ function Trend({ title, caption, wide, stat, chart }: { title: string; caption: 
   );
 }
 
-function Section({
+export function Section({
+  show,
   id,
   title,
   lead,
   icon,
   children,
 }: {
+  /** member views render only some sections: when given, the section is skipped unless this says yes */
+  show?: (id: string) => boolean;
   id: string;
   title: string;
   lead?: ReactNode;
   icon?: ReactNode;
   children: ReactNode;
 }) {
+  if (show && !show(id)) return null;
   return (
     <section className="dash-section" id={`sec-${id}`} aria-labelledby={id}>
       <header className="dash-section-head">
@@ -301,7 +326,7 @@ function Section({
   );
 }
 
-function MiniStat({
+export function MiniStat({
   icon,
   label,
   value,
@@ -338,9 +363,9 @@ function MiniStat({
   );
 }
 
-const signed = (v: number, digits: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
+export const signed = (v: number, digits: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
 
-function ContributorList({ title, rows }: { title: string; rows: ContributorRow[] }) {
+export function ContributorList({ title, rows }: { title: string; rows: ContributorRow[] }) {
   const sorted = [...rows].sort((a, b) => (a.recent ?? 101) - (b.recent ?? 101));
   return (
     <div className="drivers-card">
@@ -403,7 +428,10 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
   const hasEff = has("sleepEfficiency");
   const hasStress = has("stressMinutes") || has("recoveryMinutes");
   const clock = clockNights(slots);
-  const hasContrib = contributors.sleep.length > 0 || contributors.readiness.length > 0;
+  const sets = meta.contributorSets ?? ["sleep", "readiness"];
+  const showSleepDrivers = sets.includes("sleep") && contributors.sleep.length > 0;
+  const showReadinessDrivers = sets.includes("readiness") && contributors.readiness.length > 0;
+  const hasContrib = showSleepDrivers || showReadinessDrivers;
   // physiology cards sit two per row; when the count is odd the last one takes the whole row
   const physiology = [hasEff && "eff", hasBreath && "breath", hasTemp && "temp", hasStress && "stress"].filter(Boolean);
   const wideLast = physiology.length % 2 === 1 ? physiology[physiology.length - 1] : null;
@@ -446,6 +474,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
   ];
 
   const isMember = meta.mode === "member";
+  const show = (id: string) => !meta.sections || (meta.sections as string[]).includes(id);
 
   return (
     <div className={isMember ? "dash is-member" : "dash"}>
@@ -459,6 +488,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
         </div>
       )}
 
+      {show("hero") && (
       <header className="hero">
         <div className="hero-sky" aria-hidden="true" />
         <div className="hero-top">
@@ -612,10 +642,11 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
           </div>
         </dl>
       </header>
+      )}
 
-      {!empty && (
+      {!empty && nav.filter((n) => show(n.id)).length > 1 && (
         <nav className="dash-nav no-print" aria-label="ניווט בדף">
-          {nav.map((n) => (
+          {nav.filter((n) => show(n.id)).map((n) => (
             <a key={n.id} href={`#sec-${n.id}`}>
               {n.label}
             </a>
@@ -639,6 +670,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
       ) : (
         <>
           <Section
+            show={show}
             id="findings"
             icon={<IconAlert size={20} />}
             title={attentionCount > 0 ? `ממצאים (${attentionCount} לתשומת לב)` : "ממצאים"}
@@ -648,6 +680,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
           </Section>
 
           <Section
+            show={show}
             id="night"
             icon={<IconMoon size={20} />}
             title="הלילה"
@@ -664,6 +697,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
 
           {hasStages && shares.period && (
             <Section
+              show={show}
               id="architecture"
               icon={<IconLayers size={20} />}
               title="ארכיטקטורת שינה"
@@ -794,6 +828,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
           )}
 
           <Section
+            show={show}
             id="rhythm"
             icon={<IconClock size={20} />}
             title="סדירות השינה"
@@ -915,7 +950,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             </div>
           </Section>
 
-          <Section id="trends" icon={<IconHeartPulse size={20} />} title="מגמות" lead="נקודה או עמודה לכל יום, וקו לממוצע נע של 7 ימים. ימים בלי נתונים נשארים ריקים.">
+          <Section show={show} id="trends" icon={<IconHeartPulse size={20} />} title="מגמות" lead="נקודה או עמודה לכל יום, וקו לממוצע נע של 7 ימים. ימים בלי נתונים נשארים ריקים.">
             <div className="chart-grid">
               <Trend
                 wide
@@ -1065,6 +1100,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
 
           {(hasBreath || hasTemp || hasEff || hasStress) && (
             <Section
+              show={show}
               id="physiology"
               icon={<IconWind size={20} />}
               title="נשימה, טמפרטורה ועומס"
@@ -1124,7 +1160,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
                     caption="הסטייה מהקו האישי, במעלות. עלייה מתמשכת יכולה ללוות מחלה."
                     stat={
                       <>
-                        <strong>{detail.temperatureDeviation.recent === null ? "–" : signed(detail.temperatureDeviation.recent, 2)}</strong> לאחרונה
+                        <strong>{detail.temperatureDeviation.recent === null ? "–" : <bdi dir="ltr">{signed(detail.temperatureDeviation.recent, 2)}</bdi>}</strong> לאחרונה
                       </>
                     }
                     chart={{
@@ -1171,19 +1207,21 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
 
           {hasContrib && (
             <Section
+              show={show}
               id="drivers"
               icon={<IconZap size={20} />}
               title="מה מניע את הציונים"
               lead="Oura מרכיבה כל ציון מכמה גורמים (1–100). הגורמים החלשים ב-7 הימים האחרונים מופיעים ראשונים. הסימון הקטן הוא הממוצע של כל התקופה."
             >
               <div className="drivers-grid">
-                {contributors.sleep.length > 0 && <ContributorList title="ציון שינה" rows={contributors.sleep} />}
-                {contributors.readiness.length > 0 && <ContributorList title="ציון מוכנות" rows={contributors.readiness} />}
+                {showSleepDrivers && <ContributorList title="ציון שינה" rows={contributors.sleep} />}
+                {showReadinessDrivers && <ContributorList title="ציון מוכנות" rows={contributors.readiness} />}
               </div>
             </Section>
           )}
 
           <Section
+            show={show}
             id="calendar"
             icon={<IconCalendar size={20} />}
             title="לוח שנה"
@@ -1194,7 +1232,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             </div>
           </Section>
 
-          <Section id="weekly" icon={<IconActivity size={20} />} title="סיכום שבועי" lead="ממוצעים לכל שבוע (ראשון עד שבת), מהחדש לישן.">
+          <Section show={show} id="weekly" icon={<IconActivity size={20} />} title="סיכום שבועי" lead="ממוצעים לכל שבוע (ראשון עד שבת), מהחדש לישן.">
             <div className="table-card">
               <div className="table-scroll" tabIndex={0} role="region" aria-label="סיכום שבועי">
                 <table className="dash-table">
@@ -1239,7 +1277,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             </div>
           </Section>
 
-          <Section id="daily" title="נתונים יומיים" lead="כל הערכים שמאחורי התרשימים.">
+          <Section show={show} id="daily" title="נתונים יומיים" lead="כל הערכים שמאחורי התרשימים.">
             <details className="table-card daily">
               <summary>הצגת כל {data.windowDays} הימים</summary>
               <div className="table-scroll" tabIndex={0} role="region" aria-label="נתונים יומיים">
@@ -1305,7 +1343,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
         </>
       )}
 
-      <Section id="about" icon={<IconInfo size={20} />} title="על הנתונים">
+      <Section show={show} id="about" icon={<IconInfo size={20} />} title="על הנתונים">
         <div className="about">
           <dl className="about-defs">
             <div>
@@ -1375,10 +1413,12 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
         </div>
       </Section>
 
+      {show("about") && (
       <footer className="dash-foot">
         <span>{isMember ? "Oura Care · הנתונים שלי" : "Oura Care · סיכום לקריאה בלבד"}</span>
         <span>הופק {fmtStamp(meta.generatedAt)}</span>
       </footer>
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { addDays, dayOfWeek, todayInIsrael } from "../src/lib/dates";
 import { runInsights } from "../src/lib/oura/sync";
 import { shiftBedtime, unshiftBedtime } from "../src/lib/rewards";
 import { sampleDays } from "../src/lib/sample-nights";
+import { COVERAGE_FAMILIES } from "../src/lib/member-data";
+import { sampleCoverage, sampleEvents, sampleExtras, sampleProfile } from "../src/lib/sample-extras";
 import { computeSelfBaseline, evaluateSelfReward } from "../src/lib/self-rewards";
 import type { DayMetric } from "../src/lib/types";
 
@@ -229,6 +231,16 @@ async function main() {
   }
   for (let i = 0; i < metricRows.length; i += 400) {
     await db.insert(schema.dailyMetrics).values(metricRows.slice(i, i + 400));
+  }
+  // ...and the rest of what the Oura API gives (activity detail, SpO2, resilience, heart-rate curve, workouts, ring).
+  if (demoMember) {
+    const extras = sampleExtras(today, DAYS);
+    await db.insert(schema.dailyExtras).values(extras.map((e) => ({ memberId: demoMember.id, ...e })));
+    const events = sampleEvents(today, DAYS);
+    await db.insert(schema.ouraEvents).values(events.map((e) => ({ memberId: demoMember.id, ...e })));
+    const now = new Date();
+    const coverage = sampleCoverage(now, Object.fromEntries(COVERAGE_FAMILIES.map((f) => [f.id, f.id === "ring_configuration" || f.id === "personal_info" || f.id === "ring_battery_level" ? 1 : DAYS])));
+    await db.insert(schema.ouraProfile).values({ memberId: demoMember.id, ...sampleProfile(now, coverage) });
   }
 
   // Alerts + rewards come from the same code path the nightly sync uses.

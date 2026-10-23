@@ -65,7 +65,7 @@ export default async function ExperimentPage({
             {nightsHe(ev.nights.length)}, מ{fmtNight(row.startNight)} עד {fmtNight(row.endNight)}
           </p>
         </div>
-        <a className="btn secondary" href="/member#experiments">
+        <a className="btn secondary" href="/member?tab=experiments">
           חזרה
         </a>
       </div>
@@ -87,7 +87,7 @@ export default async function ExperimentPage({
         </div>
         {ev.nightsWithData < ev.nights.length && ev.phase !== "planned" && (
           <p className="muted">
-            חסר לילה? אפשר ללחוץ על ״סנכרן עכשיו״ <a href="/member#ring">בכרטיס הטבעת</a>.
+            חסר לילה? אפשר ללחוץ על ״סנכרן עכשיו״ <a href="/member">בכרטיס הטבעת</a>.
           </p>
         )}
       </div>

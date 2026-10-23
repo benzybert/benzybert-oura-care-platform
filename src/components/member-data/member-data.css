@@ -1,0 +1,390 @@
+/* Extras for the member's own data views. Tokens come from .dash (dashboard.css); nothing here is shared with doctor links. */
+
+.dash.md {
+  background: transparent;
+  display: block;
+}
+/* the dashboard component, then the extras of the same view */
+.dash + .dash.md {
+  margin-top: 28px;
+}
+.md .dash-section:first-child {
+  margin-top: 0;
+}
+
+.md-hint {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--c-primary-soft);
+  color: var(--c-primary-strong);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-ctl);
+  padding: 12px 14px;
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+}
+.md-hint.is-warn {
+  background: var(--c-attn-soft);
+  color: var(--c-attn-ink);
+  border-color: var(--c-attn-line);
+}
+.md-hint p {
+  margin: 0 0 8px;
+}
+.md-hint p:last-child {
+  margin-bottom: 0;
+}
+.md-btn {
+  margin-top: 4px;
+}
+
+.md-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--c-ink-2);
+}
+.md-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.md-sw {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* activity day (0 non-wear .. 5 high) and sleep movement (1 still .. 4 active) strips */
+.md-strip {
+  position: relative;
+  padding-bottom: 22px;
+}
+.md-strip svg {
+  display: block;
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--c-surface-2);
+}
+.md-axis {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 18px;
+  font-size: 0.75rem;
+  color: var(--c-muted);
+}
+.md-axis span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.md-axis span:first-child {
+  transform: none;
+}
+.md-axis span:last-child {
+  transform: translateX(-100%);
+}
+.act0,
+.mv-sw0 {
+  fill: var(--viz-grid);
+}
+.act1 {
+  fill: var(--viz-neutral);
+  opacity: 0.45;
+}
+.act2 {
+  fill: var(--viz-neutral);
+}
+.act3 {
+  fill: var(--viz-data-soft);
+}
+.act4 {
+  fill: var(--viz-data);
+}
+.act5 {
+  fill: var(--viz-attn);
+}
+.mv1 {
+  fill: var(--viz-neutral);
+  opacity: 0.4;
+}
+.mv2 {
+  fill: var(--viz-data-soft);
+}
+.mv3 {
+  fill: var(--viz-data);
+}
+.mv4 {
+  fill: var(--viz-attn);
+}
+.md-sw.act0 {
+  background: var(--viz-grid);
+}
+.md-sw.act1 {
+  background: var(--viz-neutral);
+  opacity: 0.45;
+}
+.md-sw.act2 {
+  background: var(--viz-neutral);
+}
+.md-sw.act3 {
+  background: var(--viz-data-soft);
+}
+.md-sw.act4 {
+  background: var(--viz-data);
+}
+.md-sw.act5 {
+  background: var(--viz-attn);
+}
+.md-sw.mv1 {
+  background: var(--viz-neutral);
+  opacity: 0.4;
+}
+.md-sw.mv2 {
+  background: var(--viz-data-soft);
+}
+.md-sw.mv3 {
+  background: var(--viz-data);
+}
+.md-sw.mv4 {
+  background: var(--viz-attn);
+}
+
+/* a stacked share bar with a legend (activity by intensity) */
+.md-split {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  gap: 2px;
+  background: var(--c-line-soft);
+}
+.md-split span {
+  display: block;
+  min-width: 3px;
+}
+
+/* resilience scale */
+.md-scale {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin: 10px 0 6px;
+  list-style: none;
+  padding: 0;
+}
+.md-scale li {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--c-muted);
+}
+.md-scale li::before {
+  content: "";
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--c-line);
+  margin-bottom: 4px;
+}
+.md-scale li.is-on::before {
+  background: var(--viz-data);
+}
+.md-scale li.is-cur {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.md-scale li.is-cur::before {
+  background: var(--viz-data);
+  outline: 2px solid var(--viz-data);
+  outline-offset: 2px;
+}
+.md-big {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+/* lists of events */
+.md-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.md-row {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr auto;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--c-line-soft);
+}
+.md-row:last-child {
+  border-bottom: 0;
+}
+.md-when {
+  color: var(--c-muted);
+  font-size: 0.85rem;
+}
+.md-what {
+  margin: 0;
+  font-weight: 600;
+}
+.md-sub {
+  margin: 2px 0 0;
+  color: var(--c-ink-2);
+  font-size: 0.88rem;
+}
+.md-tag {
+  display: inline-block;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  padding: 1px 10px;
+  font-size: 0.8rem;
+  color: var(--c-ink-2);
+  margin-inline-start: 6px;
+}
+.md-tag.is-hard {
+  border-color: var(--c-attn-line);
+  background: var(--c-attn-soft);
+  color: var(--c-attn-ink);
+}
+.md-num {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.md-sums {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.md-sums div {
+  background: var(--c-surface-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.md-sums dt {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+}
+.md-sums dd {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* key / value cards (ring, person) */
+.md-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+}
+.md-kv dt {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+}
+.md-kv dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+.md-state {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px 10px;
+  font-size: 0.8rem;
+  border: 1px solid var(--c-line);
+  color: var(--c-ink-2);
+  white-space: nowrap;
+}
+.md-state.is-ok {
+  background: var(--c-ok-soft);
+  border-color: var(--c-ok-line);
+  color: var(--c-ok-ink);
+}
+.md-state.is-forbidden,
+.md-state.is-error {
+  background: var(--c-attn-soft);
+  border-color: var(--c-attn-line);
+  color: var(--c-attn-ink);
+}
+.md-bat {
+  display: inline-block;
+  width: 56px;
+  height: 12px;
+  border: 1px solid var(--c-line);
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-inline-start: 8px;
+  overflow: hidden;
+}
+.md-bat span {
+  display: block;
+  height: 100%;
+  background: var(--viz-data);
+}
+.md-bat.is-low span {
+  background: var(--viz-attn);
+}
+.md-note {
+  color: var(--c-muted);
+  font-size: 0.85rem;
+  margin: 10px 0 0;
+}
+
+.ne-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-muted);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+.ne-note .sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+@media (max-width: 520px) {
+  .md-row {
+    grid-template-columns: 1fr auto;
+  }
+  .md-when {
+    grid-column: 1 / -1;
+  }
+}
+
+.md-notes {
+  margin: 0;
+  padding-inline-start: 1.2em;
+  display: grid;
+  gap: 8px;
+  color: var(--c-ink-2);
+  font-size: 0.92rem;
+}
+
+/* one cell per day, shaded by level (resilience) */
+.md-days {
+  display: flex;
+  gap: 3px;
+  margin: 12px 0 6px;
+}
+.md-days span {
+  flex: 1 1 0;
+  min-width: 4px;
+  height: 26px;
+  border-radius: 4px;
+  background: var(--viz-data);
+}
+.md-days span.is-none {
+  background: var(--c-line);
+}

@@ -23,6 +23,9 @@
 | `oura_connections` | OAuth tokens, **encrypted** (AES-256-GCM); deleted when the member disconnects |
 | `consents` | append-only history; a scope is active while a row has `revoked_at IS NULL` |
 | `daily_metrics` | one row per member per day, Oura-shaped; `source` is `oura` or `demo`. Besides the scores it holds the main sleep's structure (stage minutes, efficiency, latency, breathing, temperature deviation), Oura's contributor scores, activity minutes, and the night detail (hypnogram plus 5-minute heart rate and HRV). Only the doctor dashboard reads the structure and night columns (`getDashboardMetrics`); care and org views keep selecting the original columns |
+| `daily_extras` | the rest of what Oura gives per day (migration `0014`): activity score, contributors, calories, distance, MET and the 5-minute activity strip; SpO2 and breathing disturbance; resilience; cardiovascular age; VO2 max; Oura's bedtime guidance; naps; sleep movement; the temperature trend; and the all-day heart-rate curve (288 five-minute averages per local day plus min / avg / max per source). **Member's own page only**: separate from `daily_metrics` on purpose, so no doctor link, care view or org view can pick it up by accident |
+| `oura_events` | workouts, sessions (meditation, breathing), tags and their free-text comments, rest-mode periods and naps, one row per Oura document (`member_id, kind, source_id` is unique, so a re-sync updates). Member's own page only |
+| `oura_profile` | one row per member: the ring (generation, design, colour, size, firmware, battery), age / weight / height / biological sex as Oura reports them, and `coverage`: for every Oura data family whether the last sync got data, got none, was refused (missing scope) or failed. Member's own page only |
 | `alerts` | rule hits for review; only created for members with active `care_team` consent |
 | `reward_events` | points, idempotent per member, kind and week |
 | `doctor_contacts` | the member's own doctors (name, email), used only for sends the member confirms |
@@ -54,12 +57,23 @@ Every page re-checks the role on the server (`requireRole`). Server actions re-c
 2. `/api/oura/callback` verifies state and user, exchanges the code, stores both tokens encrypted, runs a first sync.
 3. `/api/cron/oura-sync` (Vercel Cron, daily, `Authorization: Bearer $CRON_SECRET`) syncs every active connection **sequentially**, because refresh tokens are single-use.
 4. Each sync re-pulls the last 35 days (Oura revises recent days, and it backfills fields added later), merges `daily_sleep`, `daily_readiness`, `daily_activity`, `daily_stress` and `sleep` periods into one row per day, and upserts without overwriting a good value with an empty one. The extra fields come from the same five calls: new fields are parsed leniently, so a field Oura leaves out becomes null and never fails the sync.
-5. If Oura rejects the tokens, the connection is marked revoked and the member must reconnect.
-6. After each sync, alerts and rewards run for the scopes the member has consented to.
+5. Beyond those five calls, every sync also asks for everything else the API offers (`daily_spo2`, `daily_resilience`, `daily_cardiovascular_age`, `vO2_max`, `sleep_time`, `rest_mode_period`, `workout`, `session`, `enhanced_tag`, `ring_configuration`, `personal_info`, `ring_battery_level` and the `heartrate` series), in parallel, **fail-soft** (`fetchOptional`): a 401/403 on one of them means "this token does not cover it", never a dead connection, and a malformed row is skipped. The core collections in the same `Promise.all` are what decide whether the token is still valid. The results are mapped by `src/lib/oura/map-extras.ts` and saved by `sync-extras.ts` after the core rows, best effort, so a problem there cannot fail a sync that worked.
+6. If Oura rejects the tokens, the connection is marked revoked and the member must reconnect.
+7. After each sync, alerts and rewards run for the scopes the member has consented to.
 
 Schedules: Vercel Cron runs `/api/cron/oura-sync` once a day (35-day window, `CRON_SECRET`; Hobby allows nothing more often). A pg_cron job in Supabase (`docs/supabase-sync-schedule.sql`) calls `/api/sync/tick` every 30 minutes: no secret, returns only a count, and it syncs a connection only when its last sync is 20 minutes old, over the last 3 days. Opening `/member` also re-syncs when the last sync is 30 minutes old, and the "סנכרן עכשיו" button syncs on demand. Overlapping runs are safe: a run whose refresh token was replaced by another run is skipped instead of revoking the connection.
 
-Scope requested: `daily` only (no `personal`, no `heartrate`). Confirm in Oura's sandbox that `daily` also covers the `sleep` period endpoint.
+Scopes requested (`src/lib/oura/scopes.ts`): `daily heartrate workout tag session spo2Daily personal`, i.e. everything the API offers except `email` (we already have the member's address). Members who connected before this have only `daily` stored in `oura_connections.scopes`; the app then shows "אישור הרשאות נוספות" (the same `/api/oura/connect` flow, once) and the optional data fills in after they approve. Verify in Oura's sandbox that `daily` covers the `sleep` period endpoint, and which of the newer daily endpoints (resilience, VO2 max, ...) need no extra scope: the coverage table on the ring view shows what really answered.
+
+## Member page: tabs and the full Oura data
+
+`/member` is split into tabs, and the data tab into views. Both live in the URL (`?tab=data&view=sleep&days=60`), so a tab is a normal server render that loads only what it shows (`src/app/member/tabs/*`), links can be bookmarked, and there is no client-side tab state. `src/lib/member-nav.ts` (pure, tested) owns the ids, `memberHref` and `resolveTab`; a server action's redirect that carries only `?action=` or `?doctor=` still lands in the right tab.
+
+- Tabs: בית (today's numbers, onboarding, ring connection), הנתונים שלי, ניסויים, יעדים ותגמולים, אוטומציות, שיתוף ורופאים.
+- Data views: סיכום, שינה, התאוששות, פעילות, לב ונשימה, אימונים ואירועים, מגמות וטבלאות, הקשר חיצוני, הטבעת. The existing dashboard component renders the summary, sleep, recovery and trends views through `meta.sections` (a doctor link or the PDF omit it and show everything); the new views live in `src/components/member-data/`.
+- Everything in the new views is the member's own: `getDayExtras`, `getOuraEvents` and `getOuraProfile` are called only from the member's page. Care, org and share-link code never reads those tables.
+- The ring view lists every Oura data family with its state from the last sync, so "why is this empty" always has an answer (not approved, no data for this ring, failed).
+- Not stored: the beat-to-beat series (`interbeat_interval`), the per-minute MET series, the 30-second sleep phases (5-minute ones are stored), Oura's encrypted ring id, and the `email` scope.
 
 ## Alert rules (v0)
 

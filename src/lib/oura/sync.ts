@@ -6,7 +6,7 @@ import { addDays, todayInIsrael } from "../dates";
 import { evaluateAlerts } from "../alerts";
 import { BEDTIME_REWARD_KIND, evaluateBedtimeConsistency, lastCompletedWeek } from "../rewards";
 import type { DayMetric } from "../types";
-import { OuraAuthError, fetchCollection, refreshTokens } from "./client";
+import { OuraAuthError, fetchCollection, fetchOptional, refreshTokens } from "./client";
 import { isSyncStale } from "./cooldown";
 import {
   dailyActivityItem,
@@ -16,6 +16,7 @@ import {
   mapToDayMetrics,
   sleepPeriodItem,
 } from "./map";
+import { coverageOf, fetchOptionalSet, storeExtras } from "./sync-extras";
 
 const { ouraConnections, dailyMetrics, consents, alerts, rewardEvents } = schema;
 
@@ -71,17 +72,19 @@ export async function syncMember(
     const today = todayInIsrael(now);
     // Oura's end_date can be exclusive for some collections; ask for tomorrow to be safe.
     const range = { start: addDays(today, -windowDays), end: addDays(today, 1) };
-    const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods, dailyStress] = await Promise.all([
+    // The bonus data (SpO2, workouts, heart-rate curve, ...) is fetched in parallel and can never fail the sync.
+    const optionalPromise = fetchOptionalSet(accessToken, range, now);
+    const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods, stress] = await Promise.all([
       fetchCollection("daily_sleep", accessToken, range, dailySleepItem),
       fetchCollection("daily_readiness", accessToken, range, dailyReadinessItem),
       fetchCollection("daily_activity", accessToken, range, dailyActivityItem),
       fetchCollection("sleep", accessToken, range, sleepPeriodItem),
       // Stress is a context signal, not essential: an account without Oura's stress feature must still sync.
-      fetchCollection("daily_stress", accessToken, range, dailyStressItem).catch((err) => {
-        if (err instanceof OuraAuthError) throw err;
-        return undefined;
-      }),
+      fetchOptional(() =>
+        fetchCollection("daily_stress", accessToken, range, dailyStressItem),
+      ),
     ]);
+    const dailyStress = stress.status === "ok" ? stress.rows : undefined;
 
     const rows = mapToDayMetrics({ dailySleep, dailyReadiness, dailyActivity, sleepPeriods, dailyStress });
     if (rows.length > 0) {
@@ -125,6 +128,26 @@ export async function syncMember(
             updatedAt: sql`now()`,
           },
         });
+    }
+
+    // Extras are saved after the core rows and are best effort: they must not fail a sync that already worked.
+    try {
+      const optional = await optionalPromise;
+      await storeExtras(db, memberId, {
+        range,
+        optional,
+        dailyActivity,
+        dailyReadiness,
+        sleepPeriods,
+        coverage: coverageOf(
+          optional,
+          { daily_sleep: dailySleep.length, daily_readiness: dailyReadiness.length, daily_activity: dailyActivity.length, sleep: sleepPeriods.length },
+          stress,
+          now,
+        ),
+      });
+    } catch {
+      // Never log: the error can carry Oura's response text.
     }
 
     await db.update(ouraConnections).set({ lastSyncAt: now }).where(eq(ouraConnections.memberId, memberId));

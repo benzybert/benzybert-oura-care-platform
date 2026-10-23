@@ -172,6 +172,115 @@ export const dailyMetrics = pgTable(
   (t) => [primaryKey({ columns: [t.memberId, t.day] })],
 );
 
+/**
+ * Everything else the Oura API gives about a day (activity detail, SpO2, resilience, cardiovascular age, VO2 max,
+ * the all-day heart-rate curve, bedtime guidance). Separate from daily_metrics on purpose: only the member's own
+ * page reads it. The care, organization and doctor-link views never do (docs/PRIVACY.md).
+ */
+export const dailyExtras = pgTable(
+  "daily_extras",
+  {
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    /** daily_activity */
+    activityScore: integer("activity_score"),
+    activityContributors: jsonb("activity_contributors").$type<Record<string, number>>(),
+    totalCalories: integer("total_calories"),
+    targetCalories: integer("target_calories"),
+    equivalentWalkingDistanceM: integer("equivalent_walking_distance_m"),
+    targetMeters: integer("target_meters"),
+    metersToTarget: integer("meters_to_target"),
+    inactivityAlerts: integer("inactivity_alerts"),
+    nonWearMinutes: integer("non_wear_minutes"),
+    restingMinutes: integer("resting_minutes"),
+    lowActivityMinutes: integer("low_activity_minutes"),
+    mediumActivityMinutes: integer("medium_activity_minutes"),
+    highActivityMinutes: integer("high_activity_minutes"),
+    averageMetMinutes: real("average_met_minutes"),
+    /** one char per 5 minutes from 04:00: 0 non-wear, 1 rest, 2 inactive, 3 low, 4 medium, 5 high */
+    activityClass5Min: text("activity_class_5_min"),
+    /** sleep period extras */
+    sleepScoreDelta: integer("sleep_score_delta"),
+    readinessScoreDelta: integer("readiness_score_delta"),
+    /** one char per 30 seconds: 1 no motion, 2 restless, 3 tossing and turning, 4 active */
+    movement30Sec: text("movement_30_sec"),
+    napCount: integer("nap_count"),
+    napMinutes: integer("nap_minutes"),
+    lowBatteryAlert: boolean("low_battery_alert"),
+    /** daily_readiness */
+    temperatureTrendDeviation: real("temperature_trend_deviation"),
+    /** daily_spo2 */
+    spo2Average: real("spo2_average"),
+    breathingDisturbanceIndex: integer("breathing_disturbance_index"),
+    /** daily_resilience: limited | adequate | solid | strong | exceptional, plus its three contributors (0-100) */
+    resilienceLevel: text("resilience_level"),
+    resilienceContributors: jsonb("resilience_contributors").$type<Record<string, number>>(),
+    /** daily_cardiovascular_age and vO2_max */
+    vascularAge: integer("vascular_age"),
+    vo2Max: real("vo2_max"),
+    /** sleep_time: Oura's bedtime guidance for the day (offsets are minutes from midnight, can be negative) */
+    optimalBedtimeStart: integer("optimal_bedtime_start"),
+    optimalBedtimeEnd: integer("optimal_bedtime_end"),
+    bedtimeRecommendation: text("bedtime_recommendation"),
+    bedtimeStatus: text("bedtime_status"),
+    /** heartrate series, by the member's local day: 288 five-minute averages from midnight, and per-source summaries */
+    heartRateBuckets: jsonb("heart_rate_buckets").$type<Array<number | null>>(),
+    heartRateSummary: jsonb("heart_rate_summary").$type<Record<string, { min: number; avg: number; max: number; n: number }>>(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.day] })],
+);
+
+/** Event-shaped Oura data: workouts, sessions (meditation, breathing), tags, rest-mode periods, naps. */
+export const ouraEvents = pgTable(
+  "oura_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    /** Oura's own document id, so a re-sync updates instead of duplicating */
+    sourceId: text("source_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    startAt: timestamp("start_at", { withTimezone: true }),
+    endAt: timestamp("end_at", { withTimezone: true }),
+    /** workout activity, session type, tag code or name */
+    label: text("label"),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("oura_events_member_kind_source_uq").on(t.memberId, t.kind, t.sourceId),
+    index("oura_events_member_day_idx").on(t.memberId, t.day),
+  ],
+);
+
+/** The ring and the person, as Oura reports them (one row per member), and which Oura data families answered the last sync. */
+export const ouraProfile = pgTable("oura_profile", {
+  memberId: uuid("member_id")
+    .primaryKey()
+    .references(() => members.id, { onDelete: "cascade" }),
+  ringColor: text("ring_color"),
+  ringDesign: text("ring_design"),
+  ringHardware: text("ring_hardware"),
+  ringFirmware: text("ring_firmware"),
+  ringSize: integer("ring_size"),
+  ringSetUpAt: timestamp("ring_set_up_at", { withTimezone: true }),
+  batteryLevel: integer("battery_level"),
+  batteryCharging: boolean("battery_charging"),
+  batteryAt: timestamp("battery_at", { withTimezone: true }),
+  age: integer("age"),
+  weightKg: real("weight_kg"),
+  heightM: real("height_m"),
+  biologicalSex: text("biological_sex"),
+  /** per Oura collection: { status: ok | forbidden | error, rows, at } from the last sync */
+  coverage: jsonb("coverage").$type<Record<string, { status: "ok" | "forbidden" | "error"; rows: number; at: string }>>(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const alerts = pgTable(
   "alerts",
   {

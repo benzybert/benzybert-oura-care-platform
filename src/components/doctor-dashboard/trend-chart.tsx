@@ -93,7 +93,8 @@ export function TrendChart(props: TrendChartProps) {
     const pad = (hi - lo || Math.abs(hi) || 1) * 0.08;
     lo -= pad;
     hi += pad;
-    if (includeZero) lo = Math.min(0, lo);
+    // bars sit on a zero baseline; with no negative value in the data there is nothing to draw below it
+    if (includeZero) lo = pool.length > 0 && Math.min(...pool) >= 0 ? 0 : Math.min(0, lo);
   }
   const ticks = niceTicks(lo, hi, 4, format === "clock");
   if (!domain) {

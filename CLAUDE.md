@@ -14,11 +14,13 @@ Oura-based member health platform with three views over one dataset: member (`/m
 
 ```
 src/app/            pages (member, care, org), server actions (actions.ts), API routes
+src/app/member/tabs/  one async server component per tab of /member (home, data, experiments, goals, actions, sharing)
 src/components/     shared UI (metrics-table, logout-button, share-link card, doctor-share-card, self-rewards-section + self-reward-builder)
+src/components/member-data/  the member's own data views beyond the dashboard (activity, heart and breathing, events, ring, sleep and recovery extras) + member-data.css
 src/components/doctor-dashboard/  the doctor dashboard: dashboard.tsx (server), client SVG charts (trend-chart, night-explorer, stack-chart, sleep-clock, heatmap), score-ring, dashboard.css (tokens)
 src/db/             Drizzle schema + connection
 src/lib/            pure logic (alerts, consent, rewards, self-rewards, summary) + server helpers (queries, session)
-src/lib/oura/       OAuth client, API mapping, sync
+src/lib/oura/       OAuth client, API mapping (map.ts core, map-extras.ts everything else), sync (sync.ts, sync-extras.ts), scopes.ts
 scripts/seed.ts     synthetic demo data
 drizzle/            generated SQL migrations (never hand-edit applied ones)
 docs/               ARCHITECTURE, PRIVACY, SETUP
@@ -52,7 +54,7 @@ Stop and ask only for destructive, irreversible actions on real data (dropping t
 - **Server is the gatekeeper.** Pages call `requireRole`. Server actions re-check ownership and consent. Never rely on the UI to hide something.
 - **Nothing is shared by default.** Consent scopes: `care_team`, `org_aggregate`, `rewards`. One scope never implies another. Consent history is append-only (revoke sets `revoked_at`; re-grant inserts a row).
 - **No per-person view for employers or HR.** Org views show group means only, hidden below `ORG_MIN_COHORT`.
-- **Minimal data.** Do not add Oura scopes beyond `daily`, heart-rate time series, names, phone numbers or emails to the care view.
+- **Minimal data in the care view.** No names, phone numbers or emails there, and nothing beyond the original `daily_metrics` columns. The owner has asked for everything the Oura API offers (all scopes except `email`), but that data is **member-only** (see "Feature: member page tabs and all Oura data"): never read `daily_extras`, `oura_events` or `oura_profile` from care, org, share-link, PDF or doctor-message code.
 - **Audit.** Any new staff view or consent change writes to `audit_log`.
 - **Secrets.** Never commit real values. Tokens stay encrypted (AES-256-GCM). `.env.example` is the only env file in git. Other people's contact details (e.g. doctor emails) stay in the database, never in source. Keys and settings follow "Config lives in files" above.
 - **`DEMO_AUTH`** is on in Production by the owner's choice (no real auth needed for now, synthetic data). Turn it off if real member data is ever added.
@@ -72,7 +74,18 @@ Rules to keep:
 
 ## Feature: the member's own dashboard (member page)
 
-The same dashboard component is the main data view on `/member`, in the `#data` section ("הנתונים שלי", replacing the old 14-day table): `DoctorDashboard` with `meta.mode = "member"`, built from `getDashboardMetrics(member.id, windowDays)` (30/60/90 days via `?days=`, same options as share links). Member mode drops the recipient and expiry wording, shows the window switch, a PDF link (`/member/share/preview/pdf`) and a "share with a doctor" jump to `#doctors`, and has no print button (the page is not the printout; the PDF is). Own data only, so it is not audited and needs no consent. Keep the `.dash` wrapper out of `main > .dash` position on `/member` (the full-width and page-background rules target a direct child of `main`).
+The same dashboard component is the main data view on `/member`, in the data tab ("הנתונים שלי", `/member?tab=data`, replacing the old 14-day table), split into views by `meta.sections` (see the tabs feature below): `DoctorDashboard` with `meta.mode = "member"`, built from `getDashboardMetrics(member.id, windowDays)` (30/60/90 days via `?days=`, same options as share links). Member mode drops the recipient and expiry wording, shows the window switch, a PDF link (`/member/share/preview/pdf`) and a "share with a doctor" jump to `#doctors`, and has no print button (the page is not the printout; the PDF is). Own data only, so it is not audited and needs no consent. Keep the `.dash` wrapper out of `main > .dash` position on `/member` (the full-width and page-background rules target a direct child of `main`).
+
+## Feature: member page tabs and all Oura data (member page)
+
+`/member` is split into tabs (`?tab=home|data|experiments|goals|actions|sharing`) and the data tab into views (`&view=summary|sleep|recovery|activity|heart|events|trends|context|ring`, `&days=30|60|90`). Navigation lives in the URL, each tab is a server render that loads only its own data (`src/app/member/tabs/*`), no client tab state. `src/lib/member-nav.ts` (pure, tested) has the ids, `memberHref`, `withParams` and `resolveTab`; build links with `memberHref`, never with `#anchors` (the old `#data`, `#ring`, `#actions`, ... anchors are gone). A redirect with only `?action=` or `?doctor=` still resolves to its tab.
+
+- The owner asked for **everything the Oura API offers** (migration `0014`, `docs/ARCHITECTURE.md#member-page-tabs-and-the-full-oura-data`): scopes `daily heartrate workout tag session spo2Daily personal` (`src/lib/oura/scopes.ts`; not `email`). New tables `daily_extras` (per day), `oura_events` (workouts, sessions, tags, rest mode, naps) and `oura_profile` (ring, person, battery, per-family `coverage`). They are **member-only**: only the member's own page queries them (`getDayExtras`, `getOuraEvents`, `getOuraProfile`); `getDashboardMetrics`, care, org, share links, PDF and doctor mail never do. Add new Oura fields to these tables, not to `daily_metrics`.
+- Sync is **fail-soft** for all of it (`fetchOptional`, `sync-extras.ts`): a 401/403 on an optional endpoint is "forbidden" (the token lacks the scope), never `needs_reconnect`; a malformed row is skipped; a storage error cannot fail a sync that already saved the core rows. Only the five core collections decide whether a token is dead. Members connected before `0014` hold `daily` only: the ring view and the ring card then offer "אישור הרשאות נוספות" (the normal `/api/oura/connect` flow). `oura_profile.coverage` says per Oura collection whether it answered, which the ring view shows.
+- The dashboard component takes `meta.sections` (and `contributorSets`) to render only part of itself for the member's views; with them absent (doctor link, preview, PDF) it renders everything, as before. Keep `Section`'s `show` prop and the exports used by `member-data/*` in `dashboard.tsx`.
+- Demo data: `src/lib/sample-extras.ts` (tests and `npm run db:seed`, T-01 only). Do not write synthetic rows into a real member's data.
+- Not stored: `interbeat_interval`, the per-minute MET series, 30-second sleep phases, Oura's ring id, `email`. The heart-rate curve keeps 5-minute averages per local day (Asia/Jerusalem).
+- Scope names (`spo2Daily` etc.) were taken from Oura's published client types, not verified against a live authorization: if Oura rejects the authorize URL (`invalid_scope`), fix `scopes.ts` first. Which of the newer daily endpoints need an extra scope is unverified: the coverage table shows what actually answered.
 
 ## Feature: doctor dashboard link (member page)
 

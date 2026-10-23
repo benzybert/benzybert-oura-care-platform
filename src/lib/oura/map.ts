@@ -5,7 +5,7 @@ import type { DayMetric } from "../types";
 // (data minimization: we never read or store anything else). Everything beyond the
 // original score/steps/HRV fields is parsed leniently: a field Oura leaves out or
 // reshapes becomes null instead of failing the whole sync.
-const lenient = <T extends z.ZodType>(schema: T) => schema.nullable().optional().catch(null);
+export const lenient = <T extends z.ZodType>(schema: T) => schema.nullable().optional().catch(null);
 
 export const dailyScoreItem = z.object({
   day: z.string(),
@@ -13,7 +13,7 @@ export const dailyScoreItem = z.object({
 });
 
 /** Contributor scores are 1-100 per factor; keep only numeric entries. */
-const contributors = z
+export const contributors = z
   .record(z.string(), z.number().nullable())
   .nullable()
   .optional()
@@ -26,6 +26,7 @@ export const dailySleepItem = dailyScoreItem.extend({
 export const dailyReadinessItem = dailyScoreItem.extend({
   contributors,
   temperature_deviation: lenient(z.number()),
+  temperature_trend_deviation: lenient(z.number()),
 });
 
 export const dailyActivityItem = z.object({
@@ -36,6 +37,20 @@ export const dailyActivityItem = z.object({
   high_activity_time: lenient(z.number()),
   medium_activity_time: lenient(z.number()),
   sedentary_time: lenient(z.number()),
+  // the rest of the daily_activity document (member's own page only, see map-extras.ts)
+  score: lenient(z.number()),
+  contributors,
+  total_calories: lenient(z.number()),
+  target_calories: lenient(z.number()),
+  equivalent_walking_distance: lenient(z.number()),
+  target_meters: lenient(z.number()),
+  meters_to_target: lenient(z.number()),
+  inactivity_alerts: lenient(z.number()),
+  low_activity_time: lenient(z.number()),
+  non_wear_time: lenient(z.number()),
+  resting_time: lenient(z.number()),
+  average_met_minutes: lenient(z.number()),
+  class_5_min: lenient(z.string()),
 });
 
 /** daily_stress: stress_high / recovery_high are seconds spent in that state during the day. */
@@ -46,15 +61,20 @@ export const dailyStressItem = z.object({
   day_summary: z.string().nullable().optional(),
 });
 
-const samples = z
+export const samples = z
   .object({ interval: z.number().optional(), items: z.array(z.number().nullable()) })
   .nullable()
   .optional()
   .catch(null);
 
 export const sleepPeriodItem = z.object({
+  id: lenient(z.string()),
   day: z.string(),
   type: z.string(),
+  sleep_score_delta: lenient(z.number()),
+  readiness_score_delta: lenient(z.number()),
+  movement_30_sec: lenient(z.string()),
+  low_battery_alert: lenient(z.boolean()),
   bedtime_start: z.string().nullable().optional(),
   bedtime_end: lenient(z.string()),
   average_hrv: z.number().nullable().optional(),
@@ -75,7 +95,7 @@ export const sleepPeriodItem = z.object({
   heart_rate: samples,
   hrv: samples,
   readiness: z
-    .object({ temperature_deviation: lenient(z.number()) })
+    .object({ temperature_deviation: lenient(z.number()), temperature_trend_deviation: lenient(z.number()) })
     .nullable()
     .optional()
     .catch(null),
@@ -96,17 +116,17 @@ export function bedtimeMinute(iso: string | null | undefined): number | null {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
-const minutes = (seconds: number | null | undefined) =>
+export const minutes = (seconds: number | null | undefined) =>
   seconds === null || seconds === undefined ? null : Math.round(seconds / 60);
 
-const round = (v: number | null | undefined, digits: number) => {
+export const round = (v: number | null | undefined, digits: number) => {
   if (v === null || v === undefined) return null;
   const f = 10 ** digits;
   return Math.round(v * f) / f;
 };
 
 /** Contributor map without null entries; null when nothing usable is left. */
-function cleanContributors(c: Record<string, number | null> | null | undefined): Record<string, number> | null {
+export function cleanContributors(c: Record<string, number | null> | null | undefined): Record<string, number> | null {
   if (!c) return null;
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(c)) if (typeof v === "number" && Number.isFinite(v)) out[k] = Math.round(v);
@@ -125,6 +145,19 @@ function cleanHypnogram(s: string | null | undefined): string | null {
   return s && /^[1-4]+$/.test(s) ? s : null;
 }
 
+/** One main sleep per day: the longest "long_sleep" period (naps are ignored). */
+export function pickMainSleep(periods: SleepPeriodItem[]): Map<string, SleepPeriodItem> {
+  const mainSleep = new Map<string, SleepPeriodItem>();
+  for (const p of periods) {
+    if (p.type !== "long_sleep") continue;
+    const current = mainSleep.get(p.day);
+    if ((p.total_sleep_duration ?? 0) > (current?.total_sleep_duration ?? -1)) {
+      mainSleep.set(p.day, p);
+    }
+  }
+  return mainSleep;
+}
+
 export function mapToDayMetrics(input: {
   dailySleep: DailySleepItem[];
   dailyReadiness: DailyReadinessItem[];
@@ -136,15 +169,7 @@ export function mapToDayMetrics(input: {
   const readiness = new Map(input.dailyReadiness.map((x) => [x.day, x]));
   const activity = new Map(input.dailyActivity.map((x) => [x.day, x]));
 
-  // One main sleep per day: the longest "long_sleep" period (naps are ignored).
-  const mainSleep = new Map<string, SleepPeriodItem>();
-  for (const p of input.sleepPeriods) {
-    if (p.type !== "long_sleep") continue;
-    const current = mainSleep.get(p.day);
-    if ((p.total_sleep_duration ?? 0) > (current?.total_sleep_duration ?? -1)) {
-      mainSleep.set(p.day, p);
-    }
-  }
+  const mainSleep = pickMainSleep(input.sleepPeriods);
 
   const stress = new Map((input.dailyStress ?? []).map((x) => [x.day, x]));
 

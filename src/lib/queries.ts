@@ -7,7 +7,7 @@ import { instinctPath } from "./instinct-brief";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
 import type { AutomationMetric, AutomationProvider, Comparator } from "./automations";
 import type { ContextEvent } from "./context-events";
-import type { ConsentScope, DayMetric, DoctorRole } from "./types";
+import type { ConsentScope, DayExtras, DayMetric, DoctorRole, OuraEvent, OuraEventKind, OuraProfileData } from "./types";
 
 const {
   members,
@@ -30,6 +30,9 @@ const {
   automationRuns,
   alertDays,
   instinctAccess,
+  dailyExtras,
+  ouraEvents,
+  ouraProfile,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -83,6 +86,45 @@ export async function getDashboardMetrics(memberId: string, windowDays: number):
     .from(dailyMetrics)
     .where(and(eq(dailyMetrics.memberId, memberId), gte(dailyMetrics.day, addDays(todayInIsrael(), -windowDays))))
     .orderBy(asc(dailyMetrics.day));
+}
+
+/**
+ * The rest of the Oura data per day (activity detail, SpO2, resilience, the heart-rate curve, ...) for the window.
+ * Member's own page only: never called for a share link, the care view or the org view.
+ */
+export async function getDayExtras(memberId: string, windowDays: number): Promise<DayExtras[]> {
+  const { memberId: _member, updatedAt: _updated, ...columns } = getTableColumns(dailyExtras);
+  return getDb()
+    .select(columns)
+    .from(dailyExtras)
+    .where(and(eq(dailyExtras.memberId, memberId), gte(dailyExtras.day, addDays(todayInIsrael(), -windowDays))))
+    .orderBy(asc(dailyExtras.day));
+}
+
+/** Workouts, sessions, tags, rest-mode periods and naps in the window, newest first. Member's own page only. */
+export async function getOuraEvents(memberId: string, windowDays: number): Promise<OuraEvent[]> {
+  const rows = await getDb()
+    .select({
+      id: ouraEvents.id,
+      kind: ouraEvents.kind,
+      day: ouraEvents.day,
+      startAt: ouraEvents.startAt,
+      endAt: ouraEvents.endAt,
+      label: ouraEvents.label,
+      data: ouraEvents.data,
+    })
+    .from(ouraEvents)
+    .where(and(eq(ouraEvents.memberId, memberId), gte(ouraEvents.day, addDays(todayInIsrael(), -windowDays))))
+    .orderBy(desc(ouraEvents.day), desc(ouraEvents.startAt))
+    .limit(600);
+  return rows.map((r) => ({ ...r, kind: r.kind as OuraEventKind }));
+}
+
+/** The ring and the person as Oura reports them, and which data families answered the last sync. */
+export async function getOuraProfile(memberId: string): Promise<OuraProfileData | null> {
+  const { memberId: _member, ...columns } = getTableColumns(ouraProfile);
+  const [row] = await getDb().select(columns).from(ouraProfile).where(eq(ouraProfile.memberId, memberId)).limit(1);
+  return row ?? null;
 }
 
 export async function getConsentRecords(memberId: string): Promise<ConsentRecord[]> {
@@ -217,7 +259,7 @@ export async function getExperimentMetrics(memberId: string, fromDay: string, to
 
 export async function ouraStatus(memberId: string) {
   const [c] = await getDb()
-    .select({ lastSyncAt: ouraConnections.lastSyncAt, connectedAt: ouraConnections.connectedAt })
+    .select({ lastSyncAt: ouraConnections.lastSyncAt, connectedAt: ouraConnections.connectedAt, scopes: ouraConnections.scopes })
     .from(ouraConnections)
     .where(and(eq(ouraConnections.memberId, memberId), isNull(ouraConnections.revokedAt)))
     .limit(1);

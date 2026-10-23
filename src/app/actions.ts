@@ -30,6 +30,7 @@ import {
 import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
+import { memberHref, withParams } from "@/lib/member-nav";
 import { syncCooldownLeftMs } from "@/lib/oura/cooldown";
 import { syncMember } from "@/lib/oura/sync";
 import {
@@ -137,13 +138,15 @@ export async function disconnectOura(): Promise<void> {
  * Member syncs their own ring now instead of waiting for the daily cron (also backfills fields added
  * later). Own data only, with a short cooldown. Errors are never logged: they can carry Oura's text.
  */
-export async function syncNow(): Promise<void> {
+export async function syncNow(formData?: FormData): Promise<void> {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
+  // The ring view has its own button; everything else comes back to the home tab.
+  const back = formData?.get("back") === "ring" ? memberHref({ view: "ring" }) : memberHref();
   const connection = await ouraStatus(member.id);
-  if (!connection) redirect("/member?oura=not_connected#ring");
-  if (syncCooldownLeftMs(connection.lastSyncAt) > 0) redirect("/member?oura=sync_recent#ring");
+  if (!connection) redirect(withParams(back, { oura: "not_connected" }));
+  if (syncCooldownLeftMs(connection.lastSyncAt) > 0) redirect(withParams(back, { oura: "sync_recent" }));
 
   let outcome = "sync_failed";
   try {
@@ -153,7 +156,7 @@ export async function syncNow(): Promise<void> {
     outcome = "sync_failed";
   }
   revalidatePath("/member");
-  redirect(`/member?oura=${outcome}#ring`);
+  redirect(withParams(back, { oura: outcome }));
 }
 
 /** Care-team user acknowledges an alert. Re-checks assignment and consent on the server. */
@@ -202,7 +205,7 @@ export async function saveDoctorContact(formData: FormData): Promise<void> {
       name: formData.get("name"),
       email: String(formData.get("email") ?? "").trim(),
     });
-  if (!parsed.success) redirect("/member?doctor=invalid");
+  if (!parsed.success) redirect("/member?tab=sharing&doctor=invalid#doctors");
 
   const { role, name, email } = parsed.data;
   await getDb()
@@ -212,7 +215,7 @@ export async function saveDoctorContact(formData: FormData): Promise<void> {
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "doctor_contact_saved", scope: role });
   revalidatePath("/member");
-  redirect("/member?doctor=saved");
+  redirect("/member?tab=sharing&doctor=saved#doctors");
 }
 
 /** Member removes a saved doctor. */
@@ -227,7 +230,7 @@ export async function removeDoctorContact(formData: FormData): Promise<void> {
     .where(and(eq(doctorContacts.memberId, member.id), eq(doctorContacts.role, role)));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "doctor_contact_removed", scope: role });
   revalidatePath("/member");
-  redirect("/member?doctor=removed");
+  redirect("/member?tab=sharing&doctor=removed#doctors");
 }
 
 type IssuedShareLink = { ok: true; id: string; token: string; expiresAt: Date } | { ok: false; reason: "too_many" | "no_key" };
@@ -297,7 +300,7 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   const role = doctorRoleSchema.parse(formData.get("role"));
 
   const contact = (await getDoctorContacts(member.id))[role];
-  if (!contact) redirect("/member?doctor=missing");
+  if (!contact) redirect("/member?tab=sharing&doctor=missing#doctors");
 
   const days = await getDashboardMetrics(member.id, DEFAULT_SHARE_WINDOW);
   const link = await issueShareLink(member.id, {
@@ -308,7 +311,7 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
     windowDays: DEFAULT_SHARE_WINDOW,
     expiryDays: DEFAULT_SHARE_EXPIRY,
   });
-  if (!link.ok) redirect(`/member?doctor=${link.reason === "too_many" ? "too_many_links" : "failed"}`);
+  if (!link.ok) redirect(`/member?tab=sharing&doctor=${link.reason === "too_many" ? "too_many_links" : "failed"}#doctors`);
 
   const message = buildDoctorMessage({
     role,
@@ -335,13 +338,13 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   if (!result.ok) {
     // Nothing reached the doctor, so the link made for this send must not stay open.
     await getDb().update(shareLinks).set({ revokedAt: new Date() }).where(eq(shareLinks.id, link.id));
-    redirect(`/member?doctor=${result.reason === "not_configured" ? "not_configured" : "failed"}`);
+    redirect(`/member?tab=sharing&doctor=${result.reason === "not_configured" ? "not_configured" : "failed"}#doctors`);
   }
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_created", scope: role });
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_to_doctor", scope: role });
   revalidatePath("/member");
-  redirect(`/member?doctor=sent_${role}`);
+  redirect(`/member?tab=sharing&doctor=sent_${role}#doctors`);
 }
 
 export type CreateShareLinkState =
@@ -628,7 +631,7 @@ export async function saveExperimentText(formData: FormData): Promise<void> {
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
   const row = await getOwnExperiment(member.id, id);
-  if (!row) redirect("/member#experiments");
+  if (!row) redirect(memberHref({ tab: "experiments" }));
 
   const parsed = parseExperimentText(formValue(formData), experimentNights(row));
   if (!parsed.ok) redirect(`/member/experiments/${id}?saved=invalid`);
@@ -650,7 +653,7 @@ export async function deleteExperiment(formData: FormData): Promise<void> {
     .delete(experiments)
     .where(and(eq(experiments.id, id), eq(experiments.memberId, member.id)));
   revalidatePath("/member");
-  redirect("/member#experiments");
+  redirect(memberHref({ tab: "experiments" }));
 }
 
 /**
@@ -702,7 +705,7 @@ export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
   if (!member) redirect("/member");
 
   const rule = z.enum(["general", "low_sleep", "low_readiness", "low_hrv"]).safeParse(formData.get("rule"));
-  if (!rule.success) redirect("/member?integration=invalid#integrations");
+  if (!rule.success) redirect("/member?integration=invalid");
 
   if (rule.data === "general") {
     await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
@@ -710,7 +713,7 @@ export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
   }
 
   const action = suggestActions(await getMetrics(member.id), todayInIsrael()).find((a) => a.rule === rule.data);
-  if (!action) redirect("/member?integration=gone#integrations");
+  if (!action) redirect("/member?integration=gone");
 
   await getDb()
     .insert(actionDeliveries)
@@ -727,14 +730,14 @@ export async function saveAutomationRule(formData: FormData): Promise<void> {
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
   const rule = parseRuleForm(formData);
-  if (!rule) redirect("/member?action=invalid#actions");
+  if (!rule) redirect("/member?tab=actions&action=invalid");
   const existing = await getAutomationRules(member.id);
-  if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member?action=limit#actions");
+  if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member?tab=actions&action=limit");
   // IFTTT: the member's Webhooks key is stored encrypted; leaving it empty reuses the one from their latest IFTTT rule.
   let webhookKeyEnc: string | null = null;
   if (rule.provider === "ifttt") {
     webhookKeyEnc = rule.webhookKey ? encrypt(rule.webhookKey) : await getLatestIftttKeyEnc(member.id);
-    if (!webhookKeyEnc) redirect("/member?action=need_key#actions");
+    if (!webhookKeyEnc) redirect("/member?tab=actions&action=need_key");
   }
   await getDb().insert(automationRules).values({
     memberId: member.id,
@@ -748,7 +751,7 @@ export async function saveAutomationRule(formData: FormData): Promise<void> {
   });
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_saved" });
   revalidatePath("/member");
-  redirect("/member?action=saved#actions");
+  redirect("/member?tab=actions&action=saved");
 }
 
 /** Deletes one of the member's own rules (and its run history). */
@@ -762,7 +765,7 @@ export async function deleteAutomationRule(formData: FormData): Promise<void> {
     .where(and(eq(automationRules.id, id), eq(automationRules.memberId, member.id)));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_deleted" });
   revalidatePath("/member");
-  redirect("/member?action=removed#actions");
+  redirect("/member?tab=actions&action=removed");
 }
 
 /** The decrypted IFTTT key of one of the member's own rules, or null if there is none or it cannot be read. */
@@ -790,19 +793,19 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
   if (!member) redirect("/member");
 
   const rule = (await getAutomationRules(member.id)).find((r) => r.id === id);
-  if (!rule) redirect("/member?action=missing#actions");
+  if (!rule) redirect("/member?tab=actions&action=missing");
 
   const webhookKey = await readRuleWebhookKey(member.id, rule);
 
   if (test) {
     const result = await fireRule(rule, webhookKey, true);
     await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_test" });
-    redirect(`/member?action=${result.ok ? "test_sent" : result.reason}#actions`);
+    redirect(`/member?tab=actions&action=${result.ok ? "test_sent" : result.reason}`);
   }
 
   const status = ruleStatus(rule, await getMetrics(member.id), todayInIsrael(), rule.ranDays);
-  if (status.state === "ran") redirect("/member?action=already#actions");
-  if (status.state !== "met") redirect("/member?action=not_met#actions");
+  if (status.state === "ran") redirect("/member?tab=actions&action=already");
+  if (status.state !== "met") redirect("/member?tab=actions&action=not_met");
 
   const inserted = await getDb()
     .insert(automationRuns)
@@ -810,17 +813,17 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
     .onConflictDoNothing()
     .returning({ id: automationRuns.id });
   const runId = inserted[0]?.id;
-  if (!runId) redirect("/member?action=already#actions");
+  if (!runId) redirect("/member?tab=actions&action=already");
 
   const result = await fireRule(rule, webhookKey, false);
   if (!result.ok) {
     await getDb().delete(automationRuns).where(eq(automationRuns.id, runId));
-    redirect(`/member?action=${result.reason}#actions`);
+    redirect(`/member?tab=actions&action=${result.reason}`);
   }
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_run" });
   revalidatePath("/member");
-  redirect("/member?action=fired#actions");
+  redirect("/member?tab=actions&action=fired");
 }
 
 /**
@@ -867,5 +870,5 @@ export async function revokeInstinctAccess(): Promise<void> {
     .where(and(eq(instinctAccess.memberId, member.id), isNull(instinctAccess.revokedAt)));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "instinct_access_revoked", scope: "instinct" });
   revalidatePath("/member");
-  redirect("/member#integrations");
+  redirect("/member");
 }
