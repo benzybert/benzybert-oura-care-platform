@@ -41,12 +41,10 @@ export function ExperimentsSection({
   rows,
   featured,
   today,
-  noteSaved = null,
 }: {
   rows: ExperimentRow[];
   featured: FeaturedExperiment | null;
   today: string;
-  noteSaved?: "ok" | "invalid" | null;
 }) {
   const history = rows.filter((r) => r.id !== featured?.row.id);
   const noteNight = featured ? noteNightFor(featured.spec, today) : null;
@@ -95,11 +93,6 @@ export function ExperimentsSection({
                 שמור הערה
               </button>
             </form>
-          )}
-          {noteSaved && (
-            <p className="muted" role="status">
-              {noteSaved === "ok" ? "ההערה נשמרה." : "ההערה לא נשמרה: היא ארוכה מדי."}
-            </p>
           )}
           <a className="btn" href={`/member/experiments/${featured.row.id}`}>
             פתח את הניסוי

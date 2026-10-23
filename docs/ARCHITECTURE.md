@@ -80,7 +80,7 @@ Points are paid for **consistency** (bedtime within 45 minutes of the member's w
 
 ## Doctor dashboard links
 
-The member creates a link on `/member` (who it is for, optional name and note, 30/60/90 days of data, valid 7/14/30 days) and can preview exactly what the doctor will see on `/member/share/preview`. Nothing is sent: the member copies or shares the link themselves.
+The member creates a link on `/member/sharing` (who it is for, optional name and note, 30/60/90 days of data, valid 7/14/30 days) and can preview exactly what the doctor will see on `/member/share/preview`. Nothing is sent: the member copies or shares the link themselves.
 
 1. `createShareLink` makes 32 random bytes (base64url, 43 chars). The database keeps `sha256(token)` for lookup and `encrypt(token)` (AES-256-GCM, `TOKEN_ENCRYPTION_KEY`) so the member can copy the link again. At most 10 active links per member.
 2. `GET /share/<token>` re-checks the link on every request (exists, not revoked, not expired). Without an "opened" cookie it shows a gate with **no health data and no name**, so WhatsApp / Telegram / mail link previews get nothing personal.
@@ -92,7 +92,7 @@ It is the member's own sharing: it does not read `care_team` consent or alerts, 
 
 ## Self-rewards ("התגמולים שלי")
 
-A section on `/member` where the member sets a goal on their own data and names the treat they give themselves for reaching it. It is separate from the points above: nothing is awarded by the platform and nothing is shared.
+A tab `/member/goals` where the member sets a goal on their own data and names the treat they give themselves for reaching it. It is separate from the points above: nothing is awarded by the platform and nothing is shared.
 
 - **Goal kinds** (`src/lib/self-rewards.ts`): average over a period, X of Y days, streak (optional joker: one bad day does not break it, two in a row do), beat my own baseline (the member's 28-day mean before the start, fixed at creation, at least 14 days of data), and steady bedtime (same median logic as the bedtime points).
 - **Metrics:** sleep score, readiness, sleep hours, steps, HRV, resting heart rate, bedtime. Bedtime is compared on a scale shifted to 18:00 so 23:50 and 00:10 are close.
@@ -102,7 +102,7 @@ A section on `/member` where the member sets a goal on their own data and names 
 
 ## Experiments ("ניסויים")
 
-A section on `/member` where the member changes one thing for as many nights as they like (1 to 90) (for example sleeping outside) and compares those Oura nights with their own nights just before. Member-only: no staff or org query reads it and it needs no consent scope.
+A tab `/member/experiments` where the member changes one thing for as many nights as they like (1 to 90) (for example sleeping outside) and compares those Oura nights with their own nights just before. Member-only: no staff or org query reads it and it needs no consent scope.
 
 - **Nights and days.** An experiment is stored as its first and last *night* (the date the evening starts on). Oura files a night under the morning after it, so night N is read from Oura day N+1.
 - **Baseline.** The 7, 14, 21 or 28 days that end on the first experiment evening, without the nights of the member's other experiments, so a series of experiments does not use last week's change as this week's normal. Experiments may not overlap.

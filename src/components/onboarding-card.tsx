@@ -11,12 +11,10 @@ const dateTime = (d: Date) => d.toLocaleString("he-IL", { timeZone: "Asia/Jerusa
 export function OnboardingCard({
   score,
   items,
-  actions,
   access,
 }: {
   score: number;
   items: StrengthItem[];
-  actions: ActionRow[];
   access: InstinctAccessView | null;
 }) {
   return (
@@ -97,7 +95,22 @@ export function OnboardingCard({
         </p>
       </details>
 
-      <h2 style={{ marginTop: 20 }}>פעולות להיום</h2>
+      <h2 style={{ marginTop: 20 }}>חיבורים נוספים</h2>
+      {["Slack", "iCal"].map((name) => (
+        <div className="row" key={name}>
+          <strong>{name}</strong>
+          <span className="badge">בקרוב</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Today's suggested actions, sent to Instinct on WhatsApp. Shown on the member home tab. */
+export function TodayActionsCard({ actions }: { actions: ActionRow[] }) {
+  return (
+    <div className="card">
+      <h2>פעולות להיום</h2>
       {actions.length === 0 ? (
         <p className="muted">אין פעולות מומלצות. הלילה האחרון היה בסדר.</p>
       ) : (
@@ -117,14 +130,6 @@ export function OnboardingCard({
         ))
       )}
       <p className="muted">נפתח צ׳אט WhatsApp עם Instinct והטקסט מוכן. בלי ציונים ובלי שם, ואתם לוחצים שלח.</p>
-
-      <h2 style={{ marginTop: 20 }}>חיבורים נוספים</h2>
-      {["Slack", "iCal"].map((name) => (
-        <div className="row" key={name}>
-          <strong>{name}</strong>
-          <span className="badge">בקרוב</span>
-        </div>
-      ))}
     </div>
   );
 }

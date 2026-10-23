@@ -52,15 +52,24 @@ Stop and ask only for destructive, irreversible actions on real data (dropping t
 - **Server is the gatekeeper.** Pages call `requireRole`. Server actions re-check ownership and consent. Never rely on the UI to hide something.
 - **Nothing is shared by default.** Consent scopes: `care_team`, `org_aggregate`, `rewards`. One scope never implies another. Consent history is append-only (revoke sets `revoked_at`; re-grant inserts a row).
 - **No per-person view for employers or HR.** Org views show group means only, hidden below `ORG_MIN_COHORT`.
-- **Minimal data.** Do not add Oura scopes beyond `daily`, heart-rate time series, names, phone numbers or emails to the care view.
+- **More data is welcome (owner's choice).** No data-minimisation rule: new Oura scopes, the all-day heart-rate series, raw ring data (IBI, PPG, motion, temperature, e.g. from a BLE client like `open_oura`) and new columns are fine when a feature uses them. The other rules still apply to it: consent scopes, server checks, encryption, nothing in URLs or logs, care and org views read only what their consent covers.
+- **Care view identity.** Staff see a short code, age band and goal: no names, phone numbers or emails in the care view.
 - **Audit.** Any new staff view or consent change writes to `audit_log`.
 - **Secrets.** Never commit real values. Tokens stay encrypted (AES-256-GCM). `.env.example` is the only env file in git. Other people's contact details (e.g. doctor emails) stay in the database, never in source. Keys and settings follow "Config lives in files" above.
 - **`DEMO_AUTH`** is on in Production by the owner's choice (no real auth needed for now, synthetic data). Turn it off if real member data is ever added.
 - **No health data in URLs, logs or analytics.** Responses stay `no-store`, `X-Frame-Options: DENY`.
 
+## Member area: one tab per topic
+
+`/member` used to be one long page; it is now a short home tab plus one page per topic, with a shared frame (`src/app/member/_shell/member-shell.tsx`: title, tab bar, notices). Tabs: `/member` (היום: last night, today's actions, the ring, one status tile per tab), `/member/data`, `/member/experiments`, `/member/goals`, `/member/actions`, `/member/context`, `/member/sharing` (consent, doctor links, send to doctors, care-team view count), `/member/profile` (profile strength, Instinct).
+
+- Every tab calls `loadMember()` (role check + own member; re-syncs a stale ring unless `{ sync: false }`). It is not a layout on purpose: each page checks the role itself.
+- Redirect notices are short query keys (`?doctor=saved`) mapped in `_shell/messages.ts`; any tab shows any of them. Server actions redirect to the tab that owns the feature and call `revalidatePath("/member", "layout")`.
+- New member features get their own tab (add it to `MEMBER_TABS` and a tile on the home tab), not another card on the home tab.
+
 ## Feature: "send to my doctors" (member page)
 
-Built on `/member`: a card with two doctor roles (neurologist, family doctor). The member saves each doctor's name and email (table `doctor_contacts`, never in source), clicks "send", reviews the exact message on `/member/send/[role]`, and confirms. The server rebuilds the message from the database (`src/lib/doctor-share.ts`), creates a fresh personal dashboard link for that doctor (30 days of data, valid 14 days; revoked again if the send fails), attaches a PDF of the dashboard (`src/lib/doctor-pdf.ts`, pdf-lib + bidi-js + the self-hosted Plex font files), sends it through Resend (`src/lib/mail.ts`, settings in `src/config/mail.ts`), and writes `share_link_created` and `share_to_doctor` to `audit_log` without the content. The same PDF is downloadable from the dashboard itself (`/share/<token>/pdf`, same open-gate as the page) and from the member preview (`/member/share/preview/pdf`).
+Built on `/member/sharing`: a card with two doctor roles (neurologist, family doctor). The member saves each doctor's name and email (table `doctor_contacts`, never in source), clicks "send", reviews the exact message on `/member/send/[role]`, and confirms. The server rebuilds the message from the database (`src/lib/doctor-share.ts`), creates a fresh personal dashboard link for that doctor (30 days of data, valid 14 days; revoked again if the send fails), attaches a PDF of the dashboard (`src/lib/doctor-pdf.ts`, pdf-lib + bidi-js + the self-hosted Plex font files), sends it through Resend (`src/lib/mail.ts`, settings in `src/config/mail.ts`), and writes `share_link_created` and `share_to_doctor` to `audit_log` without the content. The same PDF is downloadable from the dashboard itself (`/share/<token>/pdf`, same open-gate as the page) and from the member preview (`/member/share/preview/pdf`).
 
 Rules to keep:
 
@@ -72,11 +81,11 @@ Rules to keep:
 
 ## Feature: the member's own dashboard (member page)
 
-The same dashboard component is the main data view on `/member`, in the `#data` section ("הנתונים שלי", replacing the old 14-day table): `DoctorDashboard` with `meta.mode = "member"`, built from `getDashboardMetrics(member.id, windowDays)` (30/60/90 days via `?days=`, same options as share links). Member mode drops the recipient and expiry wording, shows the window switch, a PDF link (`/member/share/preview/pdf`) and a "share with a doctor" jump to `#doctors`, and has no print button (the page is not the printout; the PDF is). Own data only, so it is not audited and needs no consent. Keep the `.dash` wrapper out of `main > .dash` position on `/member` (the full-width and page-background rules target a direct child of `main`).
+The same dashboard component is the main data view, on its own tab `/member/data` ("הנתונים שלי", replacing the old 14-day table): `DoctorDashboard` with `meta.mode = "member"`, built from `getDashboardMetrics(member.id, windowDays)` (30/60/90 days via `/member/data?days=`, same options as share links). Member mode drops the recipient and expiry wording, shows the window switch, a PDF link (`/member/share/preview/pdf`) and a "share with a doctor" link to `/member/sharing#doctors`, and has no print button (the page is not the printout; the PDF is). Own data only, so it is not audited and needs no consent. Keep the `.dash` wrapper out of `main > .dash` position on `/member/data` (the full-width and page-background rules target a direct child of `main`).
 
 ## Feature: doctor dashboard link (member page)
 
-On `/member`, card "דאשבורד לרופא": the member creates a read-only link (`/share/<token>`) for a doctor, previews it on `/member/share/preview?days=30`, copies or shares it, sees how many times it was opened, and revokes it. Details in `docs/ARCHITECTURE.md#doctor-dashboard-links`.
+On `/member/sharing`, card "דאשבורד לרופא": the member creates a read-only link (`/share/<token>`) for a doctor, previews it on `/member/share/preview?days=30`, copies or shares it, sees how many times it was opened, and revokes it. Details in `docs/ARCHITECTURE.md#doctor-dashboard-links`.
 
 - Table `share_links` (migration `0003`). Lookup by `sha256(token)` only; `token_enc` exists so the member can copy again. Never log or store the plain token anywhere else.
 - `/share/[token]` re-checks status on every request. First screen (`ShareGate`) has no health data and no name; data only after the "open" POST (`openShareLink`), which audits `share_link_viewed` and sets a signed cookie scoped to that link's path. Unknown, expired and revoked links all get the same 404 page.
@@ -87,7 +96,7 @@ On `/member`, card "דאשבורד לרופא": the member creates a read-only l
 
 ## Feature: "התגמולים שלי" self-rewards (member page)
 
-Built on `/member`: the member sets a goal on their own Oura data and the treat they give themselves for reaching it (table `self_rewards`, migration `0004`, logic in `src/lib/self-rewards.ts`). Goal kinds: average over a period, X of Y days, streak with an optional joker, beat my own 28-day baseline, steady bedtime. Several reward options make a mystery reward drawn server-side when opened. Template gallery and live "contract" preview in `self-reward-builder.tsx`.
+Built on `/member/goals`: the member sets a goal on their own Oura data and the treat they give themselves for reaching it (table `self_rewards`, migration `0004`, logic in `src/lib/self-rewards.ts`). Goal kinds: average over a period, X of Y days, streak with an optional joker, beat my own 28-day baseline, steady bedtime. Several reward options make a mystery reward drawn server-side when opened. Template gallery and live "contract" preview in `self-reward-builder.tsx`.
 
 Rules to keep:
 
@@ -97,7 +106,7 @@ Rules to keep:
 
 ## Feature: "הקשר חיצוני" public events (member page)
 
-Card on `/member` that puts public events (war, pandemic, disaster) next to the member's own Oura data and says what to do. Migration `0005`: `daily_metrics.stress_minutes/recovery_minutes/stress_summary` (Oura `daily_stress`, same `daily` scope) and global table `context_events`.
+Tab `/member/context` that puts public events (war, pandemic, disaster) next to the member's own Oura data and says what to do. Migration `0005`: `daily_metrics.stress_minutes/recovery_minutes/stress_summary` (Oura `daily_stress`, same `daily` scope) and global table `context_events`.
 
 - `src/lib/context-events.ts` (pure, tested): impact of an event = member's days during it vs the 14 days before; stress tier (`calm`/`elevated`/`high`) from Oura's own day label; `playbook(kind, tier)` returns the Hebrew steps. Wellbeing guidance, never a diagnosis. The high tier ends with the doctor-summary pointer and ער"ן 1201.
 - `src/lib/event-feed.ts` + cron `/api/cron/events` (daily): counts headlines matching keywords in public RSS (ynet, see `src/config/events.ts`), opens an event at `minHeadlines`, closes it after `quietDaysToEnd` quiet days. Stores no headline, only our own label. A dead feed never closes an event. Keywords and thresholds are untuned guesses: tune them in `src/config/events.ts`, fix dates with `MANUAL_EVENTS`.
@@ -107,7 +116,7 @@ Card on `/member` that puts public events (war, pandemic, disaster) next to the 
 
 ## Feature: "מרכז פעולות" action center (member page)
 
-On `/member`, card `#actions`: the member defines rules on their own Oura data (metric below/above a threshold) that fire a **webhook**, to either **Home Assistant** or **IFTTT** (tables `automation_rules`, `automation_runs`, migrations `0008` and `0011`; logic in `src/lib/automations.ts`, UI in `src/components/action-center.tsx`). Each rule has a `provider`. n8n also works through the Home Assistant path: only the URL template changes.
+On `/member/actions`: the member defines rules on their own Oura data (metric below/above a threshold) that fire a **webhook**, to either **Home Assistant** or **IFTTT** (tables `automation_rules`, `automation_runs`, migrations `0008` and `0011`; logic in `src/lib/automations.ts`, UI in `src/components/action-center.tsx`). Each rule has a `provider`. n8n also works through the Home Assistant path: only the URL template changes.
 
 Rules to keep:
 
@@ -120,14 +129,14 @@ Rules to keep:
 
 ## Feature: "ניסויים" experiments (member page)
 
-Card `#experiments` on `/member`, pages `/member/experiments/[id]` and `/member/experiments/[id]/post`. The member changes one thing for as many nights as they like (template "שינה בחוץ", no caffeine after 14:00, ...) and compares those Oura nights with their own nights just before. Table `experiments` (migration `0013`); logic in `src/lib/experiments.ts` (pure, tested), draft post in `src/lib/experiment-post.ts`, page data in `src/lib/experiment-view.ts`.
+Tab `/member/experiments`, pages `/member/experiments/[id]` and `/member/experiments/[id]/post`. The member changes one thing for as many nights as they like (template "שינה בחוץ", no caffeine after 14:00, ...) and compares those Oura nights with their own nights just before. Table `experiments` (migration `0013`); logic in `src/lib/experiments.ts` (pure, tested), draft post in `src/lib/experiment-post.ts`, page data in `src/lib/experiment-view.ts`.
 
 - An experiment is the nights it covers (`start_night`..`end_night`, any length from 1 to 90 nights, the calendar date the evening starts on). Oura files a night under the next morning, so night N reads Oura day N+1 (`nightOuraDay`). Never name a night "ליל <weekday>": "ליל שבת" is Friday night. Use `fmtNight` ("יום ג׳ 20.10").
 - Baseline = the `baseline_days` (7/14/21/28) days that end on the first experiment evening, minus the nights of the member's other experiments. Overlapping experiments are refused.
 - Results are computed on read from `daily_metrics`; only the member's words (hypothesis, per-night notes, conclusion) are stored. The comparison is a size-of-change check against the member's own night-to-night spread (under 0.5 sd: "בתוך התנודה הרגילה", 0.5 to 1: a tendency, 1 and up: clear), never a significance test, and the UI and the draft say it is one person, no control group, a sign and not a proof. Do not turn it into "significant" wording. Fewer than 5 baseline nights or 3 experiment nights: no verdict.
 - Member-only, no consent scope, no staff or org page reads `experiments`, not part of any aggregate. Own data on own page, so no audit entry. Every action and page re-checks ownership (`getOwnExperiment`); another member gets 404.
 - The post page only builds text and lets the member copy it: headline options, a "בקצרה" opening, blog Markdown and HTML (rendered preview, "copy as formatted text" for blog/Kit editors), Telegram text with a length count, newsletter subject, preview and body. Nothing is sent, the text never goes in a URL or a log. The draft holds aggregates, counts and one line per night: no name, no heart-rate or hypnogram series. The HTML comes only from `src/lib/markdown-lite.ts`, which escapes everything first (that is what makes `dangerouslySetInnerHTML` on the post page safe; keep it that way). `ExperimentPostPackage` (`schemaVersion: 2`) is the contract for the planned n8n hand-off: change it only with a new version.
-- Night-level view: each night of the deciding metric is above, within or below the member's usual range (baseline mean ± one sd, `nightBand`), shown as a strip and per-night badges and counted in the draft, plus the best and least good night. A weekend-mix caution (Thursday/Friday evenings, `weekendMix`) is added when the experiment and the baseline differ by 30 points or more. The `/member` card has a quick note for last night (`saveExperimentNightNote`, re-checks ownership and that the night belongs to the experiment).
+- Night-level view: each night of the deciding metric is above, within or below the member's usual range (baseline mean ± one sd, `nightBand`), shown as a strip and per-night badges and counted in the draft, plus the best and least good night. A weekend-mix caution (Thursday/Friday evenings, `weekendMix`) is added when the experiment and the baseline differ by 30 points or more. The card on `/member/experiments` has a quick note for last night (`saveExperimentNightNote`, re-checks ownership and that the night belongs to the experiment).
 - Plain-text drafts put a left-to-right mark before signed numbers (`LRM`), and pages wrap numbers in `<Num>`, so a minus or plus does not jump to the wrong side in Hebrew text.
 - Not built: sending the post to n8n (design and open questions in `docs/BLOG-WORKFLOW.md`), editing the dates of an experiment (delete and recreate), event shading on the chart, a follow-up window after the last night.
 

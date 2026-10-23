@@ -836,6 +836,40 @@ select:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
 }
+/* member area tabs: one page per topic instead of one long page */
+.member-tabs a[aria-current="page"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+.hub {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.hub-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.hub-tile:hover,
+.hub-tile:focus-visible {
+  border-color: var(--accent);
+}
+.hub-tile strong::after {
+  content: " ←";
+  color: var(--accent);
+}
+.hub-tile.is-attention {
+  border-color: color-mix(in srgb, var(--warn-text) 55%, var(--line));
+  background: var(--warn-bg);
+}
 .today {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
