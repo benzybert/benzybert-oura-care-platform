@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { deleteExperiment, saveExperimentText } from "@/app/actions";
 import { ExperimentChart } from "@/components/experiment-chart";
-import { ComparisonSummary, Delta, Num, PhaseBadge, VerdictBadge, progressText } from "@/components/experiment-parts";
+import { ComparisonSummary, Delta, NightBandBadge, NightStrip, Num, PhaseBadge, VerdictBadge, progressText } from "@/components/experiment-parts";
 import { todayInIsrael } from "@/lib/dates";
 import { loadExperimentView } from "@/lib/experiment-view";
 import {
@@ -65,7 +65,7 @@ export default async function ExperimentPage({
             {nightsHe(ev.nights.length)}, מ{fmtNight(row.startNight)} עד {fmtNight(row.endNight)}
           </p>
         </div>
-        <a className="btn secondary" href="/member?tab=experiments">
+        <a className="btn secondary" href="/member/experiments">
           חזרה
         </a>
       </div>
@@ -87,7 +87,7 @@ export default async function ExperimentPage({
         </div>
         {ev.nightsWithData < ev.nights.length && ev.phase !== "planned" && (
           <p className="muted">
-            חסר לילה? אפשר ללחוץ על ״סנכרן עכשיו״ <a href="/member">בכרטיס הטבעת</a>.
+            חסר לילה? אפשר ללחוץ על ״סנכרן עכשיו״ <a href="/member#ring">בכרטיס הטבעת</a>.
           </p>
         )}
       </div>
@@ -114,6 +114,7 @@ export default async function ExperimentPage({
             <strong>ההשערה שלי:</strong> {row.hypothesis}
           </p>
         )}
+        {ev.phase !== "planned" && <NightStrip ev={ev} metric={spec.primaryMetric} />}
         <ExperimentChart metric={spec.primaryMetric} baseline={series.baseline} experiment={series.experiment} comparison={ev.primary} />
       </div>
 
@@ -190,7 +191,8 @@ export default async function ExperimentPage({
                     <strong>{fmtNight(n.night)}</strong>{" "}
                     <span className="muted">
                       {n.state === "data" ? facts.join(" · ") : n.state === "future" ? "עוד לא הגיע" : "ממתין לנתונים מהטבעת"}
-                    </span>
+                    </span>{" "}
+                    {m && ev.ready && <NightBandBadge metric={spec.primaryMetric} value={primaryDef.read(m)} c={ev.primary} />}
                   </span>
                   <input
                     className="xp-note"

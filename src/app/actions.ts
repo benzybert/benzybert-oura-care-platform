@@ -26,11 +26,11 @@ import {
   nightsOverlap,
   parseExperimentForm,
   parseExperimentText,
+  parseNightNote,
 } from "@/lib/experiments";
 import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
-import { memberHref, withParams } from "@/lib/member-nav";
 import { syncCooldownLeftMs } from "@/lib/oura/cooldown";
 import { syncMember } from "@/lib/oura/sync";
 import {
@@ -121,7 +121,7 @@ export async function setConsent(formData: FormData): Promise<void> {
     action: grant ? "consent_granted" : "consent_revoked",
     scope,
   });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 }
 
 /** Member disconnects the ring. The stored tokens are deleted, not just flagged. */
@@ -131,7 +131,7 @@ export async function disconnectOura(): Promise<void> {
   if (!member) return;
   await getDb().delete(ouraConnections).where(eq(ouraConnections.memberId, member.id));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "oura_disconnected" });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 }
 
 /**
@@ -142,11 +142,11 @@ export async function syncNow(formData?: FormData): Promise<void> {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
-  // The ring view has its own button; everything else comes back to the home tab.
-  const back = formData?.get("back") === "ring" ? memberHref({ view: "ring" }) : memberHref();
+  // The ring view of the data tab has its own button and comes back to itself; everywhere else it is the home tab.
+  const back = formData?.get("back") === "ring" ? "/member/data?view=ring&" : "/member?";
   const connection = await ouraStatus(member.id);
-  if (!connection) redirect(withParams(back, { oura: "not_connected" }));
-  if (syncCooldownLeftMs(connection.lastSyncAt) > 0) redirect(withParams(back, { oura: "sync_recent" }));
+  if (!connection) redirect(`${back}oura=not_connected`);
+  if (syncCooldownLeftMs(connection.lastSyncAt) > 0) redirect(`${back}oura=sync_recent`);
 
   let outcome = "sync_failed";
   try {
@@ -155,8 +155,8 @@ export async function syncNow(formData?: FormData): Promise<void> {
   } catch {
     outcome = "sync_failed";
   }
-  revalidatePath("/member");
-  redirect(withParams(back, { oura: outcome }));
+  revalidatePath("/member", "layout");
+  redirect(`${back}oura=${outcome}`);
 }
 
 /** Care-team user acknowledges an alert. Re-checks assignment and consent on the server. */
@@ -205,7 +205,7 @@ export async function saveDoctorContact(formData: FormData): Promise<void> {
       name: formData.get("name"),
       email: String(formData.get("email") ?? "").trim(),
     });
-  if (!parsed.success) redirect("/member?tab=sharing&doctor=invalid#doctors");
+  if (!parsed.success) redirect("/member/sharing?doctor=invalid");
 
   const { role, name, email } = parsed.data;
   await getDb()
@@ -214,8 +214,8 @@ export async function saveDoctorContact(formData: FormData): Promise<void> {
     .onConflictDoUpdate({ target: [doctorContacts.memberId, doctorContacts.role], set: { name, email } });
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "doctor_contact_saved", scope: role });
-  revalidatePath("/member");
-  redirect("/member?tab=sharing&doctor=saved#doctors");
+  revalidatePath("/member", "layout");
+  redirect("/member/sharing?doctor=saved");
 }
 
 /** Member removes a saved doctor. */
@@ -229,8 +229,8 @@ export async function removeDoctorContact(formData: FormData): Promise<void> {
     .delete(doctorContacts)
     .where(and(eq(doctorContacts.memberId, member.id), eq(doctorContacts.role, role)));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "doctor_contact_removed", scope: role });
-  revalidatePath("/member");
-  redirect("/member?tab=sharing&doctor=removed#doctors");
+  revalidatePath("/member", "layout");
+  redirect("/member/sharing?doctor=removed");
 }
 
 type IssuedShareLink = { ok: true; id: string; token: string; expiresAt: Date } | { ok: false; reason: "too_many" | "no_key" };
@@ -300,7 +300,7 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   const role = doctorRoleSchema.parse(formData.get("role"));
 
   const contact = (await getDoctorContacts(member.id))[role];
-  if (!contact) redirect("/member?tab=sharing&doctor=missing#doctors");
+  if (!contact) redirect("/member/sharing?doctor=missing");
 
   const days = await getDashboardMetrics(member.id, DEFAULT_SHARE_WINDOW);
   const link = await issueShareLink(member.id, {
@@ -311,7 +311,7 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
     windowDays: DEFAULT_SHARE_WINDOW,
     expiryDays: DEFAULT_SHARE_EXPIRY,
   });
-  if (!link.ok) redirect(`/member?tab=sharing&doctor=${link.reason === "too_many" ? "too_many_links" : "failed"}#doctors`);
+  if (!link.ok) redirect(`/member/sharing?doctor=${link.reason === "too_many" ? "too_many_links" : "failed"}`);
 
   const message = buildDoctorMessage({
     role,
@@ -338,13 +338,13 @@ export async function sendToDoctor(formData: FormData): Promise<void> {
   if (!result.ok) {
     // Nothing reached the doctor, so the link made for this send must not stay open.
     await getDb().update(shareLinks).set({ revokedAt: new Date() }).where(eq(shareLinks.id, link.id));
-    redirect(`/member?tab=sharing&doctor=${result.reason === "not_configured" ? "not_configured" : "failed"}#doctors`);
+    redirect(`/member/sharing?doctor=${result.reason === "not_configured" ? "not_configured" : "failed"}`);
   }
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_created", scope: role });
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_to_doctor", scope: role });
-  revalidatePath("/member");
-  redirect(`/member?tab=sharing&doctor=sent_${role}#doctors`);
+  revalidatePath("/member", "layout");
+  redirect(`/member/sharing?doctor=sent_${role}`);
 }
 
 export type CreateShareLinkState =
@@ -415,7 +415,7 @@ export async function createShareLink(
   }
   const { token, expiresAt } = link;
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_created", scope: role ?? "share_link" });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 
   return { ok: true, path: sharePath(token), windowDays: input.windowDays, expiresAt: expiresAt.toISOString() };
 }
@@ -435,7 +435,7 @@ export async function revokeShareLink(formData: FormData): Promise<void> {
   if (row) {
     await logAudit({ actorUserId: user.id, memberId: member.id, action: "share_link_revoked", scope: row.role ?? "share_link" });
   }
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 }
 
 /**
@@ -523,7 +523,7 @@ export async function createSelfReward(
     rewardOptions,
     rewardBudget,
   });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
   return { ok: true, error: null, at: Date.now() };
 }
 
@@ -545,7 +545,7 @@ export async function claimSelfReward(formData: FormData): Promise<void> {
     .update(selfRewards)
     .set({ claimedAt: new Date(), claimedReward: reward })
     .where(and(eq(selfRewards.id, row.id), eq(selfRewards.memberId, member.id), isNull(selfRewards.claimedAt)));
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 }
 
 /** "Another round": the same goal and treat again, starting today. */
@@ -580,7 +580,7 @@ export async function restartSelfReward(formData: FormData): Promise<void> {
     rewardOptions: row.rewardOptions,
     rewardBudget: row.rewardBudget,
   });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 }
 
 /** Deletes one of the member's own goals. Deleted, not hidden: it is their data. */
@@ -592,7 +592,7 @@ export async function deleteSelfReward(formData: FormData): Promise<void> {
   await getDb()
     .delete(selfRewards)
     .where(and(eq(selfRewards.id, id), eq(selfRewards.memberId, member.id)));
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
 }
 
 export type ExperimentFormState = { ok: boolean; error: string | null; at: number };
@@ -620,7 +620,7 @@ export async function createExperiment(_prev: ExperimentFormState, formData: For
     .insert(experiments)
     .values({ memberId: member.id, ...parsed.value })
     .returning({ id: experiments.id });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
   redirect(`/member/experiments/${created?.id}`);
 }
 
@@ -631,7 +631,7 @@ export async function saveExperimentText(formData: FormData): Promise<void> {
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
   const row = await getOwnExperiment(member.id, id);
-  if (!row) redirect(memberHref({ tab: "experiments" }));
+  if (!row) redirect("/member/experiments");
 
   const parsed = parseExperimentText(formValue(formData), experimentNights(row));
   if (!parsed.ok) redirect(`/member/experiments/${id}?saved=invalid`);
@@ -643,6 +643,32 @@ export async function saveExperimentText(formData: FormData): Promise<void> {
   redirect(`/member/experiments/${id}?saved=ok`);
 }
 
+/**
+ * Quick note for one night from the experiment card on /member/experiments, so last night can be written down
+ * in the morning without opening the experiment. Merges into the stored notes; an empty note clears it.
+ */
+export async function saveExperimentNightNote(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  const row = await getOwnExperiment(member.id, id);
+  if (!row) redirect("/member/experiments");
+
+  const parsed = parseNightNote(formValue(formData), experimentNights(row));
+  if (!parsed.ok) redirect("/member/experiments?note=invalid");
+  const nightNotes = { ...row.nightNotes };
+  if (parsed.value.note) nightNotes[parsed.value.night] = parsed.value.note;
+  else delete nightNotes[parsed.value.night];
+  await getDb()
+    .update(experiments)
+    .set({ nightNotes })
+    .where(and(eq(experiments.id, row.id), eq(experiments.memberId, member.id)));
+  revalidatePath("/member/experiments");
+  revalidatePath(`/member/experiments/${id}`);
+  redirect("/member/experiments?note=ok");
+}
+
 /** Deletes one of the member's own experiments. Deleted, not hidden: it is their data. */
 export async function deleteExperiment(formData: FormData): Promise<void> {
   const user = await requireRole("member");
@@ -652,8 +678,8 @@ export async function deleteExperiment(formData: FormData): Promise<void> {
   await getDb()
     .delete(experiments)
     .where(and(eq(experiments.id, id), eq(experiments.memberId, member.id)));
-  revalidatePath("/member");
-  redirect(memberHref({ tab: "experiments" }));
+  revalidatePath("/member", "layout");
+  redirect("/member/experiments");
 }
 
 /**
@@ -690,7 +716,7 @@ export async function claimCoffee(): Promise<void> {
   }
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "coffee_claim" });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
   redirect("/member?coffee=sent");
 }
 
@@ -720,7 +746,7 @@ export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
     .values({ memberId: member.id, rule: action.rule, day: action.day, provider: "whatsapp" })
     .onConflictDoNothing();
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
   redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctPrompt(action)));
 }
 
@@ -730,14 +756,14 @@ export async function saveAutomationRule(formData: FormData): Promise<void> {
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
   const rule = parseRuleForm(formData);
-  if (!rule) redirect("/member?tab=actions&action=invalid");
+  if (!rule) redirect("/member/actions?action=invalid");
   const existing = await getAutomationRules(member.id);
-  if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member?tab=actions&action=limit");
+  if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member/actions?action=limit");
   // IFTTT: the member's Webhooks key is stored encrypted; leaving it empty reuses the one from their latest IFTTT rule.
   let webhookKeyEnc: string | null = null;
   if (rule.provider === "ifttt") {
     webhookKeyEnc = rule.webhookKey ? encrypt(rule.webhookKey) : await getLatestIftttKeyEnc(member.id);
-    if (!webhookKeyEnc) redirect("/member?tab=actions&action=need_key");
+    if (!webhookKeyEnc) redirect("/member/actions?action=need_key");
   }
   await getDb().insert(automationRules).values({
     memberId: member.id,
@@ -750,8 +776,8 @@ export async function saveAutomationRule(formData: FormData): Promise<void> {
     webhookKeyEnc,
   });
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_saved" });
-  revalidatePath("/member");
-  redirect("/member?tab=actions&action=saved");
+  revalidatePath("/member", "layout");
+  redirect("/member/actions?action=saved");
 }
 
 /** Deletes one of the member's own rules (and its run history). */
@@ -764,8 +790,8 @@ export async function deleteAutomationRule(formData: FormData): Promise<void> {
     .delete(automationRules)
     .where(and(eq(automationRules.id, id), eq(automationRules.memberId, member.id)));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_deleted" });
-  revalidatePath("/member");
-  redirect("/member?tab=actions&action=removed");
+  revalidatePath("/member", "layout");
+  redirect("/member/actions?action=removed");
 }
 
 /** The decrypted IFTTT key of one of the member's own rules, or null if there is none or it cannot be read. */
@@ -793,19 +819,19 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
   if (!member) redirect("/member");
 
   const rule = (await getAutomationRules(member.id)).find((r) => r.id === id);
-  if (!rule) redirect("/member?tab=actions&action=missing");
+  if (!rule) redirect("/member/actions?action=missing");
 
   const webhookKey = await readRuleWebhookKey(member.id, rule);
 
   if (test) {
     const result = await fireRule(rule, webhookKey, true);
     await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_test" });
-    redirect(`/member?tab=actions&action=${result.ok ? "test_sent" : result.reason}`);
+    redirect(`/member/actions?action=${result.ok ? "test_sent" : result.reason}`);
   }
 
   const status = ruleStatus(rule, await getMetrics(member.id), todayInIsrael(), rule.ranDays);
-  if (status.state === "ran") redirect("/member?tab=actions&action=already");
-  if (status.state !== "met") redirect("/member?tab=actions&action=not_met");
+  if (status.state === "ran") redirect("/member/actions?action=already");
+  if (status.state !== "met") redirect("/member/actions?action=not_met");
 
   const inserted = await getDb()
     .insert(automationRuns)
@@ -813,17 +839,17 @@ export async function runAutomationRule(formData: FormData): Promise<void> {
     .onConflictDoNothing()
     .returning({ id: automationRuns.id });
   const runId = inserted[0]?.id;
-  if (!runId) redirect("/member?tab=actions&action=already");
+  if (!runId) redirect("/member/actions?action=already");
 
   const result = await fireRule(rule, webhookKey, false);
   if (!result.ok) {
     await getDb().delete(automationRuns).where(eq(automationRuns.id, runId));
-    redirect(`/member?tab=actions&action=${result.reason}`);
+    redirect(`/member/actions?action=${result.reason}`);
   }
 
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_run" });
-  revalidatePath("/member");
-  redirect("/member?tab=actions&action=fired");
+  revalidatePath("/member", "layout");
+  redirect("/member/actions?action=fired");
 }
 
 /**
@@ -854,7 +880,7 @@ export async function connectInstinctData(): Promise<void> {
   const proto = h.get("x-forwarded-proto") ?? "https";
   const url = host ? `${proto}://${host}${path}` : path;
 
-  revalidatePath("/member");
+  revalidatePath("/member", "layout");
   redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctInstructions(url)));
 }
 
@@ -869,6 +895,6 @@ export async function revokeInstinctAccess(): Promise<void> {
     .set({ revokedAt: new Date() })
     .where(and(eq(instinctAccess.memberId, member.id), isNull(instinctAccess.revokedAt)));
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "instinct_access_revoked", scope: "instinct" });
-  revalidatePath("/member");
-  redirect("/member");
+  revalidatePath("/member", "layout");
+  redirect("/member/profile");
 }

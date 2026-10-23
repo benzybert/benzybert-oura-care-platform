@@ -3,10 +3,16 @@ import { DoctorShareCard } from "@/components/doctor-share-card";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { hasActiveConsent } from "@/lib/consent";
 import { fmtDateTime } from "@/lib/format";
-import { accessLogFor, getConsentRecords, getDoctorContacts, listShareLinks, type Member } from "@/lib/queries";
+import { accessLogFor, getConsentRecords, getDoctorContacts, listShareLinks } from "@/lib/queries";
 import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
+import { MemberShell, loadMember } from "../_shell/member-shell";
+import type { MemberSearchParams } from "../_shell/messages";
 
-export async function SharingTab({ member }: { member: Member }) {
+export const dynamic = "force-dynamic";
+
+/** What is shared and with whom: consent scopes, doctor dashboard links, and sending to my doctors. */
+export default async function MemberSharingPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
+  const { member } = await loadMember({ sync: false });
   const [records, access, doctors, links] = await Promise.all([
     getConsentRecords(member.id),
     accessLogFor(member.id),
@@ -15,7 +21,7 @@ export async function SharingTab({ member }: { member: Member }) {
   ]);
 
   return (
-    <>
+    <MemberShell tab="sharing" title="שיתוף ורופאים" lead="שום דבר לא משותף בלי שתאשר." params={await searchParams}>
       <div className="card" id="sharing">
         <h2>מה משותף ועם מי</h2>
         {CONSENT_SCOPES.map((scope) => {
@@ -37,19 +43,15 @@ export async function SharingTab({ member }: { member: Member }) {
             </div>
           );
         })}
+        <p className="muted">
+          צפיות הצוות הרפואי: {access.length}. {access[0] ? `האחרונה: ${fmtDateTime(access[0].at)}` : "עוד לא נצפה."}
+        </p>
       </div>
 
       <div id="doctors">
         <ShareLinkCard links={links} contacts={doctors} />
-
         <DoctorShareCard contacts={doctors} />
       </div>
-
-      <div className="card stat">
-        <h2>צפיות הצוות הרפואי</h2>
-        <div className="value">{access.length}</div>
-        <p className="muted">{access[0] ? `האחרונה: ${fmtDateTime(access[0].at)}` : "עוד לא נצפה."}</p>
-      </div>
-    </>
+    </MemberShell>
   );
 }

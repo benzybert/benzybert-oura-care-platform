@@ -20,7 +20,7 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
   if (!member) redirect("/member");
 
   const contact = (await getDoctorContacts(member.id))[role];
-  if (!contact) redirect("/member?tab=sharing&doctor=missing#doctors");
+  if (!contact) redirect("/member/sharing?doctor=missing");
 
   const message = buildDoctorMessage({
     role,
@@ -82,7 +82,7 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
             אשר ושלח
           </button>
         </form>
-        <a className="btn secondary" href="/member?tab=sharing#doctors">
+        <a className="btn secondary" href="/member/sharing#doctors">
           ביטול
         </a>
       </div>

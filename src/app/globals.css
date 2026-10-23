@@ -804,32 +804,22 @@ select:focus-visible {
 .role-card p {
   flex: 1;
 }
-/* The member page's areas (top level) and the data tab's views (second level). Plain links, see lib/member-nav.ts. */
-.tabs {
+.section-nav {
   position: sticky;
   top: 48px;
   z-index: 10;
-  padding: 8px 0;
-  margin: 0 0 12px;
-  background: var(--bg);
-}
-.tabs ul,
-.subtabs ul {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  margin: 0;
-  padding: 0 0 2px;
-  list-style: none;
+  padding: 8px 0;
+  margin: 0 0 12px;
+  background: var(--bg);
   scrollbar-width: none;
 }
-.tabs ul::-webkit-scrollbar,
-.subtabs ul::-webkit-scrollbar {
+.section-nav::-webkit-scrollbar {
   display: none;
 }
-.tabs a,
-.subtabs a,
-.win-switch a {
+.section-nav a {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -841,49 +831,44 @@ select:focus-visible {
   color: var(--text);
   text-decoration: none;
   font-size: 0.92rem;
-  white-space: nowrap;
 }
-.tabs a:hover,
-.subtabs a:hover,
-.win-switch a:hover {
+.section-nav a:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
-.tabs a[aria-current="page"] {
+/* member area tabs: one page per topic instead of one long page */
+.member-tabs a[aria-current="page"] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
   font-weight: 600;
 }
-.subtabs a[aria-current="page"],
-.win-switch a[aria-current="true"] {
+.hub {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.hub-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.hub-tile:hover,
+.hub-tile:focus-visible {
   border-color: var(--accent);
+}
+.hub-tile strong::after {
+  content: " ←";
   color: var(--accent);
-  background: var(--surface);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--accent);
 }
-.subtabs a,
-.win-switch a {
-  min-height: 36px;
-  padding: 0 12px;
-  font-size: 0.88rem;
-}
-.subtabs-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin: 0 0 16px;
-}
-.subtabs {
-  flex: 1 1 360px;
-  min-width: 0;
-}
-.win-switch {
-  display: flex;
-  gap: 6px;
+.hub-tile.is-attention {
+  border-color: color-mix(in srgb, var(--warn-text) 55%, var(--line));
+  background: var(--warn-bg);
 }
 .today {
   display: grid;
@@ -1137,4 +1122,173 @@ td .badge.plain {
 }
 .xp-method li {
   margin-bottom: 6px;
+}
+
+/* Experiments: night strip, quick note, post preview */
+.xp-strip-wrap {
+  margin: 10px 0;
+}
+.xp-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.xp-cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--track);
+}
+.xp-cell.better {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+/* Worse also differs by pattern, not only by colour. */
+.xp-cell.worse {
+  border-color: var(--warn-text);
+  background: repeating-linear-gradient(45deg, var(--warn-text) 0 3px, var(--warn-bg) 3px 6px);
+}
+.xp-cell.within {
+  background: var(--surface);
+  border: 1.5px solid var(--muted);
+}
+.xp-cell.missing,
+.xp-cell.future {
+  background: transparent;
+  border-style: dashed;
+}
+.xp-cell.future {
+  opacity: 0.5;
+}
+.xp-strip-text {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+.xp-quick-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 10px 0;
+}
+.xp-quick-note label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 240px;
+  font-size: 0.9rem;
+}
+.xp-titles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.xp-titles li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.xp-titles li:last-child {
+  border-bottom: 0;
+}
+.xp-article {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 16px 12px;
+  overflow-wrap: anywhere;
+}
+.xp-article h1 {
+  font-size: 1.4rem;
+  margin: 12px 0 8px;
+}
+.xp-article h2 {
+  font-size: 1.1rem;
+  margin: 18px 0 6px;
+}
+.xp-article ul {
+  padding-inline-start: 20px;
+}
+.xp-article table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.xp-article th,
+.xp-article td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: start;
+  white-space: nowrap;
+}
+.xp-raw {
+  margin-top: 10px;
+}
+.xp-raw > *:not(summary) {
+  margin-top: 8px;
+}
+
+/* The data tab's views (second level) and the 30/60/90-day switch. Plain links, see lib/member-nav.ts. */
+.subtabs ul {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0;
+  padding: 0 0 2px;
+  list-style: none;
+  scrollbar-width: none;
+}
+.subtabs ul::-webkit-scrollbar {
+  display: none;
+}
+.subtabs a,
+.win-switch a {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+.subtabs a:hover,
+.win-switch a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.subtabs a[aria-current="page"],
+.win-switch a[aria-current="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.subtabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+}
+.subtabs {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.win-switch {
+  display: flex;
+  gap: 6px;
 }
