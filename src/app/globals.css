@@ -1089,3 +1089,115 @@ td .badge.plain {
 .xp-method li {
   margin-bottom: 6px;
 }
+
+/* Experiments: night strip, quick note, post preview */
+.xp-strip-wrap {
+  margin: 10px 0;
+}
+.xp-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.xp-cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--track);
+}
+.xp-cell.better {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+/* Worse also differs by pattern, not only by colour. */
+.xp-cell.worse {
+  border-color: var(--warn-text);
+  background: repeating-linear-gradient(45deg, var(--warn-text) 0 3px, var(--warn-bg) 3px 6px);
+}
+.xp-cell.within {
+  background: var(--surface);
+  border: 1.5px solid var(--muted);
+}
+.xp-cell.missing,
+.xp-cell.future {
+  background: transparent;
+  border-style: dashed;
+}
+.xp-cell.future {
+  opacity: 0.5;
+}
+.xp-strip-text {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+.xp-quick-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 10px 0;
+}
+.xp-quick-note label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 240px;
+  font-size: 0.9rem;
+}
+.xp-titles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.xp-titles li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.xp-titles li:last-child {
+  border-bottom: 0;
+}
+.xp-article {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 16px 12px;
+  overflow-wrap: anywhere;
+}
+.xp-article h1 {
+  font-size: 1.4rem;
+  margin: 12px 0 8px;
+}
+.xp-article h2 {
+  font-size: 1.1rem;
+  margin: 18px 0 6px;
+}
+.xp-article ul {
+  padding-inline-start: 20px;
+}
+.xp-article table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.xp-article th,
+.xp-article td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: start;
+  white-space: nowrap;
+}
+.xp-raw {
+  margin-top: 10px;
+}
+.xp-raw > *:not(summary) {
+  margin-top: 8px;
+}

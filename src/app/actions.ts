@@ -26,6 +26,7 @@ import {
   nightsOverlap,
   parseExperimentForm,
   parseExperimentText,
+  parseNightNote,
 } from "@/lib/experiments";
 import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
 import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
@@ -638,6 +639,32 @@ export async function saveExperimentText(formData: FormData): Promise<void> {
     .where(and(eq(experiments.id, row.id), eq(experiments.memberId, member.id)));
   revalidatePath(`/member/experiments/${id}`);
   redirect(`/member/experiments/${id}?saved=ok`);
+}
+
+/**
+ * Quick note for one night from the experiment card on /member, so last night can be written down
+ * in the morning without opening the experiment. Merges into the stored notes; an empty note clears it.
+ */
+export async function saveExperimentNightNote(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  const row = await getOwnExperiment(member.id, id);
+  if (!row) redirect("/member#experiments");
+
+  const parsed = parseNightNote(formValue(formData), experimentNights(row));
+  if (!parsed.ok) redirect("/member?note=invalid#experiments");
+  const nightNotes = { ...row.nightNotes };
+  if (parsed.value.note) nightNotes[parsed.value.night] = parsed.value.note;
+  else delete nightNotes[parsed.value.night];
+  await getDb()
+    .update(experiments)
+    .set({ nightNotes })
+    .where(and(eq(experiments.id, row.id), eq(experiments.memberId, member.id)));
+  revalidatePath("/member");
+  revalidatePath(`/member/experiments/${id}`);
+  redirect("/member?note=ok#experiments");
 }
 
 /** Deletes one of the member's own experiments. Deleted, not hidden: it is their data. */

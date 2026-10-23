@@ -105,7 +105,7 @@ const COFFEE_MESSAGES: Record<string, string> = {
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string; action?: string; days?: string }>;
+  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string; action?: string; days?: string; note?: string }>;
 }) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
@@ -298,7 +298,7 @@ export default async function MemberPage({
         />
       </section>
 
-      <ExperimentsSection rows={experimentRows} featured={featured} today={today} />
+      <ExperimentsSection rows={experimentRows} featured={featured} today={today} noteSaved={params.note === "ok" ? "ok" : params.note === "invalid" ? "invalid" : null} />
 
       <ContextEventsCard events={events} metrics={metrics} today={today} alertDays={alertDays} />
 

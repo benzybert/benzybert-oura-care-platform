@@ -251,6 +251,8 @@ export type ExperimentEvaluation = {
   nights: NightRow[];
   nightsWithData: number;
   baselineDays: string[];
+  /** the baseline days that have sleep data */
+  baselineDataDays: string[];
   baselineWithData: number;
   comparisons: MetricComparison[];
   primary: MetricComparison;
@@ -344,6 +346,7 @@ export function evaluateExperiment(
     nights,
     nightsWithData: experimentRows.length,
     baselineDays,
+    baselineDataDays: baselineRows.map((r) => r.day),
     baselineWithData: baselineRows.length,
     comparisons,
     primary: comparisons[0] as MetricComparison,
@@ -373,6 +376,103 @@ export function metricSeries(
     baseline: baselineOuraDays(spec, opts.excludeNights).map((day) => ({ day, value: read(day) })),
     experiment: experimentNights(spec).map((night) => ({ night, value: read(nightOuraDay(night)) })),
   };
+}
+
+export type NightBand = "above" | "within" | "below";
+
+/**
+ * Where one value sits against the member's usual range (baseline mean ± one spread). Null when
+ * there is no value or no usable spread. "above" is a position, not a judgement: for resting heart
+ * rate above is the less good side.
+ */
+export function nightBand(value: number | null, c: Pick<MetricComparison, "baseline">): NightBand | null {
+  const { mean, sd, n } = c.baseline;
+  if (value === null || mean === null || sd === null || sd <= 0 || n < MIN_BASELINE_NIGHTS) return null;
+  if (value > mean + sd) return "above";
+  if (value < mean - sd) return "below";
+  return "within";
+}
+
+/** Whether a night's position is on the good side of the range for this metric. */
+export function bandTone(key: ExperimentMetricKey, band: NightBand | null): "better" | "worse" | "neutral" {
+  const better = EXPERIMENT_METRICS[key].better;
+  if (band === null || band === "within" || better === "neutral") return "neutral";
+  return (band === "above") === (better === "higher") ? "better" : "worse";
+}
+
+export const NIGHT_BAND_HE: Record<NightBand, string> = { above: "מעל הטווח הרגיל", within: "בטווח הרגיל", below: "מתחת לטווח הרגיל" };
+
+export type BandCounts = { above: number; within: number; below: number; total: number };
+
+/** How the experiment's nights with data fall against the usual range of one metric. */
+export function bandCounts(key: ExperimentMetricKey, ev: Pick<ExperimentEvaluation, "nights" | "comparisons">): BandCounts | null {
+  const c = ev.comparisons.find((x) => x.key === key);
+  if (!c) return null;
+  const counts: BandCounts = { above: 0, within: 0, below: 0, total: 0 };
+  for (const n of ev.nights) {
+    if (!n.metric) continue;
+    const band = nightBand(EXPERIMENT_METRICS[key].read(n.metric), c);
+    if (band === null) continue;
+    counts[band] += 1;
+    counts.total += 1;
+  }
+  return counts.total > 0 ? counts : null;
+}
+
+/** The experiment's best and worst night by one metric (better side per the metric), when it has at least two. */
+export function extremeNights(
+  key: ExperimentMetricKey,
+  nights: NightRow[],
+): { best: NightRow; worst: NightRow; bestValue: number; worstValue: number } | null {
+  const def = EXPERIMENT_METRICS[key];
+  if (def.better === "neutral") return null;
+  const valued = nights.flatMap((n) => {
+    const v = n.metric ? def.read(n.metric) : null;
+    return v === null ? [] : [{ n, v }];
+  });
+  if (valued.length < 2) return null;
+  const sign = def.better === "higher" ? 1 : -1;
+  // Stable on ties: the earlier night wins both ways.
+  let best = valued[0]!;
+  let worst = valued[0]!;
+  for (const x of valued) {
+    if (sign * (x.v - best.v) > 0) best = x;
+    if (sign * (x.v - worst.v) < 0) worst = x;
+  }
+  if (best.v === worst.v) return null;
+  return { best: best.n, worst: worst.n, bestValue: best.v, worstValue: worst.v };
+}
+
+/**
+ * Nights before a day off in Israel: Thursday and Friday evenings. Sleep on those nights is often
+ * different (later, longer), so a very different share between the experiment and the baseline is
+ * worth a word of caution.
+ */
+export const isWeekendNight = (night: string) => {
+  const d = dayOfWeek(night);
+  return d === 4 || d === 5;
+};
+
+/** Gap in weekend-night share (0..1) that is worth mentioning. */
+export const WEEKEND_MIX_GAP = 0.3;
+
+export type WeekendMix = {
+  experiment: { weekend: number; total: number };
+  baseline: { weekend: number; total: number };
+  uneven: boolean;
+};
+
+/** Weekend nights among the nights with data, on both sides; null when either side is too small to compare. */
+export function weekendMix(ev: Pick<ExperimentEvaluation, "nights" | "baselineDataDays">): WeekendMix | null {
+  const expNights = ev.nights.filter((n) => n.state === "data").map((n) => n.night);
+  // A baseline Oura day D is the night that started the evening before.
+  const baseNights = ev.baselineDataDays.map((d) => addDays(d, -1));
+  if (expNights.length < MIN_EXPERIMENT_NIGHTS || baseNights.length < MIN_BASELINE_NIGHTS) return null;
+  const side = (xs: string[]) => ({ weekend: xs.filter(isWeekendNight).length, total: xs.length });
+  const experiment = side(expNights);
+  const baseline = side(baseNights);
+  const gap = Math.abs(experiment.weekend / experiment.total - baseline.weekend / baseline.total);
+  return { experiment, baseline, uneven: gap >= WEEKEND_MIX_GAP };
 }
 
 /** Which night of the run it is tonight / this morning, 1-based, only while the experiment is running. */
@@ -428,6 +528,21 @@ export function parseExperimentForm(get: Get, today: string): Parsed<ExperimentI
     ok: true,
     value: { title, hypothesis: hypothesis || null, startNight, endNight, baselineDays, primaryMetric },
   };
+}
+
+/** One night's note from the quick form on /member. Only a night of this experiment is accepted. */
+export function parseNightNote(get: Get, nights: string[]): Parsed<{ night: string; note: string }> {
+  const night = clean(get("night"));
+  if (!nights.includes(night)) return { ok: false, error: "הלילה לא שייך לניסוי." };
+  const note = clean(get("note"));
+  if (note.length > NOTE_MAX) return { ok: false, error: `הערה ארוכה מדי (עד ${NOTE_MAX} תווים).` };
+  return { ok: true, value: { night, note } };
+}
+
+/** The night the member can write about this morning: last night, while it belongs to the experiment. */
+export function noteNightFor(spec: Pick<ExperimentSpec, "startNight" | "endNight">, today: string): string | null {
+  const lastNight = addDays(today, -1);
+  return lastNight >= spec.startNight && lastNight <= spec.endNight ? lastNight : null;
 }
 
 export type ExperimentText = {

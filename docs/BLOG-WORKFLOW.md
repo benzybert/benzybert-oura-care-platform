@@ -15,9 +15,10 @@ Status: the platform side (steps 1 and 2) is built. The hand-off (step 3) and th
         │
         ▼
  1. Draft package                        (built)   /member/experiments/[id]/post
-    ExperimentPostPackage v1: blog Markdown, Telegram text,
-    newsletter subject + preview + Markdown, aggregates, warnings.
-    Today the member copies the text by hand.
+    ExperimentPostPackage v2: short summary (tldr), headline options, blog Markdown + escaped HTML,
+    Telegram text, newsletter subject + preview + Markdown + HTML, aggregates (incl. nights
+    above/within/below the usual range), warnings. Today the member copies the text by hand
+    (formatted copy for blog/Kit editors, or Markdown).
         │
         ▼  "שלח ל-n8n" (member-initiated, confirmation page showing the exact payload)
  2. Hand-off                             (proposed)

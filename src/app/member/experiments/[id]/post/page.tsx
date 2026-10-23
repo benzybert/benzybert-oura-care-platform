@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { CopyRichButton } from "@/components/copy-rich-button";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { todayInIsrael } from "@/lib/dates";
-import { buildExperimentPost } from "@/lib/experiment-post";
+import { TELEGRAM_MAX, buildExperimentPost } from "@/lib/experiment-post";
+import { markdownToPlain } from "@/lib/markdown-lite";
 import { loadExperimentView } from "@/lib/experiment-view";
 import { getMemberForUser, getOwnExperiment } from "@/lib/queries";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
@@ -72,11 +74,32 @@ export default async function ExperimentPostPage({ params }: { params: Promise<{
       </div>
 
       <div className="card">
+        <h2>כותרות לבחירה</h2>
+        <ul className="xp-titles">
+          {post.blog.titleOptions.map((t) => (
+            <li key={t}>
+              <span>{t}</span>
+              <CopyTextButton text={t} label="העתק" />
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="card">
         <div className="row">
           <h2>בלוג</h2>
-          <CopyTextButton text={post.blog.markdown} label="העתק (Markdown)" />
+          <span className="sr-actions">
+            <CopyRichButton html={post.blog.html} text={markdownToPlain(post.blog.markdown)} label="העתק כטקסט מעוצב" />
+            <CopyTextButton text={post.blog.markdown} label="העתק Markdown" />
+          </span>
         </div>
-        <pre className="preview">{post.blog.markdown}</pre>
+        <p className="muted">טקסט מעוצב מתאים להדבקה בעורך של בלוג או של Kit. Markdown מתאים לאתר שבנוי מקבצים.</p>
+        {/* The HTML comes from markdownToHtml, which escapes every character of the member's text first. */}
+        <article className="xp-article" dangerouslySetInnerHTML={{ __html: post.blog.html }} />
+        <details className="xp-raw">
+          <summary>Markdown</summary>
+          <pre className="preview">{post.blog.markdown}</pre>
+        </details>
       </div>
 
       <div className="card">
@@ -85,20 +108,37 @@ export default async function ExperimentPostPage({ params }: { params: Promise<{
           <CopyTextButton text={post.telegram.text} label="העתק" />
         </div>
         <pre className="preview">{post.telegram.text}</pre>
+        <p className={`muted${post.telegram.text.length > TELEGRAM_MAX ? " sr-error" : ""}`}>
+          {post.telegram.text.length} תווים מתוך {TELEGRAM_MAX} שטלגרם מאפשר בהודעה אחת.
+        </p>
       </div>
 
       <div className="card">
         <div className="row">
           <h2>ניוזלטר</h2>
-          <CopyTextButton text={`${post.newsletter.subject}\n\n${post.newsletter.markdown}`} label="העתק" />
+          <span className="sr-actions">
+            <CopyRichButton html={post.newsletter.html} text={markdownToPlain(post.newsletter.markdown)} label="העתק גוף מעוצב" />
+            <CopyTextButton text={`${post.newsletter.subject}\n\n${post.newsletter.markdown}`} label="העתק Markdown" />
+          </span>
         </div>
-        <p>
-          <strong>נושא:</strong> {post.newsletter.subject}
-        </p>
-        <p>
-          <strong>טקסט תצוגה מקדימה:</strong> {post.newsletter.previewText}
-        </p>
-        <pre className="preview">{post.newsletter.markdown}</pre>
+        <ul className="xp-titles">
+          <li>
+            <span>
+              <strong>נושא:</strong> {post.newsletter.subject}
+            </span>
+            <CopyTextButton text={post.newsletter.subject} label="העתק" />
+          </li>
+          <li>
+            <span>
+              <strong>טקסט תצוגה מקדימה:</strong> {post.newsletter.previewText}
+            </span>
+            <CopyTextButton text={post.newsletter.previewText} label="העתק" />
+          </li>
+        </ul>
+        <details className="xp-raw">
+          <summary>גוף המייל</summary>
+          <article className="xp-article" dangerouslySetInnerHTML={{ __html: post.newsletter.html }} />
+        </details>
       </div>
     </>
   );

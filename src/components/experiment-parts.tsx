@@ -1,5 +1,11 @@
 import {
   EXPERIMENT_METRICS,
+  NIGHT_BAND_HE,
+  bandCounts,
+  bandTone,
+  fmtNight,
+  nightBand,
+  type ExperimentMetricKey,
   currentNightNumber,
   dayDiff,
   deltaParts,
@@ -64,4 +70,46 @@ export function progressText(spec: Pick<ExperimentSpec, "startNight" | "endNight
   return ev.nightsWithData === total
     ? `${nightsHe(total)}, כולם עם נתונים`
     : `${ev.nightsWithData} מתוך ${nightsHe(total)} עם נתונים`;
+}
+
+/** Where one night sits against the member's usual range of the deciding metric, as a small badge. */
+export function NightBandBadge({ metric, value, c }: { metric: ExperimentMetricKey; value: number | null; c: MetricComparison }) {
+  const band = nightBand(value, c);
+  if (band === null) return null;
+  const tone = bandTone(metric, band);
+  return <span className={`badge ${tone === "better" ? "ok" : tone === "worse" ? "" : "plain"}`}>{NIGHT_BAND_HE[band]}</span>;
+}
+
+/**
+ * The experiment's nights as a row of squares, coloured by where the deciding metric fell against
+ * the usual range. Time runs left to right, like the chart under it; the counts under it carry the
+ * same information as text.
+ */
+export function NightStrip({ ev, metric }: { ev: ExperimentEvaluation; metric: ExperimentMetricKey }) {
+  const c = ev.comparisons.find((x) => x.key === metric);
+  if (!c) return null;
+  const def = EXPERIMENT_METRICS[metric];
+  const counts = bandCounts(metric, ev);
+  return (
+    <div className="xp-strip-wrap">
+      <ol className="xp-strip" dir="ltr" aria-label={`${def.label}, לילה לילה`}>
+        {ev.nights.map((n) => {
+          const value = n.metric ? def.read(n.metric) : null;
+          const band = nightBand(value, c);
+          const tone = n.state !== "data" ? n.state : band === null ? "data" : bandTone(metric, band) === "neutral" ? "within" : bandTone(metric, band);
+          const what = n.state === "future" ? "עוד לא הגיע" : n.state === "missing" ? "אין נתונים" : `${formatMetricValue(metric, value)}${band ? `, ${NIGHT_BAND_HE[band]}` : ""}`;
+          return (
+            <li key={n.night} className={`xp-cell ${tone}`} title={`${fmtNight(n.night)}: ${what}`}>
+              <span className="sr-only">{`${fmtNight(n.night)}: ${what}`}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {counts && (
+        <p className="muted xp-strip-text">
+          {def.label}: {counts.above} מעל הטווח הרגיל, {counts.within} בתוכו, {counts.below} מתחתיו
+        </p>
+      )}
+    </div>
+  );
 }

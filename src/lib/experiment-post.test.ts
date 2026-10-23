@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
-import { buildExperimentPost, comparisonLine, type PostSource } from "./experiment-post";
+import { bandsSentence, buildExperimentPost, comparisonLine, type PostSource } from "./experiment-post";
 import { evaluateExperiment, type ExperimentSpec } from "./experiments";
 import type { DayMetric } from "./types";
 
@@ -34,17 +34,20 @@ const metrics: DayMetric[] = [
   ...EXPERIMENT.map((s, i) => row(addDays("2026-10-21", i), { sleepScore: s, totalSleepHours: 7.6, averageHrv: 58, deepSleepMinutes: 95 })),
 ];
 
+/** The lines of one "## " section of a draft. */
+const section = (md: string, heading: string) => md.slice(md.indexOf(heading)).split(/\n(?=## )/)[0] ?? "";
+
 const finished = () => evaluateExperiment(spec, metrics, "2026-10-30");
 
 describe("buildExperimentPost", () => {
   const post = buildExperimentPost(source, finished(), new Date("2026-10-30T08:00:00Z"));
 
   it("is a versioned package the member can copy from", () => {
-    expect(post.schemaVersion).toBe(1);
+    expect(post.schemaVersion).toBe(2);
     expect(post.kind).toBe("sleep_experiment");
     expect(post.experimentId).toBe(source.id);
     expect(post.generatedAt).toBe("2026-10-30T08:00:00.000Z");
-    expect(post.warnings).toEqual([]);
+    expect(post.warnings).toEqual(["כתבת הערות ל־2 מתוך 7 הלילות עם נתונים. הערה קצרה על לילה היא מה שהקוראים זוכרים."]);
   });
 
   it("headlines the chosen metric with before, during and the difference", () => {
@@ -71,11 +74,12 @@ describe("buildExperimentPost", () => {
 
   it("gives Telegram a short plain-text version", () => {
     const t = post.telegram.text;
-    expect(t.split("\n")[0]).toBe("טיוטה: ניסוי");
-    expect(t).toContain("שינה בחוץ, 20.10–26.10 (7 לילות)");
-    expect(t).toContain(post.summary);
+    expect(t.split("\n")[0]).toBe("🧪 שינה בחוץ, 20.10–26.10 (7 לילות)");
+    expect(t).toContain(post.tldr);
+    expect(t).toContain("שווה לחזור על זה בחורף.");
     expect(t).not.toContain("|");
-    expect(t).not.toContain("#");
+    expect(t).not.toContain("**");
+    expect(t.split("\n").at(-1)).toBe("#ניסוי_שינה #Oura");
     expect(t.length).toBeLessThan(900);
   });
 
@@ -83,7 +87,9 @@ describe("buildExperimentPost", () => {
     expect(post.newsletter.subject).toBe("שינה בחוץ: מה הטבעת מצאה אחרי 7 לילות");
     expect(post.newsletter.previewText.length).toBeLessThanOrEqual(141);
     expect(post.newsletter.previewText).not.toContain("‎");
-    expect(post.newsletter.markdown.startsWith("## מה בדקתי")).toBe(true);
+    expect(post.newsletter.markdown.startsWith("**בקצרה:**")).toBe(true);
+    expect(post.newsletter.markdown).not.toContain("# שינה בחוץ: ניסוי");
+    expect(post.newsletter.html.startsWith("<p><strong>בקצרה:</strong>")).toBe(true);
   });
 
   it("carries only aggregates: no per-night series, no heart-rate curves, no name", () => {
@@ -91,7 +97,7 @@ describe("buildExperimentPost", () => {
     expect(json).not.toContain("hypnogram");
     expect(json).not.toContain("nightHeartRate");
     expect(Object.keys(post.data).sort()).toEqual(
-      ["baselineNights", "endNight", "metrics", "nights", "nightsWithData", "primaryMetric", "startNight"].sort(),
+      ["baselineNights", "endNight", "metrics", "nights", "nightsWithData", "primaryBands", "primaryMetric", "startNight"].sort(),
     );
   });
 
@@ -109,7 +115,7 @@ describe("buildExperimentPost", () => {
       "עוד לא כתבת סיכום אישי. זה החלק שהופך את הטיוטה לפוסט.",
       "אין השערה. הטיוטה משתמשת במשפט כללי במקומה.",
     ]);
-    expect(draft.blog.markdown).toContain("רציתי לראות איך שינה בחוץ משפיע על השינה שלי.");
+    expect(draft.blog.markdown).toContain("רציתי לראות מה ״שינה בחוץ״ עושה לשינה שלי.");
     expect(draft.blog.markdown).not.toContain("## מה אני מסיק");
   });
 
@@ -139,7 +145,7 @@ describe("long and short experiments", () => {
   it("lists every night up to two weeks", () => {
     const post = buildExperimentPost(source, finished(), new Date());
     expect(post.blog.markdown).toContain("## לילה אחרי לילה");
-    expect(post.blog.markdown.match(/^- \*\*/gm)).toHaveLength(7);
+    expect(section(post.blog.markdown, "## לילה אחרי לילה").match(/^- \*\*/gm)).toHaveLength(7);
   });
 
   it("keeps a 30-night experiment readable: only the nights the member wrote about", () => {
@@ -149,7 +155,7 @@ describe("long and short experiments", () => {
     expect(post.title).toBe("שינה בחוץ: ניסוי של 30 לילות");
     expect(post.blog.markdown).toContain("## לילות שכדאי לזכור");
     expect(post.blog.markdown).not.toContain("## לילה אחרי לילה");
-    expect(post.blog.markdown.match(/^- \*\*/gm)).toHaveLength(2);
+    expect(section(post.blog.markdown, "## לילות שכדאי לזכור").match(/^- \*\*/gm)).toHaveLength(2);
   });
 
   it("leaves the night list out of a long experiment with no notes", () => {
@@ -169,5 +175,77 @@ describe("long and short experiments", () => {
     expect(post.title).toBe("שינה בחוץ: ניסוי של לילה אחד");
     expect(post.summary).toBe("עוד אין מספיק נתונים כדי להשוות את הניסוי ללילות הרגילים.");
     expect(post.warnings.some((w) => w.includes("אין השוואה"))).toBe(true);
+  });
+});
+
+describe("v2 additions", () => {
+  const post = buildExperimentPost(source, finished(), new Date("2026-10-30T08:00:00Z"));
+
+  it("opens with a short summary that says how big the change is, in words that fit any metric", () => {
+    expect(post.tldr).toBe(
+      "7 לילות של ״שינה בחוץ״. ציון שינה בממוצע: 78 בלילות הרגילים, 86 בלילות הניסוי (\u200E+8). ההפרש גדול מהתנודה הרגילה שלי בין לילה ללילה. ב־7 מתוך 7 הלילות התוצאה הייתה מעל הטווח הרגיל.",
+    );
+    expect(post.blog.markdown).toContain(`**בקצרה:** ${post.tldr}`);
+  });
+
+  it("counts the nights above, within and below the usual range", () => {
+    expect(post.data.primaryBands).toEqual({ above: 7, within: 0, below: 0, total: 7 });
+    expect(post.blog.markdown).toContain("ציון שינה, לילה לילה: מתוך 7 לילות עם נתונים, 7 מעל הטווח הרגיל שלי.");
+  });
+
+  it("names the best and the least good night of the deciding metric, with the member's note", () => {
+    const md = section(post.blog.markdown, "## הלילה הכי טוב והכי פחות טוב");
+    expect(md).toContain("- **הכי טוב: יום א׳ 25.10**, ציון שינה 89.");
+    expect(md).toContain("- **הכי פחות טוב: יום ה׳ 22.10**, ציון שינה 84. ירד גשם.");
+  });
+
+  it("offers headline options, including one with the result", () => {
+    expect(post.blog.titleOptions).toEqual([
+      "שינה בחוץ: ניסוי של 7 לילות",
+      "7 לילות של ״שינה בחוץ״. מה הטבעת אמרה?",
+      "שינה בחוץ: ציון שינה מ־78 ל־86",
+    ]);
+    expect(post.title).toBe(post.blog.titleOptions[0]);
+  });
+
+  it("does not dress up a result within the usual swing", () => {
+    const flat = metrics.map((m) => (m.day >= "2026-10-21" ? { ...m, sleepScore: 79 } : m));
+    const p = buildExperimentPost(source, evaluateExperiment(spec, flat, "2026-10-30"), new Date());
+    expect(p.tldr).toContain("ההפרש בתוך התנודה הרגילה שלי, כלומר בלי שינוי של ממש.");
+    expect(p.blog.titleOptions[2]).toBe("שינה בחוץ: בתוך התנודה הרגילה, וגם זה ממצא");
+    expect(p.blog.markdown).toContain("כדי לדעת יותר צריך לחזור על הניסוי");
+    expect(p.blog.markdown).not.toContain("## הלילה הכי טוב");
+  });
+
+  it("ships the blog as escaped HTML too", () => {
+    expect(post.blog.html.startsWith("<h1>שינה בחוץ: ניסוי של 7 לילות</h1>")).toBe(true);
+    expect(post.blog.html).toContain("<table>");
+    const sneaky = buildExperimentPost({ ...source, conclusion: '<script>alert("x")</script>' }, finished(), new Date());
+    expect(sneaky.blog.html).not.toContain("<script>");
+    expect(sneaky.blog.html).toContain("&lt;script&gt;");
+  });
+
+  it("warns when the experiment has many more weekend nights than the baseline", () => {
+    // Thursday and Friday evenings only, against a baseline of every night.
+    const wkSpec: ExperimentSpec = { ...spec, startNight: "2026-10-22", endNight: "2026-11-07" };
+    const days = Array.from({ length: 31 }, (_, i) => addDays("2026-10-09", i));
+    const ms = days.map((d, i) => row(d, { sleepScore: 75 + (i % 6) }));
+    const ev = evaluateExperiment(wkSpec, ms, "2026-11-20");
+    const p = buildExperimentPost({ ...source, ...wkSpec }, { ...ev, nights: ev.nights.filter((n) => [4, 5].includes(new Date(`${n.night}T00:00:00Z`).getUTCDay())) }, new Date());
+    expect(p.warnings.some((w) => w.includes("לפני יום חופש"))).toBe(true);
+    expect(p.blog.markdown).toContain("היו לפני יום חופש (חמישי או שישי בערב)");
+  });
+
+  it("asks for notes when most nights have none", () => {
+    const p = buildExperimentPost({ ...source, nightNotes: {} }, finished(), new Date());
+    expect(p.warnings).toContain("כתבת הערות ל־0 מתוך 7 הלילות עם נתונים. הערה קצרה על לילה היא מה שהקוראים זוכרים.");
+  });
+});
+
+describe("bandsSentence", () => {
+  it("leaves out empty groups", () => {
+    expect(bandsSentence("sleepScore", { above: 2, within: 3, below: 0, total: 5 })).toBe(
+      "ציון שינה, לילה לילה: מתוך 5 לילות עם נתונים, 2 מעל הטווח הרגיל שלי, 3 בתוך הטווח.",
+    );
   });
 });

@@ -21,6 +21,14 @@ import {
   parseExperimentForm,
   parseExperimentText,
   verdictHe,
+  bandCounts,
+  bandTone,
+  extremeNights,
+  isWeekendNight,
+  nightBand,
+  noteNightFor,
+  parseNightNote,
+  weekendMix,
   type ExperimentSpec,
 } from "./experiments";
 import type { DayMetric } from "./types";
@@ -383,5 +391,107 @@ describe("asMetricKey", () => {
   it("falls back to the sleep score for anything unknown", () => {
     expect(asMetricKey("averageHrv")).toBe("averageHrv");
     expect(asMetricKey("nonsense")).toBe("sleepScore");
+  });
+});
+
+describe("night against the usual range", () => {
+  const base = { baseline: { mean: 80, sd: 3, n: 14 } };
+
+  it("places a value above, within or below mean ± one spread", () => {
+    expect(nightBand(84, base)).toBe("above");
+    expect(nightBand(83, base)).toBe("within");
+    expect(nightBand(76, base)).toBe("below");
+    expect(nightBand(null, base)).toBeNull();
+  });
+
+  it("says nothing without a usable baseline", () => {
+    expect(nightBand(90, { baseline: { mean: 80, sd: 3, n: 4 } })).toBeNull();
+    expect(nightBand(90, { baseline: { mean: 80, sd: 0, n: 14 } })).toBeNull();
+  });
+
+  it("reads the side per metric: above is worse for resting heart rate", () => {
+    expect(bandTone("sleepScore", "above")).toBe("better");
+    expect(bandTone("lowestHeartRate", "above")).toBe("worse");
+    expect(bandTone("lowestHeartRate", "below")).toBe("better");
+    expect(bandTone("averageBreath", "above")).toBe("neutral");
+    expect(bandTone("sleepScore", "within")).toBe("neutral");
+  });
+
+  it("counts the experiment's nights with data", () => {
+    const baseline = [74, 82, 76, 80, 78, 79, 77, 81, 75, 83, 78, 80, 76, 79];
+    const exp = [85, 79, 70, null, 86];
+    const rows = [
+      ...baseline.map((v, i) => ({ ...blank(addDays("2026-10-07", i)), sleepScore: v })),
+      ...exp.map((v, i) => ({ ...blank(addDays("2026-10-21", i)), sleepScore: v })),
+    ];
+    const ev = evaluateExperiment(spec, rows, "2026-10-30");
+    expect(bandCounts("sleepScore", ev)).toEqual({ above: 2, within: 1, below: 1, total: 4 });
+  });
+});
+
+describe("extremeNights", () => {
+  const nights = (values: Array<number | null>, key: "sleepScore" | "lowestHeartRate" = "sleepScore") =>
+    values.map((v, i) => {
+      const night = addDays(START, i);
+      return { night, ouraDay: nightOuraDay(night), state: "data" as const, metric: { ...blank(nightOuraDay(night)), [key]: v } };
+    });
+
+  it("finds the best and worst night, the earlier one on a tie", () => {
+    const ex = extremeNights("sleepScore", nights([80, 88, 72, 88, 72]));
+    expect(ex?.best.night).toBe(addDays(START, 1));
+    expect(ex?.worst.night).toBe(addDays(START, 2));
+    expect([ex?.bestValue, ex?.worstValue]).toEqual([88, 72]);
+  });
+
+  it("flips for a metric where lower is better", () => {
+    const ex = extremeNights("lowestHeartRate", nights([55, 50, 60], "lowestHeartRate"));
+    expect(ex?.bestValue).toBe(50);
+    expect(ex?.worstValue).toBe(60);
+  });
+
+  it("has nothing to say with one night, all equal, or a neutral metric", () => {
+    expect(extremeNights("sleepScore", nights([80]))).toBeNull();
+    expect(extremeNights("sleepScore", nights([80, 80, null]))).toBeNull();
+    expect(extremeNights("bedtime", nights([80, 90]))).toBeNull();
+  });
+});
+
+describe("weekend nights", () => {
+  it("are Thursday and Friday evenings", () => {
+    expect(isWeekendNight("2026-10-22")).toBe(true); // Thursday
+    expect(isWeekendNight("2026-10-23")).toBe(true); // Friday
+    expect(isWeekendNight("2026-10-24")).toBe(false); // Saturday
+  });
+
+  it("flags an experiment whose mix differs a lot from the baseline", () => {
+    const rows = Array.from({ length: 30 }, (_, i) => ({ ...blank(addDays("2026-10-01", i)), sleepScore: 80 }));
+    const ev = evaluateExperiment(spec, rows, "2026-10-30");
+    const even = weekendMix(ev);
+    expect(even?.experiment).toEqual({ weekend: 2, total: 7 });
+    expect(even?.baseline.total).toBe(14);
+    expect(even?.uneven).toBe(false);
+    const onlyWeekend = weekendMix({ ...ev, nights: ev.nights.map((n) => (isWeekendNight(n.night) ? n : { ...n, state: "missing" as const, metric: null })) });
+    expect(onlyWeekend).toBeNull(); // two nights is too few to compare
+  });
+});
+
+describe("quick night note", () => {
+  const nights = experimentNights(spec);
+
+  it("accepts a note for a night of the experiment, and an empty one to clear it", () => {
+    expect(parseNightNote((k) => ({ night: START, note: "  קר  " })[k], nights)).toEqual({ ok: true, value: { night: START, note: "קר" } });
+    expect(parseNightNote((k) => ({ night: START, note: "" })[k], nights)).toEqual({ ok: true, value: { night: START, note: "" } });
+  });
+
+  it("refuses another night or a long note", () => {
+    expect(parseNightNote((k) => ({ night: "2026-10-01", note: "x" })[k], nights).ok).toBe(false);
+    expect(parseNightNote((k) => ({ night: START, note: "x".repeat(201) })[k], nights).ok).toBe(false);
+  });
+
+  it("offers last night while it belongs to the experiment", () => {
+    expect(noteNightFor(spec, START)).toBeNull();
+    expect(noteNightFor(spec, addDays(START, 1))).toBe(START);
+    expect(noteNightFor(spec, nightOuraDay(END))).toBe(END);
+    expect(noteNightFor(spec, addDays(END, 2))).toBeNull();
   });
 });

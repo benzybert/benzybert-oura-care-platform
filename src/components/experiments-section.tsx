@@ -1,6 +1,16 @@
+import { saveExperimentNightNote } from "@/app/actions";
 import { ExperimentBuilder } from "@/components/experiment-builder";
-import { ComparisonSummary, PhaseBadge, progressText } from "@/components/experiment-parts";
-import { dayDiff, experimentPhase, fmtNight, nightsHe, type ExperimentEvaluation, type ExperimentSpec } from "@/lib/experiments";
+import { ComparisonSummary, NightStrip, PhaseBadge, progressText } from "@/components/experiment-parts";
+import {
+  NOTE_MAX,
+  dayDiff,
+  experimentPhase,
+  fmtNight,
+  nightsHe,
+  noteNightFor,
+  type ExperimentEvaluation,
+  type ExperimentSpec,
+} from "@/lib/experiments";
 import type { ExperimentRow } from "@/lib/queries";
 
 export type FeaturedExperiment = { row: ExperimentRow; spec: ExperimentSpec; evaluation: ExperimentEvaluation };
@@ -31,12 +41,15 @@ export function ExperimentsSection({
   rows,
   featured,
   today,
+  noteSaved = null,
 }: {
   rows: ExperimentRow[];
   featured: FeaturedExperiment | null;
   today: string;
+  noteSaved?: "ok" | "invalid" | null;
 }) {
   const history = rows.filter((r) => r.id !== featured?.row.id);
+  const noteNight = featured ? noteNightFor(featured.spec, today) : null;
   return (
     <section className="card" id="experiments" aria-label="ניסויים">
       <h2>ניסויים</h2>
@@ -60,6 +73,33 @@ export function ExperimentsSection({
             <ComparisonSummary c={featured.evaluation.primary} />
           ) : (
             featured.evaluation.phase !== "planned" && <p className="muted">עוד אין מספיק נתונים להשוואה.</p>
+          )}
+          {featured.evaluation.phase !== "planned" && <NightStrip ev={featured.evaluation} metric={featured.spec.primaryMetric} />}
+          {noteNight && (
+            <form action={saveExperimentNightNote} className="xp-quick-note">
+              <input type="hidden" name="id" value={featured.row.id} />
+              <input type="hidden" name="night" value={noteNight} />
+              <label>
+                <span>
+                  הערה ללילה האחרון, <strong>{fmtNight(noteNight)}</strong>
+                </span>
+                <input
+                  className="xp-note"
+                  name="note"
+                  maxLength={NOTE_MAX}
+                  defaultValue={featured.row.nightNotes[noteNight] ?? ""}
+                  placeholder="איך ישנת, מה היה שונה, מה הרגשת בבוקר"
+                />
+              </label>
+              <button className="btn secondary" type="submit">
+                שמור הערה
+              </button>
+            </form>
+          )}
+          {noteSaved && (
+            <p className="muted" role="status">
+              {noteSaved === "ok" ? "ההערה נשמרה." : "ההערה לא נשמרה: היא ארוכה מדי."}
+            </p>
           )}
           <a className="btn" href={`/member/experiments/${featured.row.id}`}>
             פתח את הניסוי
