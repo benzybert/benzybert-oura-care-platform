@@ -65,7 +65,7 @@ export default async function ExperimentPage({
             {nightsHe(ev.nights.length)}, מ{fmtNight(row.startNight)} עד {fmtNight(row.endNight)}
           </p>
         </div>
-        <a className="btn secondary" href="/member#experiments">
+        <a className="btn secondary" href="/member/experiments">
           חזרה
         </a>
       </div>

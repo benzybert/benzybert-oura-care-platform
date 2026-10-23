@@ -15,4 +15,12 @@ describe("profileStrength", () => {
     expect(profileStrength({ ...none, recentDays: 2 }).score).toBe(0);
     expect(profileStrength({ ...none, recentDays: 3 }).score).toBe(15);
   });
+  it("links each open item to the member tab that completes it", () =>
+    expect(Object.fromEntries(profileStrength(none).items.map((it) => [it.id, it.href]))).toEqual({
+      oura: "/member#ring",
+      data: "/member/data",
+      instinct: "/member/profile",
+      sharing: "/member/sharing",
+      doctor: "/member/sharing#doctors",
+    }));
 });

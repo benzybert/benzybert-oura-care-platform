@@ -1,36 +1,23 @@
 import { after } from "next/server";
-import { claimCoffee, disconnectOura, setConsent, syncNow } from "@/app/actions";
-import { ContextEventsCard } from "@/components/context-events-card";
-import { DoctorDashboard } from "@/components/doctor-dashboard/dashboard";
-import { OnboardingCard } from "@/components/onboarding-card";
-import { ActionCenter } from "@/components/action-center";
-import { DoctorShareCard } from "@/components/doctor-share-card";
-import { ExperimentsSection, pickFeatured } from "@/components/experiments-section";
-import { LogoutButton } from "@/components/logout-button";
-import { SelfRewardsSection } from "@/components/self-rewards-section";
-import { ShareLinkCard } from "@/components/share-link-card";
+import { claimCoffee, disconnectOura, syncNow } from "@/app/actions";
+import { pickFeatured } from "@/components/experiments-section";
+import { TodayActionsCard } from "@/components/onboarding-card";
 import { suggestActions } from "@/lib/actions-engine";
 import { profileStrength } from "@/lib/profile-strength";
-import { homeAssistantConfigured } from "@/lib/automations";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
-import { buildDashboard } from "@/lib/doctor-dashboard";
-import { loadExperimentView } from "@/lib/experiment-view";
+import { experimentPhase } from "@/lib/experiments";
 import { fmt, fmtDay, fmtDateTime } from "@/lib/format";
 import {
-  accessLogFor,
+  getActiveInstinctAccess,
   getAutomationRules,
   getCoffeeClaimDays,
   getConsentRecords,
-  getDashboardMetrics,
-  getActiveInstinctAccess,
   getDeliveredActions,
   getDoctorContacts,
   getExperiments,
-  getMemberForUser,
   getMetrics,
-  getAlertDays,
   getRecentEvents,
   getSelfRewards,
   listShareLinks,
@@ -39,112 +26,45 @@ import {
 } from "@/lib/queries";
 import { getDb } from "@/db";
 import { refreshAlertsIfStale } from "@/lib/event-feed";
-import { requireRole } from "@/lib/session";
-import { syncOnVisit } from "@/lib/oura/visit-sync";
-import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
-import { CONSENT_LABELS_HE, CONSENT_SCOPES } from "@/lib/types";
+import { CONSENT_SCOPES } from "@/lib/types";
+import { MemberShell, loadMember } from "./_shell/member-shell";
+import type { MemberSearchParams } from "./_shell/messages";
 
 export const dynamic = "force-dynamic";
 // "Sync now" runs the Oura sync inside this page's server action.
 export const maxDuration = 60;
 
-const OURA_MESSAGES: Record<string, string> = {
-  connected: "הטבעת חוברה. הנתונים נטענים.",
-  denied: "החיבור בוטל. אפשר לנסות שוב בכל זמן.",
-  invalid_state: "החיבור נכשל מסיבות אבטחה. נסו שוב.",
-  no_member: "לא נמצא פרופיל מתאמן.",
-  synced: "הסנכרון הושלם. הנתונים עודכנו.",
-  sync_recent: "סונכרן לפני רגע. אפשר שוב בעוד כמה דקות.",
-  needs_reconnect: "Oura דחתה את החיבור. חברו את הטבעת מחדש.",
-  sync_failed: "הסנכרון נכשל, ולא השתנה כלום. נסו שוב בעוד כמה דקות.",
-  not_connected: "הטבעת לא מחוברת.",
-};
+const PHASE_HE = { planned: "מתוכנן", running: "רץ עכשיו", finished: "הסתיים" } as const;
 
-const DOCTOR_MESSAGES: Record<string, string> = {
-  saved: "הרופא נשמר.",
-  removed: "הרופא הוסר.",
-  invalid: "השם או האימייל לא תקינים. נסו שוב.",
-  missing: "לא הוגדר רופא לתפקיד הזה.",
-  sent_neurologist: "ההודעה נשלחה לנוירולוג.",
-  sent_family_doctor: "ההודעה נשלחה לרופא המשפחה.",
-  not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
-  failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
-  too_many_links: "יש יותר מדי קישורים פעילים לרופאים. בטלו אחד למטה ונסו שוב.",
-};
-
-const INTEGRATION_MESSAGES: Record<string, string> = {
-  invalid: "הפעולה לא תקינה. נסו שוב.",
-  gone: "הפעולה כבר לא רלוונטית.",
-};
-
-const ACTION_MESSAGES: Record<string, string> = {
-  saved: "הפעולה נשמרה.",
-  removed: "הפעולה נמחקה.",
-  invalid: "הפרטים לא תקינים. נסו שוב.",
-  limit: "הגעת למספר הפעולות המקסימלי.",
-  missing: "הפעולה לא נמצאה.",
-  fired: "הפעולה נשלחה.",
-  test_sent: "הבדיקה נשלחה.",
-  need_key: "ל-IFTTT צריך להזין את מפתח ה-Webhooks שלך בפעולה הראשונה.",
-  no_key: "חסר מפתח IFTTT תקין בפעולה הזאת. מחקו אותה וצרו אותה מחדש עם המפתח.",
-  already: "הפעולה הזאת כבר הופעלה היום.",
-  not_met: "התנאי לא מתקיים כרגע, ולכן לא נשלח כלום.",
-  not_configured: "כתובת Home Assistant עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
-  failed: "השליחה נכשלה. ב-Home Assistant בדקו את ה-Webhook ID ושהשרת נגיש מהאינטרנט. ב-IFTTT בדקו את המפתח ואת ה-Event name.",
-};
-
-const COFFEE_MESSAGES: Record<string, string> = {
-  sent: "שלחנו לאימייל שלך קישור לקפה. תהנה ☕",
-  already: "כבר קיבלת קפה על הלילה הזה.",
-  not_eligible: "הלילה האחרון לא היה חלש מספיק, אז אין קפה הפעם.",
-  not_configured: "קישור התשלום עוד לא הוגדר בשרת, ולכן לא נשלח כלום.",
-  mail_not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
-  failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
-};
-
-export default async function MemberPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ oura?: string; doctor?: string; coffee?: string; integration?: string; action?: string; days?: string }>;
-}) {
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) return <p>לא נמצא פרופיל מתאמן לחשבון הזה.</p>;
-
+/**
+ * Member home ("היום"): last night, today's actions, the ring, and one tile per tab with a
+ * one-line status. Everything else lives on its own tab so this page stays short.
+ */
+export default async function MemberPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
+  const { member } = await loadMember();
   const today = todayInIsrael();
   after(() => refreshAlertsIfStale(getDb()));
   const params = await searchParams;
-  const asked = Number(params.days);
 
-  await syncOnVisit(member.id);
+  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, events, delivered, instinctAccess, automations, experimentRows] =
+    await Promise.all([
+      getMetrics(member.id),
+      getConsentRecords(member.id),
+      rewardTotal(member.id),
+      ouraStatus(member.id), // re-read: the visit sync updates lastSyncAt or revokes the connection
+      getDoctorContacts(member.id),
+      listShareLinks(member.id),
+      getSelfRewards(member.id),
+      getCoffeeClaimDays(member.id),
+      getRecentEvents(addDays(today, -90)),
+      getDeliveredActions(member.id, "whatsapp"),
+      getActiveInstinctAccess(member.id),
+      getAutomationRules(member.id),
+      getExperiments(member.id),
+    ]);
 
-  const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
-  const [metrics, dashboardMetrics, records, rewards, oura, access, doctors, links, selfRewards, coffeeClaimDays, events, alertDays, delivered, instinctAccess, automations, experimentRows] = await Promise.all([
-    getMetrics(member.id),
-    getDashboardMetrics(member.id, windowDays),
-    getConsentRecords(member.id),
-    rewardTotal(member.id),
-    ouraStatus(member.id), // re-read: the sync above updates lastSyncAt or revokes the connection
-    accessLogFor(member.id),
-    getDoctorContacts(member.id),
-    listShareLinks(member.id),
-    getSelfRewards(member.id),
-    getCoffeeClaimDays(member.id),
-    getRecentEvents(addDays(today, -90)),
-    getAlertDays(addDays(today, -60)),
-    getDeliveredActions(member.id, "whatsapp"),
-    getActiveInstinctAccess(member.id),
-    getAutomationRules(member.id),
-    getExperiments(member.id),
-  ]);
-  const featuredRow = pickFeatured(experimentRows, today);
-  const featured = featuredRow ? await loadExperimentView(featuredRow, today, experimentRows) : null;
-  const dashboard = buildDashboard(dashboardMetrics, today, windowDays);
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
-  const ouraMessage = params.oura ? OURA_MESSAGES[params.oura] : undefined;
-  const coffeeMessage = params.coffee ? COFFEE_MESSAGES[params.coffee] : undefined;
-  const coffee = coffeeStatus(metrics, todayInIsrael(), coffeeClaimDays);
-  const integrationMessage = params.integration ? INTEGRATION_MESSAGES[params.integration] : undefined;
+  const coffee = coffeeStatus(metrics, today, coffeeClaimDays);
   const strength = profileStrength({
     ouraConnected: Boolean(oura),
     recentDays: metrics.filter((d) => d.day > addDays(today, -7)).length,
@@ -153,45 +73,44 @@ export default async function MemberPage({
     instinctUsed: delivered.length > 0 || Boolean(instinctAccess),
   });
   const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
-  const actionMessage = params.action ? ACTION_MESSAGES[params.action] : undefined;
-  const doctorMessage = params.doctor ? DOCTOR_MESSAGES[params.doctor] : undefined;
+  const featured = pickFeatured(experimentRows, today);
+  const activeEvents = events.filter((e) => e.endsOn === null);
+  const sharedScopes = CONSENT_SCOPES.filter((s) => hasActiveConsent(records, s)).length;
+  const activeLinks = links.filter((l) => l.status === "active").length;
+
+  const tiles = [
+    { href: "/member/data", title: "הנתונים שלי", text: "דאשבורד מלא: מגמות, שלבי שינה, לוח שנה ו-PDF." },
+    {
+      href: "/member/experiments",
+      title: "ניסויים",
+      text: featured ? `${featured.title} · ${PHASE_HE[experimentPhase(featured, today)]}` : "עוד אין ניסוי. משנים דבר אחד ובודקים.",
+    },
+    {
+      href: "/member/goals",
+      title: "התגמולים שלי",
+      text: `${selfRewards.length ? `${selfRewards.length} יעדים` : "עוד אין יעד"} · ${rewards.points} נקודות`,
+    },
+    {
+      href: "/member/actions",
+      title: "מרכז פעולות",
+      text: automations.length ? `${automations.length} פעולות מוגדרות` : "חיבור ל-Home Assistant או IFTTT.",
+    },
+    {
+      href: "/member/context",
+      title: "הקשר חיצוני",
+      text: activeEvents.length ? activeEvents.map((e) => e.titleHe).join(", ") : "אין כרגע אירוע ציבורי פעיל.",
+      attention: activeEvents.length > 0,
+    },
+    {
+      href: "/member/sharing",
+      title: "שיתוף ורופאים",
+      text: `${sharedScopes ? `${sharedScopes} שיתופים פעילים` : "שום דבר לא משותף"} · ${activeLinks} קישורים לרופא`,
+    },
+    { href: "/member/profile", title: "פרופיל ו-Instinct", text: `חוזק הפרופיל ${strength.score}%` },
+  ];
 
   return (
-    <>
-      <div className="topbar">
-        <div>
-          <h1>שלום, {member.displayId}</h1>
-          <p className="muted">הנתונים שלך. אתה שולט במה משותף.</p>
-        </div>
-        <LogoutButton />
-      </div>
-
-      {ouraMessage && (
-        <div className="notice" role="status">
-          {ouraMessage}
-        </div>
-      )}
-      {doctorMessage && (
-        <div className="notice" role="status">
-          {doctorMessage}
-        </div>
-      )}
-      {integrationMessage && (
-        <div className="notice" role="status">
-          {integrationMessage}
-        </div>
-      )}
-      {actionMessage && (
-        <div className="notice" role="status">
-          {actionMessage}
-        </div>
-      )}
-      {coffeeMessage && (
-        <div className="notice" role="status">
-          {coffeeMessage}
-        </div>
-      )}
-
+    <MemberShell tab="home" title={`שלום, ${member.displayId}`} lead="הנתונים שלך. אתה שולט במה משותף." params={params}>
       {coffee.state === "eligible" && (
         <div className="card">
           <div className="row">
@@ -207,13 +126,6 @@ export default async function MemberPage({
           </div>
         </div>
       )}
-
-      <OnboardingCard
-        access={instinctAccess ? { expiresAt: instinctAccess.row.expiresAt, readCount: instinctAccess.row.readCount, lastReadAt: instinctAccess.row.lastReadAt } : null}
-        score={strength.score}
-        items={strength.items}
-        actions={actions}
-      />
 
       {latest && (
         <section className="today" aria-label={`הנתונים האחרונים, ${fmtDay(latest.day)}`}>
@@ -236,16 +148,7 @@ export default async function MemberPage({
         </section>
       )}
 
-      <nav className="section-nav" aria-label="ניווט בעמוד">
-        <a href="#integrations">פרופיל ו-Instinct</a>
-        <a href="#ring">הטבעת</a>
-        <a href="#data">הנתונים שלי</a>
-        <a href="#experiments">ניסויים</a>
-        <a href="#actions">מרכז פעולות</a>
-        <a href="#goals">התגמולים שלי</a>
-        <a href="#sharing">שיתוף</a>
-        <a href="#doctors">רופאים</a>
-      </nav>
+      <TodayActionsCard actions={actions} />
 
       <div className="card" id="ring">
         <h2>הטבעת</h2>
@@ -253,9 +156,7 @@ export default async function MemberPage({
           <div className="row">
             <span>
               <span className="badge ok">מחובר</span>{" "}
-              <span className="muted">
-                סנכרון אחרון: {oura.lastSyncAt ? fmtDateTime(oura.lastSyncAt) : "עוד לא"}
-              </span>
+              <span className="muted">סנכרון אחרון: {oura.lastSyncAt ? fmtDateTime(oura.lastSyncAt) : "עוד לא"}</span>
             </span>
             <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <form action={syncNow}>
@@ -280,82 +181,14 @@ export default async function MemberPage({
         )}
       </div>
 
-      <section id="data" className="data-section" aria-label="הנתונים שלי">
-        <DoctorDashboard
-          data={dashboard}
-          meta={{
-            mode: "member",
-            patientName: null,
-            recipientLabel: null,
-            recipientRole: null,
-            note: null,
-            expiresAt: null,
-            generatedAt: new Date(),
-            pdfHref: `/member/share/preview/pdf?days=${windowDays}`,
-            shareHref: "#doctors",
-            windowLinks: SHARE_WINDOW_OPTIONS.map((d) => ({ days: d, href: `/member?days=${d}#data`, active: d === windowDays })),
-          }}
-        />
-      </section>
-
-      <ExperimentsSection rows={experimentRows} featured={featured} today={today} />
-
-      <ContextEventsCard events={events} metrics={metrics} today={today} alertDays={alertDays} />
-
-      <ActionCenter
-        rules={automations}
-        metrics={metrics}
-        today={todayInIsrael()}
-        homeAssistantConfigured={homeAssistantConfigured()}
-      />
-
-      <div id="goals">
-        <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />
-      </div>
-
-      <div className="card" id="sharing">
-        <h2>מה משותף ועם מי</h2>
-        {CONSENT_SCOPES.map((scope) => {
-          const active = hasActiveConsent(records, scope);
-          const label = CONSENT_LABELS_HE[scope];
-          return (
-            <div className="row" key={scope}>
-              <div>
-                <strong>{label.title}</strong>
-                <p className="muted">{label.description}</p>
-              </div>
-              <form action={setConsent}>
-                <input type="hidden" name="scope" value={scope} />
-                <input type="hidden" name="grant" value={active ? "false" : "true"} />
-                <button className={active ? "btn secondary" : "btn"} type="submit">
-                  {active ? "בטל שיתוף" : "אשר שיתוף"}
-                </button>
-              </form>
-            </div>
-          );
-        })}
-      </div>
-
-      <div id="doctors">
-        <ShareLinkCard links={links} contacts={doctors} />
-
-        <DoctorShareCard contacts={doctors} />
-      </div>
-
-      <div className="grid">
-        <div className="card stat">
-          <h2>נקודות</h2>
-          <div className="value">{rewards.points}</div>
-          <p className="muted">על עקביות בשעת השינה, לא על ציון גבוה.</p>
-        </div>
-        <div className="card stat">
-          <h2>צפיות הצוות הרפואי</h2>
-          <div className="value">{access.length}</div>
-          <p className="muted">
-            {access[0] ? `האחרונה: ${fmtDateTime(access[0].at)}` : "עוד לא נצפה."}
-          </p>
-        </div>
-      </div>
-    </>
+      <nav className="hub" aria-label="עוד באזור שלי">
+        {tiles.map((t) => (
+          <a key={t.href} className={t.attention ? "card hub-tile is-attention" : "card hub-tile"} href={t.href}>
+            <strong>{t.title}</strong>
+            <span className="muted">{t.text}</span>
+          </a>
+        ))}
+      </nav>
+    </MemberShell>
   );
 }

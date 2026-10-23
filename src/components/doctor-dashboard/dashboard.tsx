@@ -454,7 +454,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
           <IconEye size={18} />
           <span>
             תצוגה מקדימה: כך יראה הרופא את הדאשבורד. שום דבר לא נשלח ואף אחד לא קיבל גישה.{" "}
-            <a href="/member">חזרה לעמוד שלי</a>
+            <a href="/member/sharing#doctors">חזרה לשיתוף ורופאים</a>
           </span>
         </div>
       )}
