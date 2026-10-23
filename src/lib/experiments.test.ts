@@ -282,6 +282,18 @@ describe("parseExperimentForm", () => {
     expect(r.ok && r.value.hypothesis).toBe("אקום מוקדם \n יותר");
   });
 
+  it("accepts any length from one night to 90, not only a week", () => {
+    const nightsOf = (r: ReturnType<typeof parseExperimentForm>) => (r.ok ? experimentNights(r.value).length : null);
+    expect(nightsOf(parseExperimentForm(form({ endNight: "2026-10-25" }), today))).toBe(1);
+    expect(nightsOf(parseExperimentForm(form({ endNight: "2026-10-26" }), today))).toBe(2);
+    expect(nightsOf(parseExperimentForm(form({ endNight: "2026-11-23" }), today))).toBe(30);
+    expect(nightsOf(parseExperimentForm(form({ endNight: "2027-01-22" }), today))).toBe(90);
+  });
+
+  it("allows a long experiment that started months ago", () => {
+    expect(parseExperimentForm(form({ startNight: "2026-07-25", endNight: "2026-10-22" }), today).ok).toBe(true);
+  });
+
   it("allows an experiment that already started, so it can be added afterwards", () => {
     expect(parseExperimentForm(form({ startNight: "2026-10-18", endNight: "2026-10-22" }), today).ok).toBe(true);
   });
@@ -293,8 +305,7 @@ describe("parseExperimentForm", () => {
     ["a bad date", { startNight: "25/10/2026" }],
     ["an impossible date", { startNight: "2026-02-31" }],
     ["an end before the start", { endNight: "2026-10-24" }],
-    ["two nights", { endNight: "2026-10-26" }],
-    ["more than 14 nights", { endNight: "2026-11-09" }],
+    ["more than 90 nights", { startNight: "2026-10-25", endNight: "2027-01-24" }],
     ["a start years ago", { startNight: "2024-01-01", endNight: "2024-01-07" }],
     ["a start far ahead", { startNight: "2027-03-01", endNight: "2027-03-07" }],
     ["an odd baseline", { baselineDays: "9" }],

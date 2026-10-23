@@ -69,6 +69,7 @@ export type ExperimentPostPackage = {
 };
 
 const PREVIEW_MAX = 140;
+const LIST_ALL_NIGHTS_UP_TO = 14;
 
 const hasValues = (c: MetricComparison) => c.baseline.mean !== null && c.experiment.mean !== null;
 
@@ -155,15 +156,19 @@ export function buildExperimentPost(src: PostSource, ev: ExperimentEvaluation, n
   if (shown.length > 0) {
     sections.push(["## מה יצא", "", summary, "", table, ...(cautions.length ? ["", ...cautions] : [])].join("\n"));
   }
-  const perNight = ev.nights.filter((n) => n.state !== "future");
-  if (perNight.length > 0) sections.push(["## לילה אחרי לילה", "", ...perNight.map((n) => nightLine(src, n))].join("\n"));
+  // A long experiment would make a 60-line list: past two weeks only the nights the member wrote a note on.
+  const perNight = ev.nights.filter((n) => n.state !== "future" && (ev.nights.length <= LIST_ALL_NIGHTS_UP_TO || src.nightNotes[n.night]));
+  if (perNight.length > 0) {
+    const heading = ev.nights.length <= LIST_ALL_NIGHTS_UP_TO ? "## לילה אחרי לילה" : "## לילות שכדאי לזכור";
+    sections.push([heading, "", ...perNight.map((n) => nightLine(src, n))].join("\n"));
+  }
   if (src.conclusion) sections.push(`## מה אני מסיק\n\n${src.conclusion}`);
   sections.push(`## מה חשוב לזכור\n\n${caveat(ev.baselineWithData, src.baselineDays)}`);
 
   const body = sections.join("\n\n");
 
   const telegramLines = [
-    "טיוטה: ניסוי שבועי",
+    "טיוטה: ניסוי",
     `${src.title}, ${range} (${nightsHe(nights)})`,
     "",
     summary,

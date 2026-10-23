@@ -595,7 +595,7 @@ export async function deleteSelfReward(formData: FormData): Promise<void> {
 export type ExperimentFormState = { ok: boolean; error: string | null; at: number };
 
 /**
- * Member starts a weekly experiment (or adds one that already ran). Used with useActionState; on
+ * Member starts an experiment of any length (or adds one that already ran). Used with useActionState; on
  * success it goes straight to the new experiment's page. One experiment at a time: two overlapping
  * ones could not be told apart.
  */

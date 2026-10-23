@@ -66,6 +66,9 @@ export function ExperimentChart({
   const ticks = [lo + pad, (lo + hi) / 2, hi - pad];
   const splitX = x(base.length);
   const expMean = comparison.experiment.mean;
+  // Long experiments pack many nights into the same width: smaller dots keep them apart.
+  const rBase = Math.min(3.2, Math.max(1.4, step * 0.35));
+  const rExp = Math.min(4.6, Math.max(2, step * 0.5));
 
   const ends = (pts: typeof basePts) => {
     const first = pts[0];
@@ -114,20 +117,20 @@ export function ExperimentChart({
 
           {basePts.map((p) =>
             p.y === null ? null : (
-              <circle key={`b${p.x}`} className="xp-dot-base" cx={p.x} cy={p.y} r={3.2}>
+              <circle key={`b${p.x}`} className="xp-dot-base" cx={p.x} cy={p.y} r={rBase}>
                 <title>{`${p.p.label}: ${formatMetricValue(metric, p.p.value)}`}</title>
               </circle>
             ),
           )}
           {expPts.map((p) =>
             p.y === null ? null : (
-              <circle key={`e${p.x}`} className="xp-dot-exp" cx={p.x} cy={p.y} r={4.6}>
+              <circle key={`e${p.x}`} className="xp-dot-exp" cx={p.x} cy={p.y} r={rExp}>
                 <title>{`${p.p.label}: ${formatMetricValue(metric, p.p.value)}`}</title>
               </circle>
             ),
           )}
 
-          {[...ends(basePts), ...ends(expPts)].map((p) => (
+          {[...basePts.slice(0, 1), ...ends(expPts)].map((p) => (
             <text key={`l${p.x}`} x={p.x} y={H - 14} textAnchor="middle">
               {p.p.label}
             </text>

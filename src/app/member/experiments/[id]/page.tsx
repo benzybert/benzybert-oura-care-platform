@@ -10,6 +10,7 @@ import {
   EXPERIMENT_METRICS,
   HYPOTHESIS_MAX,
   MIN_BASELINE_NIGHTS,
+  MIN_EXPERIMENT_NIGHTS,
   NOTE_MAX,
   fmtNight,
   formatMetricValue,
@@ -96,10 +97,15 @@ export default async function ExperimentPage({
         {ev.ready ? (
           <ComparisonSummary c={ev.primary} />
         ) : ev.phase === "planned" ? (
-          <p className="muted">הניסוי עוד לא התחיל. אחרי {nightsHe(Math.min(3, ev.nights.length))} אפשר לראות מגמה ראשונה.</p>
+          <p className="muted">
+            הניסוי עוד לא התחיל.
+            {ev.nights.length >= MIN_EXPERIMENT_NIGHTS && ` אחרי ${nightsHe(MIN_EXPERIMENT_NIGHTS)} עם נתונים אפשר לראות מגמה ראשונה.`}
+          </p>
+        ) : ev.nights.length < MIN_EXPERIMENT_NIGHTS ? (
+          <p className="muted">הניסוי קצר מ־{MIN_EXPERIMENT_NIGHTS} לילות, ולכן אין השוואה. המספרים מופיעים בטבלה כמות שהם.</p>
         ) : (
           <p className="muted">
-            עוד אין מספיק נתונים להשוואה. צריך לפחות 3 לילות עם נתונים בניסוי ו־{MIN_BASELINE_NIGHTS} בתקופת ההשוואה (יש כרגע {ev.nightsWithData} ו־
+            עוד אין מספיק נתונים להשוואה. צריך לפחות {MIN_EXPERIMENT_NIGHTS} לילות עם נתונים בניסוי ו־{MIN_BASELINE_NIGHTS} בתקופת ההשוואה (יש כרגע {ev.nightsWithData} ו־
             {ev.baselineWithData}).
           </p>
         )}

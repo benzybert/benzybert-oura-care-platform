@@ -4,8 +4,8 @@ import { fmtClock, stdDev, unwrapBedtime } from "./series-math";
 import type { DayMetric } from "./types";
 
 /**
- * Weekly self-experiments: the member changes one thing for a few nights (sleeping outside, no
- * caffeine after 14:00...) and compares those Oura nights with their own nights just before.
+ * Self-experiments: the member changes one thing for as many nights as they like (sleeping outside,
+ * no caffeine after 14:00...) and compares those Oura nights with their own nights just before.
  * Private to the member: never shown to the care team or the organization, never part of an aggregate.
  *
  * Results are computed on read from daily_metrics, so a late Oura revision is picked up. Only the
@@ -19,8 +19,9 @@ import type { DayMetric } from "./types";
  * not a significance test. It says "this is bigger than your usual swing" or "this is within it".
  */
 
-export const MIN_NIGHTS = 3;
-export const MAX_NIGHTS = 14;
+/** Any length from one night up. The ceiling is a sanity limit (the notes form lists every night), not a rule about experiments. */
+export const MIN_NIGHTS = 1;
+export const MAX_NIGHTS = 90;
 export const BASELINE_OPTIONS = [7, 14, 21, 28] as const;
 export const DEFAULT_BASELINE_DAYS = 14;
 export const MAX_EXPERIMENTS = 40;
@@ -36,7 +37,7 @@ export const HYPOTHESIS_MAX = 400;
 export const NOTE_MAX = 200;
 export const CONCLUSION_MAX = 2000;
 /** How far from today the first night may be. Oura history older than the sync window may be missing. */
-const START_PAST_DAYS = 60;
+const START_PAST_DAYS = 150;
 const START_FUTURE_DAYS = 60;
 
 const DAY_MS = 86_400_000;
@@ -206,8 +207,8 @@ export const nightsOverlap = (
 
 /**
  * The Oura days the experiment is compared with: the `baselineDays` days that end on the morning
- * before the first experiment night. Nights of other experiments are left out, so a weekly series
- * does not use last week's change as this week's "normal".
+ * before the first experiment night. Nights of other experiments are left out, so a series of
+ * experiments does not use last week's change as this week's "normal".
  */
 export function baselineOuraDays(spec: Pick<ExperimentSpec, "startNight" | "baselineDays">, excludeNights: string[] = []): string[] {
   const excluded = new Set(excludeNights.map(nightOuraDay));
@@ -415,8 +416,7 @@ export function parseExperimentForm(get: Get, today: string): Parsed<ExperimentI
     return { ok: false, error: "תאריך ההתחלה רחוק מדי מהיום." };
   }
   const nights = dayDiff(startNight, endNight) + 1;
-  if (nights < MIN_NIGHTS) return { ok: false, error: `ניסוי צריך לפחות ${MIN_NIGHTS} לילות, אחרת אין עם מה להשוות.` };
-  if (nights > MAX_NIGHTS) return { ok: false, error: `ניסוי שבועי הוא עד ${MAX_NIGHTS} לילות.` };
+  if (nights > MAX_NIGHTS) return { ok: false, error: `ניסוי יכול להימשך עד ${MAX_NIGHTS} לילות.` };
 
   const baselineDays = Number(get("baselineDays") ?? DEFAULT_BASELINE_DAYS);
   if (!(BASELINE_OPTIONS as readonly number[]).includes(baselineDays)) return { ok: false, error: "תקופת ההשוואה לא תקינה." };

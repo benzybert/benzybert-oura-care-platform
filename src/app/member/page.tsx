@@ -240,7 +240,7 @@ export default async function MemberPage({
         <a href="#integrations">פרופיל ו-Instinct</a>
         <a href="#ring">הטבעת</a>
         <a href="#data">הנתונים שלי</a>
-        <a href="#experiments">ניסוי שבועי</a>
+        <a href="#experiments">ניסויים</a>
         <a href="#actions">מרכז פעולות</a>
         <a href="#goals">התגמולים שלי</a>
         <a href="#sharing">שיתוף</a>

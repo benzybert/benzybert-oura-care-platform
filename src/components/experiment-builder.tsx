@@ -10,6 +10,7 @@ import {
   EXPERIMENT_TEMPLATES,
   HYPOTHESIS_MAX,
   MAX_NIGHTS,
+  MIN_EXPERIMENT_NIGHTS,
   MIN_NIGHTS,
   PRIMARY_METRIC_KEYS,
   TITLE_MAX,
@@ -21,8 +22,9 @@ import {
 } from "@/lib/experiments";
 
 const NIGHTS_DEFAULT = 7;
+const LENGTH_CHOICES = [3, 7, 14, 30];
 
-/** Starts a weekly experiment. Template chips only fill the name and metric; the member writes the rest. */
+/** Starts an experiment of any length. Template chips only fill the name and metric; the member writes the rest. */
 export function ExperimentBuilder({ today, startOpen }: { today: string; startOpen: boolean }) {
   const [state, formAction, pending] = useActionState(createExperiment, { ok: false, error: null, at: 0 } as ExperimentFormState);
   const [title, setTitle] = useState("");
@@ -34,6 +36,10 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
   const template = EXPERIMENT_TEMPLATES.find((t) => t.id === picked);
   const nights = isIsoDay(startNight) && isIsoDay(endNight) ? dayDiff(startNight, endNight) + 1 : null;
   const nightsOk = nights !== null && nights >= MIN_NIGHTS && nights <= MAX_NIGHTS;
+
+  const setLength = (n: number) => {
+    if (isIsoDay(startNight)) setEndNight(addDays(startNight, n - 1));
+  };
 
   // Moving the first night keeps the length, so the member does not have to fix the end every time.
   const changeStart = (value: string) => {
@@ -92,6 +98,18 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
             />
           </label>
 
+          <div className="sr-wide">
+            <span className="xp-field-label">כמה לילות</span>
+            <div className="sr-chips">
+              {LENGTH_CHOICES.map((n) => (
+                <button key={n} type="button" className={`sr-chip${nights === n ? " on" : ""}`} aria-pressed={nights === n} onClick={() => setLength(n)}>
+                  {nightsHe(n)}
+                </button>
+              ))}
+            </div>
+            <small className="muted">או בחר תאריכים. אפשר כל משך, עד {MAX_NIGHTS} לילות.</small>
+          </div>
+
           <label>
             הלילה הראשון
             <input type="date" name="startNight" value={startNight} required onChange={(e) => changeStart(e.target.value)} />
@@ -132,9 +150,10 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
                 {nightsHe(nights)}, מ{fmtNight(startNight)} עד {fmtNight(endNight)}. הנתונים של כל לילה מופיעים בבוקר שאחריו.
               </p>
             ) : (
-              <p>
-                צריך בין {MIN_NIGHTS} ל־{MAX_NIGHTS} לילות.
-              </p>
+              <p>{nights !== null && nights < MIN_NIGHTS ? "תאריך הסיום לפני תאריך ההתחלה." : `אפשר עד ${MAX_NIGHTS} לילות.`}</p>
+            )}
+            {nightsOk && nights < MIN_EXPERIMENT_NIGHTS && (
+              <p className="muted">עם פחות מ־{MIN_EXPERIMENT_NIGHTS} לילות אין השוואה ללילות הרגילים. יופיעו רק המספרים.</p>
             )}
           </div>
 

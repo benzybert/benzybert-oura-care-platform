@@ -28,7 +28,7 @@
 | `doctor_contacts` | the member's own doctors (name, email), used only for sends the member confirms |
 | `share_links` | read-only doctor dashboard links: token **hash** for lookup, token encrypted for re-copying, window, expiry, revocation, view count |
 | `self_rewards` | goals a member sets for themselves and the treat they promise themselves; member-only, never read by staff or org pages |
-| `experiments` | weekly self-experiments (the nights covered, hypothesis, per-night notes, conclusion); member-only, results computed on read from `daily_metrics` |
+| `experiments` | self-experiments of any length (the nights covered, hypothesis, per-night notes, conclusion); member-only, results computed on read from `daily_metrics` |
 | `audit_log` | every staff view, every consent change, every share-link create / open / revoke |
 
 Consent scopes: `care_team`, `org_aggregate`, `rewards`. One scope never implies another.
@@ -100,12 +100,12 @@ A section on `/member` where the member sets a goal on their own data and names 
 - **Rewards:** one option is a fixed reward; several options make a mystery reward, one drawn at random (server side, `crypto.randomInt`) when the member opens it. An optional shekel budget feeds the "treat jar" total.
 - **Server checks:** every action re-checks the member role and that the row belongs to the member; claiming re-evaluates the goal on the server before anything is stored. Limits: 12 open goals, 60 rows in total.
 
-## Weekly experiments ("ניסוי שבועי")
+## Experiments ("ניסויים")
 
-A section on `/member` where the member changes one thing for 3 to 14 nights (for example sleeping outside) and compares those Oura nights with their own nights just before. Member-only: no staff or org query reads it and it needs no consent scope.
+A section on `/member` where the member changes one thing for as many nights as they like (1 to 90) (for example sleeping outside) and compares those Oura nights with their own nights just before. Member-only: no staff or org query reads it and it needs no consent scope.
 
 - **Nights and days.** An experiment is stored as its first and last *night* (the date the evening starts on). Oura files a night under the morning after it, so night N is read from Oura day N+1.
-- **Baseline.** The 7, 14, 21 or 28 days that end on the first experiment evening, without the nights of the member's other experiments, so a weekly series does not use last week's change as this week's normal. Experiments may not overlap.
+- **Baseline.** The 7, 14, 21 or 28 days that end on the first experiment evening, without the nights of the member's other experiments, so a series of experiments does not use last week's change as this week's normal. Experiments may not overlap.
 - **Comparison** (`src/lib/experiments.ts`). For about a dozen metrics (sleep score, hours, deep and REM, efficiency, latency, HRV, resting heart rate, breathing, skin temperature, readiness, bedtime, wake time) it compares the mean of the experiment's nights with the baseline mean and expresses the difference in units of the baseline's own night-to-night standard deviation: under 0.5 is within the usual swing, 0.5 to 1 a tendency, 1 and above clearly different. It needs at least 5 baseline nights and 3 experiment nights, otherwise there is no verdict. It is one person with no control group, and the page and the drafts say so. The member picks one primary metric; the others are context.
 - **Draft post** (`src/lib/experiment-post.ts`). Builds a versioned package (`schemaVersion: 1`): blog Markdown, Telegram text, newsletter subject, preview and Markdown, structured aggregates and a list of warnings (not finished, missing nights, no conclusion). It holds aggregates and one line per night, no name and no time series. The page only shows it and lets the member copy it. The hand-off to n8n is not built, see [BLOG-WORKFLOW.md](BLOG-WORKFLOW.md).
 

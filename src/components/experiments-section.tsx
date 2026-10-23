@@ -26,7 +26,7 @@ function Dates({ row }: { row: ExperimentRow }) {
   );
 }
 
-/** "ניסוי שבועי" card on /member: the current experiment, a form for a new one, and the history. */
+/** "ניסויים" card on /member: the current experiment, a form for a new one, and the history. */
 export function ExperimentsSection({
   rows,
   featured,
@@ -38,10 +38,10 @@ export function ExperimentsSection({
 }) {
   const history = rows.filter((r) => r.id !== featured?.row.id);
   return (
-    <section className="card" id="experiments" aria-label="ניסוי שבועי">
-      <h2>ניסוי שבועי</h2>
+    <section className="card" id="experiments" aria-label="ניסויים">
+      <h2>ניסויים</h2>
       <p className="muted">
-        משנים דבר אחד לכמה לילות, למשל לישון בחוץ, ורואים מה הטבעת אומרת בהשוואה ללילות הרגילים שלך. אפשר לכתוב על זה פוסט.
+        משנים דבר אחד לכמה לילות שרוצים, למשל לישון בחוץ, ורואים מה הטבעת אומרת בהשוואה ללילות הרגילים שלך. אפשר לכתוב על זה פוסט.
       </p>
 
       {featured && (

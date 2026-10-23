@@ -71,7 +71,7 @@ describe("buildExperimentPost", () => {
 
   it("gives Telegram a short plain-text version", () => {
     const t = post.telegram.text;
-    expect(t.split("\n")[0]).toBe("טיוטה: ניסוי שבועי");
+    expect(t.split("\n")[0]).toBe("טיוטה: ניסוי");
     expect(t).toContain("שינה בחוץ, 20.10–26.10 (7 לילות)");
     expect(t).toContain(post.summary);
     expect(t).not.toContain("|");
@@ -132,5 +132,42 @@ describe("comparisonLine", () => {
   it("reads in plain Hebrew with the unit in the label", () => {
     const hours = evaluateExperiment({ ...spec, primaryMetric: "totalSleepHours" }, metrics, "2026-10-30").primary;
     expect(comparisonLine(hours)).toBe("משך שינה (שעות): 7.1 לפני, 7.6 בניסוי (‎+0.5 שעות). טוב יותר מהרגיל.");
+  });
+});
+
+describe("long and short experiments", () => {
+  it("lists every night up to two weeks", () => {
+    const post = buildExperimentPost(source, finished(), new Date());
+    expect(post.blog.markdown).toContain("## לילה אחרי לילה");
+    expect(post.blog.markdown.match(/^- \*\*/gm)).toHaveLength(7);
+  });
+
+  it("keeps a 30-night experiment readable: only the nights the member wrote about", () => {
+    const longSpec: ExperimentSpec = { ...spec, endNight: "2026-11-18" };
+    const ev = evaluateExperiment(longSpec, metrics, "2026-12-01");
+    const post = buildExperimentPost({ ...source, ...longSpec }, ev, new Date());
+    expect(post.title).toBe("שינה בחוץ: ניסוי של 30 לילות");
+    expect(post.blog.markdown).toContain("## לילות שכדאי לזכור");
+    expect(post.blog.markdown).not.toContain("## לילה אחרי לילה");
+    expect(post.blog.markdown.match(/^- \*\*/gm)).toHaveLength(2);
+  });
+
+  it("leaves the night list out of a long experiment with no notes", () => {
+    const longSpec: ExperimentSpec = { ...spec, endNight: "2026-11-18" };
+    const ev = evaluateExperiment(longSpec, metrics, "2026-12-01");
+    const post = buildExperimentPost({ ...source, ...longSpec, nightNotes: {} }, ev, new Date());
+    expect(post.blog.markdown).not.toContain("לילה אחרי לילה");
+    expect(post.blog.markdown).not.toContain("לילות שכדאי לזכור");
+  });
+
+  it("says plainly that a one-night experiment has nothing to compare", () => {
+    const oneSpec: ExperimentSpec = { ...spec, endNight: "2026-10-20" };
+    const ev = evaluateExperiment(oneSpec, metrics, "2026-10-30");
+    expect(ev.nights).toHaveLength(1);
+    expect(ev.ready).toBe(false);
+    const post = buildExperimentPost({ ...source, ...oneSpec }, ev, new Date());
+    expect(post.title).toBe("שינה בחוץ: ניסוי של לילה אחד");
+    expect(post.summary).toBe("עוד אין מספיק נתונים כדי להשוות את הניסוי ללילות הרגילים.");
+    expect(post.warnings.some((w) => w.includes("אין השוואה"))).toBe(true);
   });
 });
