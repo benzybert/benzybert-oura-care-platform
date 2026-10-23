@@ -57,6 +57,8 @@ Every page re-checks the role on the server (`requireRole`). Server actions re-c
 5. If Oura rejects the tokens, the connection is marked revoked and the member must reconnect.
 6. After each sync, alerts and rewards run for the scopes the member has consented to.
 
+Schedules: Vercel Cron runs `/api/cron/oura-sync` once a day (35-day window, `CRON_SECRET`; Hobby allows nothing more often). A pg_cron job in Supabase (`docs/supabase-sync-schedule.sql`) calls `/api/sync/tick` every 30 minutes: no secret, returns only a count, and it syncs a connection only when its last sync is 20 minutes old, over the last 3 days. Opening `/member` also re-syncs when the last sync is 30 minutes old, and the "סנכרן עכשיו" button syncs on demand. Overlapping runs are safe: a run whose refresh token was replaced by another run is skipped instead of revoking the connection.
+
 Scope requested: `daily` only (no `personal`, no `heartrate`). Confirm in Oura's sandbox that `daily` also covers the `sleep` period endpoint.
 
 ## Alert rules (v0)

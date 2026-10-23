@@ -7,6 +7,7 @@ import { evaluateAlerts } from "../alerts";
 import { BEDTIME_REWARD_KIND, evaluateBedtimeConsistency, lastCompletedWeek } from "../rewards";
 import type { DayMetric } from "../types";
 import { OuraAuthError, fetchCollection, refreshTokens } from "./client";
+import { isSyncStale } from "./cooldown";
 import {
   dailyActivityItem,
   dailyReadinessItem,
@@ -37,7 +38,12 @@ async function markRevoked(db: Db, memberId: string) {
     .where(eq(ouraConnections.memberId, memberId));
 }
 
-export async function syncMember(db: Db, memberId: string, now: Date = new Date()): Promise<SyncResult> {
+export async function syncMember(
+  db: Db,
+  memberId: string,
+  now: Date = new Date(),
+  windowDays: number = SYNC_WINDOW_DAYS,
+): Promise<SyncResult> {
   const [conn] = await db
     .select()
     .from(ouraConnections)
@@ -64,7 +70,7 @@ export async function syncMember(db: Db, memberId: string, now: Date = new Date(
 
     const today = todayInIsrael(now);
     // Oura's end_date can be exclusive for some collections; ask for tomorrow to be safe.
-    const range = { start: addDays(today, -SYNC_WINDOW_DAYS), end: addDays(today, 1) };
+    const range = { start: addDays(today, -windowDays), end: addDays(today, 1) };
     const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods, dailyStress] = await Promise.all([
       fetchCollection("daily_sleep", accessToken, range, dailySleepItem),
       fetchCollection("daily_readiness", accessToken, range, dailyReadinessItem),
@@ -126,6 +132,15 @@ export async function syncMember(db: Db, memberId: string, now: Date = new Date(
     return { status: "synced", days: rows.length };
   } catch (err) {
     if (err instanceof OuraAuthError) {
+      // Two syncs can overlap (the half-hourly tick, a page visit, the button). Refresh tokens are
+      // single-use, so the loser of that race gets rejected although the connection is fine: if the
+      // stored refresh token is no longer the one this run started with, the other run replaced it.
+      const [current] = await db
+        .select({ refreshTokenEnc: ouraConnections.refreshTokenEnc })
+        .from(ouraConnections)
+        .where(and(eq(ouraConnections.memberId, memberId), isNull(ouraConnections.revokedAt)))
+        .limit(1);
+      if (current && current.refreshTokenEnc !== conn.refreshTokenEnc) return { status: "skipped" };
       await markRevoked(db, memberId);
       return { status: "needs_reconnect" };
     }
@@ -186,6 +201,39 @@ export async function runInsights(db: Db, memberId: string, today: string): Prom
 }
 
 export type SyncSummary = { synced: number; skipped: number; needsReconnect: number; failed: number };
+
+/**
+ * The half-hourly tick: syncs only the connections whose last sync is at least `maxAgeMs` old, over a short
+ * window (the daily cron keeps the long one). Sequential, like syncAll.
+ */
+export async function syncStale(
+  db: Db,
+  opts: { now?: Date; maxAgeMs: number; windowDays: number },
+): Promise<SyncSummary> {
+  const now = opts.now ?? new Date();
+  const rows = await db
+    .select({ memberId: ouraConnections.memberId, lastSyncAt: ouraConnections.lastSyncAt })
+    .from(ouraConnections)
+    .where(isNull(ouraConnections.revokedAt));
+
+  const summary: SyncSummary = { synced: 0, skipped: 0, needsReconnect: 0, failed: 0 };
+  for (const { memberId, lastSyncAt } of rows) {
+    if (!isSyncStale(lastSyncAt, now, opts.maxAgeMs)) {
+      summary.skipped++;
+      continue;
+    }
+    try {
+      const r = await syncMember(db, memberId, now, opts.windowDays);
+      if (r.status === "synced") summary.synced++;
+      else if (r.status === "skipped") summary.skipped++;
+      else summary.needsReconnect++;
+    } catch {
+      // Never log the error: it can carry Oura's response text.
+      summary.failed++;
+    }
+  }
+  return summary;
+}
 
 /** Sequential on purpose: Oura refresh tokens are single-use and rate limits are shared. */
 export async function syncAll(db: Db): Promise<SyncSummary> {
