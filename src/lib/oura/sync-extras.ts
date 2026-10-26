@@ -63,8 +63,19 @@ export type OptionalSet = {
   heartRate: OptionalFetch<HeartRateRowItem>;
 };
 
-/** Never rejects: see fetchOptional. Safe to start before (and ignore after) the core fetches. */
-export async function fetchOptionalSet(accessToken: string, range: Range, now: Date): Promise<OptionalSet> {
+/** A family not asked for in this sync (the history pull skips the heavy heart-rate series). */
+const NOT_FETCHED = Promise.resolve({ status: "error" } as const);
+
+/**
+ * Never rejects: see fetchOptional. Safe to start before (and ignore after) the core fetches.
+ * `heartRate: false` skips the all-day heart-rate series and the battery (the long history pull).
+ */
+export async function fetchOptionalSet(
+  accessToken: string,
+  range: Range,
+  now: Date,
+  { heartRate: withHeartRate = true }: { heartRate?: boolean } = {},
+): Promise<OptionalSet> {
   const [dailySpo2, dailyResilience, cardiovascularAge, vo2Max, sleepTime, restMode, workouts, sessions, tags, ring, personal, battery, heartRate] =
     await Promise.all([
       fetchOptionalCollection("daily_spo2", accessToken, range, dailySpo2Item),
@@ -78,8 +89,8 @@ export async function fetchOptionalSet(accessToken: string, range: Range, now: D
       fetchOptionalCollection("enhanced_tag", accessToken, range, enhancedTagItem),
       fetchOptionalCollection("ring_configuration", accessToken, range, ringConfigurationItem),
       fetchPersonalInfo(accessToken, personalInfoItem),
-      fetchRingBattery(accessToken, now, ringBatteryRowItem),
-      fetchHeartRate(accessToken, range, heartRateRowItem),
+      withHeartRate ? fetchRingBattery(accessToken, now, ringBatteryRowItem) : NOT_FETCHED,
+      withHeartRate ? fetchHeartRate(accessToken, range, heartRateRowItem) : NOT_FETCHED,
     ]);
   return { dailySpo2, dailyResilience, cardiovascularAge, vo2Max, sleepTime, restMode, workouts, sessions, tags, ring, personal, battery, heartRate };
 }
@@ -132,7 +143,8 @@ export async function storeExtras(
     dailyActivity: DailyActivityItem[];
     dailyReadiness: DailyReadinessItem[];
     sleepPeriods: SleepPeriodItem[];
-    coverage: Record<string, CollectionCoverage>;
+    /** Undefined keeps the stored coverage (the history pull is not a picture of what answers today). */
+    coverage?: Record<string, CollectionCoverage>;
   },
 ): Promise<void> {
   const { optional: o } = input;
@@ -194,9 +206,9 @@ export async function storeExtras(
   );
   await db
     .insert(ouraProfile)
-    .values({ memberId, ...patch, coverage: input.coverage })
+    .values({ memberId, ...patch, coverage: input.coverage ?? {} })
     .onConflictDoUpdate({
       target: ouraProfile.memberId,
-      set: { ...patchSet, coverage: sql`excluded.coverage`, updatedAt: sql`now()` },
+      set: { ...patchSet, ...(input.coverage ? { coverage: sql`excluded.coverage` } : {}), updatedAt: sql`now()` },
     });
 }

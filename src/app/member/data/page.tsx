@@ -9,7 +9,7 @@ import { SleepExtras } from "@/components/member-data/sleep-extras";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { dataHref, resolveView, type DataView } from "@/lib/member-nav";
-import { missingScopes } from "@/lib/oura/scopes";
+import { forbiddenFamilies, missingScopes } from "@/lib/oura/scopes";
 import { getDashboardMetrics, getDayExtras, getOuraEvents, getOuraProfile, ouraStatus } from "@/lib/queries";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 import { MemberShell, loadMember } from "../_shell/member-shell";
@@ -99,7 +99,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
         {view === "trends" && dash(["trends", "calendar", "weekly", "daily"])}
 
-        {view === "ring" && <RingView oura={oura} profile={profile} missingScopes={oura ? missingScopes(oura.scopes) : []} />}
+        {view === "ring" && <RingView oura={oura} profile={profile} missingScopes={oura ? [...missingScopes(oura.scopes), ...forbiddenFamilies(coverage)] : []} />}
       </section>
     </MemberShell>
   );

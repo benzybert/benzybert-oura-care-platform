@@ -68,7 +68,7 @@ Done and verified: schema and migration (applied to a real Postgres 16), consent
 
 **Not done / not verified** (details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#open-items)):
 
-- Real sign-in. Sessions are signed cookies; only the demo login creates them. Plug in Auth.js, Clerk or the partner's SSO before any real pilot.
+- Sign-in: "sign in with Oura" and one-time email links are built (`docs/ARCHITECTURE.md#sign-in`). Email links only reach the Resend account owner until a sending domain is verified in Resend; no SSO yet.
 - The Oura OAuth and sync code has **not** run against Oura's live API (no credentials yet). Field mapping is unit-tested against the documented response shape.
 - Delivering alerts outside the app (email / WhatsApp / push to a care manager).
 - Data export and deletion on request, and a retention policy.

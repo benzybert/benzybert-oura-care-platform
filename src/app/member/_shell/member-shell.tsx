@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { cache, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
+import { SyncRefresher } from "@/components/sync-refresher";
 import { getMemberForUser } from "@/lib/queries";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
 import { requireRole } from "@/lib/session";
@@ -28,9 +29,12 @@ export async function loadMember({ sync = true }: { sync?: boolean } = {}) {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/");
-  if (sync) await syncOnVisit(member.id);
+  if (sync && (await syncOnVisit(member.id))) visitState().syncing = true;
   return { user, member };
 }
+
+/** Per-request flag: loadMember started a background sync, so the shell shows the refresher. */
+const visitState = cache(() => ({ syncing: false }));
 
 export function MemberShell({
   tab,
@@ -63,6 +67,14 @@ export function MemberShell({
           </a>
         ))}
       </nav>
+
+      {params.welcome === "1" ? (
+        <SyncRefresher next="/member?welcome=2" />
+      ) : params.oura === "connected" ? (
+        <SyncRefresher next="/member?oura=synced" />
+      ) : (
+        visitState().syncing && <SyncRefresher />
+      )}
 
       {notices.map((text) => (
         <div className="notice" role="status" key={text}>

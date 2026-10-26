@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   if (!demoAuthEnabled()) return new Response("Not found", { status: 404 });
 
   const role = new URL(req.url).searchParams.get("role");
-  if (role !== "member" && role !== "care" && role !== "org" && role !== "me") {
+  if (role !== "member" && role !== "care" && role !== "org") {
     return new Response("Unknown role", { status: 400 });
   }
   const email = DEMO_EMAILS[role as DemoRole];

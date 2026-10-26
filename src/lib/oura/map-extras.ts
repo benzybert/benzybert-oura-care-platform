@@ -120,6 +120,8 @@ export const ringConfigurationItem = z.object({
 });
 
 export const personalInfoItem = z.object({
+  /** Oura's account id: only its hash is stored, to recognise the member at "sign in with Oura". */
+  id: lenient(z.string()),
   age: lenient(z.number()),
   weight: lenient(z.number()),
   height: lenient(z.number()),

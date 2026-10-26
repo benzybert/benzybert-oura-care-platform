@@ -50,7 +50,7 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
         </div>
         <div className="row">
           <span className="muted">תשובות יגיעו אל</span>
-          <span dir="ltr">{user.email}</span>
+          {user.email ? <span dir="ltr">{user.email}</span> : <span className="muted">אין כתובת בחשבון, כך שהרופא לא יוכל להשיב במייל</span>}
         </div>
         <div className="row">
           <span className="muted">נושא</span>

@@ -5,7 +5,8 @@ import { getDb, schema } from "../db";
 import { createSessionToken, readSessionToken } from "./crypto";
 
 export const SESSION_COOKIE = "session";
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+/** A week: members check their data daily; signing out ends it at once. */
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type SessionUser = typeof schema.users.$inferSelect;
 export type Role = SessionUser["role"];
@@ -21,9 +22,8 @@ export function cookieOptions(maxAgeSeconds: number, path = "/") {
 }
 
 /**
- * Cookie session primitives. Real sign-in (Auth.js, Clerk, the health fund's
- * SSO...) should end by calling startSession(user.id); everything else in the
- * app only depends on getSessionUser() / requireRole().
+ * Cookie session primitives. Every sign-in ("sign in with Oura", the emailed link, the demo login) ends by
+ * calling startSession(user.id); everything else in the app only depends on getSessionUser() / requireRole().
  */
 export async function startSession(userId: string): Promise<void> {
   const jar = await cookies();
@@ -44,9 +44,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   return user ?? null;
 }
 
-/** Redirects to the landing page unless the signed-in user has one of the roles. */
+/** Redirects to sign-in when signed out, and to the landing page when the role does not match. */
 export async function requireRole(...roles: Role[]): Promise<SessionUser> {
   const user = await getSessionUser();
-  if (!user || !roles.includes(user.role)) redirect("/");
+  if (!user) redirect("/login");
+  if (!roles.includes(user.role)) redirect("/");
   return user;
 }

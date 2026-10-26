@@ -10,7 +10,7 @@ import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { experimentPhase } from "@/lib/experiments";
 import { fmt, fmtDay } from "@/lib/format";
-import { missingScopes } from "@/lib/oura/scopes";
+import { forbiddenFamilies, missingScopes } from "@/lib/oura/scopes";
 import {
   getActiveInstinctAccess,
   getAutomationRules,
@@ -20,6 +20,7 @@ import {
   getDoctorContacts,
   getExperiments,
   getMetrics,
+  getOuraProfile,
   getRecentEvents,
   getSelfRewards,
   listShareLinks,
@@ -48,7 +49,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   after(() => refreshAlertsIfStale(getDb()));
   const params = await searchParams;
 
-  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, events, delivered, instinctAccess, automations, experimentRows] =
+  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, events, delivered, instinctAccess, automations, experimentRows, ouraProfile] =
     await Promise.all([
       getMetrics(member.id),
       getConsentRecords(member.id),
@@ -63,6 +64,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       getActiveInstinctAccess(member.id),
       getAutomationRules(member.id),
       getExperiments(member.id),
+      getOuraProfile(member.id),
     ]);
 
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
@@ -152,7 +154,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
 
       <TodayActionsCard actions={actions} />
 
-      <RingCard oura={oura} missing={oura ? missingScopes(oura.scopes) : []} />
+      <RingCard oura={oura} missing={oura ? [...missingScopes(oura.scopes), ...forbiddenFamilies(ouraProfile?.coverage)] : []} />
 
       <nav className="hub" aria-label="עוד באזור שלי">
         {tiles.map((t) => (

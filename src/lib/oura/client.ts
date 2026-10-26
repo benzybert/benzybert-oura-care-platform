@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { env } from "../env";
-import { OURA_SCOPES } from "./scopes";
+import { requestedScopes } from "./scopes";
 
 const AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize";
 const TOKEN_URL = "https://api.ouraring.com/oauth/token";
@@ -32,20 +32,23 @@ const tokenResponse = z.object({
   access_token: z.string(),
   refresh_token: z.string(),
   expires_in: z.number(),
+  scope: z.string().nullable().optional(),
 });
 
 export type TokenSet = {
   accessToken: string;
   refreshToken: string;
   expiresAt: Date;
+  /** Space-separated scopes Oura reports as granted (may be prefixed "extapi:"), if it sent them. */
+  scope?: string | null;
 };
 
-export function buildAuthorizeUrl(state: string): string {
+export function buildAuthorizeUrl(state: string, { basic = false }: { basic?: boolean } = {}): string {
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", env("OURA_CLIENT_ID"));
   url.searchParams.set("redirect_uri", env("OURA_REDIRECT_URI"));
-  url.searchParams.set("scope", OURA_SCOPES.join(" "));
+  url.searchParams.set("scope", requestedScopes(basic).join(" "));
   url.searchParams.set("state", state);
   return url.toString();
 }
@@ -69,6 +72,7 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenSet> {
     accessToken: t.access_token,
     refreshToken: t.refresh_token,
     expiresAt: new Date(Date.now() + t.expires_in * 1000),
+    scope: t.scope,
   };
 }
 

@@ -1292,3 +1292,82 @@ td .badge.plain {
   display: flex;
   gap: 6px;
 }
+
+/* Landing and sign-in */
+.landing-hero h1 {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.25;
+  max-width: 22ch;
+}
+.landing-hero .links {
+  margin-top: 16px;
+  align-items: center;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.feature h2 {
+  font-size: 1.05rem;
+}
+.small {
+  font-size: 0.875rem;
+}
+.auth-page {
+  max-width: 440px;
+  margin: 24px auto;
+}
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-oura {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  padding: 12px 16px;
+}
+.auth-oura .brand-mark {
+  border-color: currentColor;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.auth-form input {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 6px 0;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.notice.warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: color-mix(in srgb, var(--warn-text) 30%, var(--line));
+}
+.sync-status {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+}

@@ -18,7 +18,8 @@ src/components/     shared UI (metrics-table, logout-button, share-link card, do
 src/components/member-data/  the member's own data views beyond the dashboard (activity, heart and breathing, events, ring, sleep and recovery extras) + member-data.css; data-view-tabs.tsx is their sub-tab bar
 src/components/doctor-dashboard/  the doctor dashboard: dashboard.tsx (server), client SVG charts (trend-chart, night-explorer, stack-chart, sleep-clock, heatmap), score-ring, dashboard.css (tokens)
 src/db/             Drizzle schema + connection
-src/lib/            pure logic (alerts, consent, rewards, self-rewards, summary) + server helpers (queries, session)
+src/lib/            pure logic (alerts, consent, rewards, self-rewards, summary, auth-rules) + server helpers (queries, session, auth)
+src/app/login/      sign-in page, email-link actions, /login/verify
 src/lib/oura/       OAuth client, API mapping (map.ts core, map-extras.ts everything else), sync (sync.ts, sync-extras.ts), scopes.ts
 scripts/seed.ts     synthetic demo data
 drizzle/            generated SQL migrations (never hand-edit applied ones)
@@ -57,7 +58,7 @@ Stop and ask only for destructive, irreversible actions on real data (dropping t
 - **Care view identity.** Staff see a short code, age band and goal: no names, phone numbers or emails in the care view.
 - **Audit.** Any new staff view or consent change writes to `audit_log`.
 - **Secrets.** Never commit real values. Tokens stay encrypted (AES-256-GCM). `.env.example` is the only env file in git. Other people's contact details (e.g. doctor emails) stay in the database, never in source. Keys and settings follow "Config lives in files" above.
-- **`DEMO_AUTH`** is on in Production by the owner's choice (no real auth needed for now, synthetic data). Turn it off if real member data is ever added.
+- **Sign-in is real now** (`docs/ARCHITECTURE.md#sign-in`): "sign in with Oura" (`/api/auth/oura`, account found by `oura_connections.oura_account_hash`, never the raw Oura id) and one-time email links (`login_tokens`, hash only, 15 minutes, single use, POST to use, link built from `siteUrl()` never from the Host header). Both end in `startSession`. New accounts are members in the self-serve org; sign-in never creates staff. **`DEMO_AUTH`** stays on in Production by the owner's choice, but only for the seeded synthetic accounts: never add a demo button that opens a real member's data (the old `role=me` was removed).
 - **No health data in URLs, logs or analytics.** Responses stay `no-store`, `X-Frame-Options: DENY`.
 
 ## Member area: one tab per topic
@@ -89,11 +90,12 @@ The same dashboard component is the main data view, on its own tab `/member/data
 The owner asked for **everything the Oura API offers** (migration `0014`, `docs/ARCHITECTURE.md#the-members-data-tab-and-the-full-oura-data`): scopes `daily heartrate workout tag session spo2Daily personal` (`src/lib/oura/scopes.ts`; not `email`). The data tab has views in the URL (`?view=summary|sleep|recovery|activity|heart|events|trends|ring&days=30|60|90`; ids, `resolveView` and `dataHref` in `src/lib/member-nav.ts`): build links with `dataHref`.
 
 - New tables `daily_extras` (per day: activity detail, SpO2, resilience, cardiovascular age, VO2 max, bedtime guidance, naps, sleep movement, temperature trend, the all-day heart-rate curve as 288 five-minute averages per local day), `oura_events` (workouts, sessions, tags, rest mode, naps) and `oura_profile` (ring, person, battery, per-family `coverage`). They are **member-only**: only `/member/data` queries them (`getDayExtras`, `getOuraEvents`, `getOuraProfile`); `getDashboardMetrics`, care, org, share links, PDF and doctor mail never do. Add new Oura fields to these tables, not to `daily_metrics`.
-- Sync is **fail-soft** for all of it (`fetchOptional`, `sync-extras.ts`): a 401/403 on an optional endpoint is "forbidden" (the token lacks the scope), never `needs_reconnect`; a malformed row is skipped; a storage error cannot fail a sync that already saved the core rows. Only the five core collections decide whether a token is dead. Members connected before `0014` hold `daily` only: the ring card (home) and the ring view then offer "אישור הרשאות נוספות" (the normal `/api/oura/connect` flow). `oura_profile.coverage` says per Oura collection whether it answered; the ring view shows it.
+- Sync is **fail-soft** for all of it (`fetchOptional`, `sync-extras.ts`): a 401/403 on an optional endpoint is "forbidden" (the token lacks the scope), never `needs_reconnect`; a malformed row is skipped; a storage error cannot fail a sync that already saved the core rows. Only the five core collections decide whether a token is dead. Members connected before `0014` hold `daily` only: the ring card (home) and the ring view then offer "אישור הרשאות נוספות" (the normal `/api/oura/connect` flow), also whenever `coverage` has a `forbidden` family. `oura_connections.scopes` stores what Oura reports as granted. `oura_profile.coverage` says per Oura collection whether it answered; the ring view shows it.
+- After a connect or Oura sign-in the callback runs (with `after()`) a 35-day sync and then a one-off `HISTORY_DAYS` (730) history pull without the heart-rate curve (`{ history: true }`, keeps `coverage`).
 - The dashboard component takes `meta.sections` (and `contributorSets`) to render only part of itself for the member's views; with them absent (doctor link, preview, PDF) it renders everything, as before. Keep `Section`'s `show` prop and the exports used by `member-data/*` in `dashboard.tsx`.
 - Demo data: `src/lib/sample-extras.ts` (tests and `npm run db:seed`, T-01 only). Do not write synthetic rows into a real member's data.
 - Not stored: `interbeat_interval`, the per-minute MET series, 30-second sleep phases, Oura's ring id, `email`. The heart-rate curve keeps 5-minute averages per local day (Asia/Jerusalem).
-- Scope names (`spo2Daily` etc.) were taken from Oura's published client types, not verified against a live authorization: if Oura rejects the authorize URL (`invalid_scope`), fix `scopes.ts` first. Which of the newer daily endpoints need an extra scope is unverified: the coverage table shows what actually answered.
+- Scope names (`spo2Daily` etc.) were taken from Oura's published client types, not verified against a live authorization. `NEWER_SCOPES` (`spo2 stress heart_health ring_configuration`) are asked for too; on `invalid_scope` the callback retries once without them (`?basic=1`), so a wrong name never blocks a connection. Fix names in `scopes.ts`. Which of the newer daily endpoints need an extra scope is unverified: the coverage table shows what actually answered.
 
 ## Feature: doctor dashboard link (member page)
 
@@ -154,8 +156,10 @@ Tab `/member/experiments`, pages `/member/experiments/[id]` and `/member/experim
 
 ## Oura sync schedule
 
+Functions run in `fra1` (`vercel.json`) next to the database (Supabase eu-central-1): keep them together, a region mismatch made every query a transatlantic round trip. Page visits never wait for Oura: `syncOnVisit` atomically claims a stale connection (stamps `last_sync_at`), syncs 3 days in `after()`, and `SyncRefresher` re-renders the page once.
+
 Vercel is on the Hobby plan: its cron can only run daily, so `vercel.json` keeps the 03:00 `/api/cron/oura-sync` (35 days, `CRON_SECRET`) and a Supabase pg_cron job (`docs/supabase-sync-schedule.sql`, created in the database, not in drizzle) calls the public `/api/sync/tick` every 30 minutes (3 days, only connections whose last sync is 20 minutes old, response is just a count). Keep that route secret-free and stale-gated: it is what makes it safe. Visits to `/member` and the sync button also sync. Never put `CRON_SECRET` into the database job. Sync errors are never logged.
 
 ## Not built yet (do not assume it exists)
 
-Sending experiment posts to n8n / Telegram / Kit (`docs/BLOG-WORKFLOW.md`), real authentication (only the demo login creates sessions), live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.
+Sending experiment posts to n8n / Telegram / Kit (`docs/BLOG-WORKFLOW.md`), a verified Resend sending domain (until then sign-in emails only reach the Resend account owner), staff invitations and SSO, Oura app approval for more than ~10 users, live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.

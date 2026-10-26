@@ -51,7 +51,8 @@ export const organizations = pgTable("organizations", {
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
+  /** Null for members who signed up with Oura and never gave an address. Stored lower-case. */
+  email: text("email").unique(),
   role: roleEnum("role").notNull(),
   orgId: uuid("org_id").references(() => organizations.id),
   createdAt: createdAt(),
@@ -104,7 +105,28 @@ export const ouraConnections = pgTable("oura_connections", {
   lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   /** set when the member disconnects or Oura rejects the tokens */
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  /** sha256 of Oura's account id (personal_info.id): how "sign in with Oura" finds the member. Never the id itself. */
+  ouraAccountHash: text("oura_account_hash").unique(),
+  /** when the one-off long history pull (HISTORY_DAYS) finished */
+  historySyncedAt: timestamp("history_synced_at", { withTimezone: true }),
 });
+
+/**
+ * One-time sign-in links sent by email. Only sha256(token) is stored; a link works once, for 15 minutes.
+ * No foreign key to users: an address that has no account yet gets one when the link is used.
+ */
+export const loginTokens = pgTable(
+  "login_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tokenHash: text("token_hash").notNull().unique(),
+    email: text("email").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("login_tokens_email_idx").on(t.email, t.createdAt)],
+);
 
 /**
  * Append-only consent history. A scope is active when a row exists with

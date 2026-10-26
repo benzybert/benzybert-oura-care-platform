@@ -67,6 +67,8 @@ Scopes requested (`src/lib/oura/scopes.ts`): `daily heartrate workout tag sessio
 
 ## The member's data tab and the full Oura data
 
+History: after a ring is connected (or the member signs in with Oura), the first sync pulls 35 days with the heart-rate curve and then a one-off history pull of `HISTORY_DAYS` (730) without the heart-rate curve and battery (`syncMember(..., { history: true })`, stamps `history_synced_at`, leaves `coverage` alone). Scopes: the authorize URL also asks for `NEWER_SCOPES` (`spo2 stress heart_health ring_configuration`, unverified names), because SpO2, resilience, cardiovascular age, VO2 max, ring configuration and battery answered 403 with the original list; on `invalid_scope` the callback retries once with the original list (`?basic=1`). The stored `scopes` are now what Oura reports as granted, and the ring card offers "אישור הרשאות נוספות" whenever a family answered `forbidden`.
+
 The member area is one route per tab (`src/app/member/_shell/member-shell.tsx`); the data tab (`/member/data`, "הנתונים שלי") is split into views that live in the URL (`?view=sleep&days=60`, `src/lib/member-nav.ts`, pure and tested). Each view is a server render that loads only what it shows, links can be bookmarked, and there is no client-side tab state.
 
 - Views: סיכום, שינה, התאוששות, פעילות, לב ונשימה, אימונים ואירועים, מגמות וטבלאות, הטבעת. The existing dashboard component renders the summary, sleep, recovery and trends views through `meta.sections` (a doctor link or the PDF omit it and show everything); the new views live in `src/components/member-data/`.
@@ -122,13 +124,27 @@ A tab `/member/experiments` where the member changes one thing for as many night
 - **Comparison** (`src/lib/experiments.ts`). For about a dozen metrics (sleep score, hours, deep and REM, efficiency, latency, HRV, resting heart rate, breathing, skin temperature, readiness, bedtime, wake time) it compares the mean of the experiment's nights with the baseline mean and expresses the difference in units of the baseline's own night-to-night standard deviation: under 0.5 is within the usual swing, 0.5 to 1 a tendency, 1 and above clearly different. It needs at least 5 baseline nights and 3 experiment nights, otherwise there is no verdict. It is one person with no control group, and the page and the drafts say so. The member picks one primary metric; the others are context.
 - **Draft post** (`src/lib/experiment-post.ts`). Builds a versioned package (`schemaVersion: 1`): blog Markdown, Telegram text, newsletter subject, preview and Markdown, structured aggregates and a list of warnings (not finished, missing nights, no conclusion). It holds aggregates and one line per night, no name and no time series. The page only shows it and lets the member copy it. The hand-off to n8n is not built, see [BLOG-WORKFLOW.md](BLOG-WORKFLOW.md).
 
+## Sign-in
+
+Two ways in, both ending in `startSession(user.id)` (signed cookie, 7 days); `/login` offers both, signed-out member pages redirect there.
+
+- **Sign in with Oura** (`/api/auth/oura`): the normal Oura consent screen without a session. The callback (`/api/oura/callback`, shared with "connect my ring"; the signed state cookie says which flow, `src/lib/oura/oauth-state.ts`) reads `personal_info.id` and looks up `oura_connections.oura_account_hash` (sha256, `src/lib/oura/account.ts`; the id itself is never stored). Found: refresh the tokens and sign in. Not found: create a member in the self-serve organization (`SELF_SERVE_ORG_NAME`, short code `M-XXXXXX`, no email) and connect the ring. Without the `personal` scope no account is created. Connections made before this get their hash on their next sync. One Oura account belongs to one member (`?oura=in_use`).
+- **Email link** (`src/app/login/actions.ts`, table `login_tokens`, migration `0015`): sha256 of the token only, single use, 15 minutes, 3 per address per 15 minutes, same answer whether or not the address has an account. The link points at `siteUrl()` (`src/config/site.ts`), never at the request Host. `/login/verify` signs in only on a POST, so mail scanners that open links do not use them. A new address becomes a member; staff accounts are never created by sign-in.
+- **Demo login** (`DEMO_AUTH=true`) now only covers the seeded synthetic accounts. The owner's real account is no longer a demo button.
+
+Sign-in events are audited (`signed_in_oura`, `signed_in_email`, `account_created_*`) without addresses.
+
+## Speed
+
+Functions run in `fra1` (`vercel.json`), next to the Supabase database in eu-central-1; they used to run in `iad1`, a transatlantic round trip per query. The Postgres client keeps up to 5 connections so a page's parallel queries do not queue. Visiting a member page no longer waits for Oura: `syncOnVisit` claims a stale connection atomically, runs a 3-day sync with `after()`, and the page refreshes itself once (`SyncRefresher`).
+
 ## Environments
 
 `main` is Production, `dev` is the Preview environment with its own database. See [SETUP.md](SETUP.md).
 
 ## Open items
 
-- **Authentication.** Replace the demo login with a real provider; call `startSession(user.id)` at the end of sign-in and nothing else changes.
+- **Authentication.** Built (see Sign-in). Still open: a verified Resend domain (until then email links only reach the Resend account owner), staff invitations, SSO, account deletion.
 - **Live Oura verification** with a registered app (the app is limited to 10 users until Oura approves it).
 - **Notifications** for alerts (care manager by email / WhatsApp), with the same consent checks.
 - **Rolling baseline** instead of the fixed first week, once members are enrolled for months.

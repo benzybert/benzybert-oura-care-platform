@@ -7,6 +7,7 @@ import { evaluateAlerts } from "../alerts";
 import { BEDTIME_REWARD_KIND, evaluateBedtimeConsistency, lastCompletedWeek } from "../rewards";
 import type { DayMetric } from "../types";
 import { OuraAuthError, fetchCollection, fetchOptional, refreshTokens } from "./client";
+import { ouraAccountHash } from "./account";
 import { isSyncStale } from "./cooldown";
 import {
   dailyActivityItem,
@@ -27,6 +28,12 @@ const { ouraConnections, dailyMetrics, consents, alerts, rewardEvents } = schema
  */
 export const SYNC_WINDOW_DAYS = 35;
 
+/**
+ * How far back the one-off history pull goes after a ring is connected (members bring years of Oura data).
+ * It skips the all-day heart-rate series, which is heavy and only shown for recent days.
+ */
+export const HISTORY_DAYS = 730;
+
 export type SyncResult =
   | { status: "synced"; days: number }
   | { status: "skipped" }
@@ -44,6 +51,7 @@ export async function syncMember(
   memberId: string,
   now: Date = new Date(),
   windowDays: number = SYNC_WINDOW_DAYS,
+  { history = false }: { history?: boolean } = {},
 ): Promise<SyncResult> {
   const [conn] = await db
     .select()
@@ -73,7 +81,7 @@ export async function syncMember(
     // Oura's end_date can be exclusive for some collections; ask for tomorrow to be safe.
     const range = { start: addDays(today, -windowDays), end: addDays(today, 1) };
     // The bonus data (SpO2, workouts, heart-rate curve, ...) is fetched in parallel and can never fail the sync.
-    const optionalPromise = fetchOptionalSet(accessToken, range, now);
+    const optionalPromise = fetchOptionalSet(accessToken, range, now, { heartRate: !history });
     const [dailySleep, dailyReadiness, dailyActivity, sleepPeriods, stress] = await Promise.all([
       fetchCollection("daily_sleep", accessToken, range, dailySleepItem),
       fetchCollection("daily_readiness", accessToken, range, dailyReadinessItem),
@@ -133,24 +141,38 @@ export async function syncMember(
     // Extras are saved after the core rows and are best effort: they must not fail a sync that already worked.
     try {
       const optional = await optionalPromise;
+      // Members who connected before "sign in with Oura" get their account link on their next sync.
+      const ouraId = optional.personal.status === "ok" ? optional.personal.rows[0]?.id : null;
+      if (ouraId && !conn.ouraAccountHash) {
+        await db
+          .update(ouraConnections)
+          .set({ ouraAccountHash: ouraAccountHash(ouraId) })
+          .where(eq(ouraConnections.memberId, memberId))
+          .catch(() => undefined); // another member already holds this Oura account: leave it unlinked
+      }
       await storeExtras(db, memberId, {
         range,
         optional,
         dailyActivity,
         dailyReadiness,
         sleepPeriods,
-        coverage: coverageOf(
-          optional,
-          { daily_sleep: dailySleep.length, daily_readiness: dailyReadiness.length, daily_activity: dailyActivity.length, sleep: sleepPeriods.length },
-          stress,
-          now,
-        ),
+        coverage: history
+          ? undefined
+          : coverageOf(
+              optional,
+              { daily_sleep: dailySleep.length, daily_readiness: dailyReadiness.length, daily_activity: dailyActivity.length, sleep: sleepPeriods.length },
+              stress,
+              now,
+            ),
       });
     } catch {
       // Never log: the error can carry Oura's response text.
     }
 
-    await db.update(ouraConnections).set({ lastSyncAt: now }).where(eq(ouraConnections.memberId, memberId));
+    await db
+      .update(ouraConnections)
+      .set(history ? { historySyncedAt: now } : { lastSyncAt: now })
+      .where(eq(ouraConnections.memberId, memberId));
     await runInsights(db, memberId, today);
     return { status: "synced", days: rows.length };
   } catch (err) {

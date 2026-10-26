@@ -15,7 +15,7 @@ Health data is the most sensitive kind. These are the rules the code enforces, a
 - **Tokens encrypted at rest** (AES-256-GCM, key in `TOKEN_ENCRYPTION_KEY`) and deleted when the member disconnects.
 - **No caching, no framing.** Responses are `no-store`, `X-Frame-Options: DENY`.
 - **Doctor dashboard links are the member's own sharing.** Created only by the member, for a chosen window (30/60/90 days) and lifetime (7/14/30 days), revocable at once, and every opening is shown to the member (count and last time). The token is 256 random bits; the database looks it up by hash. The first screen of a link carries no health data and no name, so link previews in messaging apps see nothing; the data appears only after the doctor presses "open". Pages are `no-store`, `noindex`, and sent with `Referrer-Policy: no-referrer`. The doctor sees no member email, no data outside the window, and nothing from the care-team view. Known limit: the URL itself is the key, so anyone the doctor forwards it to can open it until it expires, and the path (with the token) appears in the hosting provider's request logs.
-- **Demo login is closed by default.** `/api/demo-login` returns 404 unless `DEMO_AUTH=true`. The "demo mode" banner was removed; `DEMO_AUTH` still gates the one-click login.
+- **Demo login is closed by default.** `/api/demo-login` returns 404 unless `DEMO_AUTH=true`. The "demo mode" banner was removed; `DEMO_AUTH` still gates the one-click login, which now covers only the seeded synthetic accounts. Real users sign in with Oura or a one-time email link (see ARCHITECTURE.md#sign-in); only a hash of the Oura account id and of each link token is stored.
 
 ## Why no HR view per person
 
