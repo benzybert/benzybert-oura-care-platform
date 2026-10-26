@@ -9,7 +9,7 @@ import { SleepExtras } from "@/components/member-data/sleep-extras";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { dataHref, resolveView, type DataView } from "@/lib/member-nav";
-import { forbiddenFamilies, missingScopes } from "@/lib/oura/scopes";
+import { needsMorePermissions } from "@/lib/oura/scopes";
 import { getDashboardMetrics, getDayExtras, getOuraEvents, getOuraProfile, ouraStatus } from "@/lib/queries";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 import { MemberShell, loadMember } from "../_shell/member-shell";
@@ -43,11 +43,12 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
     NEEDS_EXTRAS.includes(view) ? getDayExtras(member.id, windowDays) : Promise.resolve([]),
     view === "events" ? getOuraEvents(member.id, windowDays) : Promise.resolve([]),
     NEEDS_PROFILE.includes(view) ? getOuraProfile(member.id) : Promise.resolve(null),
-    view === "ring" ? ouraStatus(member.id) : Promise.resolve(null),
+    NEEDS_PROFILE.includes(view) ? ouraStatus(member.id) : Promise.resolve(null),
   ]);
 
   const dashboard = NEEDS_SLOTS.includes(view) ? buildDashboard(dashboardMetrics, today, windowDays) : null;
-  const coverage = profile?.coverage ?? null;
+  const askMore = oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: profile?.coverage }) : false;
+  const coverage = { families: profile?.coverage ?? {}, askMore };
 
   const dash = (sections: DashSection[], contributorSets?: Array<"sleep" | "readiness">) =>
     dashboard && (
@@ -99,7 +100,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
         {view === "trends" && dash(["trends", "calendar", "weekly", "daily"])}
 
-        {view === "ring" && <RingView oura={oura} profile={profile} missingScopes={oura ? [...missingScopes(oura.scopes), ...forbiddenFamilies(coverage)] : []} />}
+        {view === "ring" && <RingView oura={oura} profile={profile} askMore={askMore} />}
       </section>
     </MemberShell>
   );

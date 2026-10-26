@@ -53,3 +53,29 @@ export function forbiddenFamilies(coverage: Record<string, { status: string }> |
     .map(([name]) => name)
     .sort();
 }
+
+/**
+ * From this moment the connect flow asks for everything at once (the newer scope names too). A connection made
+ * after it has already been through the one approval, so it is never asked again: whatever Oura did not grant
+ * then, the member declined or the ring does not have.
+ */
+export const FULL_REQUEST_SINCE = new Date("2026-10-26T08:09:00Z");
+
+/** Scopes every connection should hold. `spo2Daily` is Oura's old name for `spo2`: either one counts. */
+const REQUIRED_SCOPES: string[][] = [["daily"], ["heartrate"], ["workout"], ["tag"], ["session"], ["personal"], ["spo2", "spo2Daily"]];
+
+/**
+ * Whether to show "approve more permissions". Only for a connection made before the full request existed, and only
+ * if it lacks a scope or Oura refused a data family on the last sync. Comparing against the list we ask for would
+ * ask forever (Oura grants `spo2` where an older list said `spo2Daily`); one approval is all we ever request.
+ */
+export function needsMorePermissions(input: {
+  connectedAt: Date | null | undefined;
+  scopes: string | null | undefined;
+  coverage: Record<string, { status: string }> | null | undefined;
+}): boolean {
+  if (input.connectedAt && input.connectedAt >= FULL_REQUEST_SINCE) return false;
+  const have = new Set((input.scopes ?? "").split(/\s+/).filter(Boolean));
+  const lacksScope = REQUIRED_SCOPES.some((alts) => !alts.some((s) => have.has(s)));
+  return lacksScope || forbiddenFamilies(input.coverage).length > 0;
+}

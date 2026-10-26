@@ -17,11 +17,11 @@ import { Shell } from "./shared";
 export function RingView({
   oura,
   profile,
-  missingScopes,
+  askMore,
 }: {
   oura: { lastSyncAt: Date | null } | null;
   profile: OuraProfileData | null;
-  missingScopes: string[];
+  askMore: boolean;
 }) {
   const coverage = profile?.coverage ?? null;
   const hasDevice = profile && (profile.ringHardware || profile.ringColor || profile.ringDesign || profile.ringFirmware);
@@ -30,7 +30,7 @@ export function RingView({
 
   return (
     <Shell>
-      <RingCard oura={oura} missing={missingScopes} back="ring" />
+      <RingCard oura={oura} askMore={askMore} back="ring" />
 
       <Section id="ring-device" icon={<IconZap size={20} />} title="הטבעת שלך" lead="פרטים ש-Oura מדווחת על הטבעת עצמה.">
         {hasDevice ? (
@@ -164,8 +164,11 @@ export function RingView({
           </div>
         </div>
         <p className="md-note">
-          &quot;דורש אישור הרשאה&quot; אומר ש-Oura לא אישרה לנו את הסוג הזה עדיין: לוחצים על ״אישור הרשאות נוספות״ למעלה ומאשרים ב-Oura. ״אין נתונים בתקופה״ אומר שההרשאה
-          קיימת, אבל לא נמדד כלום (תלוי בדגם הטבעת ובשימוש באפליקציה).
+          &quot;דורש אישור הרשאה&quot; אומר ש-Oura לא העניקה לנו את הסוג הזה.{" "}
+          {askMore
+            ? "לוחצים על ״אישור הרשאות נוספות״ למעלה ומאשרים ב-Oura (פעם אחת)."
+            : "ביקשנו הכול כבר בחיבור הנוכחי, אז או שסימון התיבה הוסר במסך האישור של Oura, או שהסוג הזה לא קיים בדגם הטבעת או בחבר המנוי. אפשר לבדוק באפליקציית Oura בהגדרות האפליקציות המחוברות."}{" "}
+          ״אין נתונים בתקופה״ אומר שההרשאה קיימת, אבל לא נמדד כלום (תלוי בדגם הטבעת ובשימוש באפליקציה).
         </p>
       </Section>
 

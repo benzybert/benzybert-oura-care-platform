@@ -5,7 +5,8 @@ import type { CollectionCoverage } from "@/lib/types";
 import { runs } from "@/lib/member-data";
 import "./member-data.css";
 
-export type Coverage = Record<string, CollectionCoverage> | null | undefined;
+/** What the last sync got per Oura data family, and whether the one-time "approve more permissions" is still on offer. */
+export type Coverage = { families: Record<string, CollectionCoverage>; askMore: boolean } | null | undefined;
 
 /** Same design tokens as the dashboard (.dash), for the views that are not part of the dashboard component. */
 export function Shell({ children }: { children: ReactNode }) {
@@ -17,7 +18,7 @@ export function Shell({ children }: { children: ReactNode }) {
  * to approve more data in Oura; otherwise the data is simply not there (yet, or not for this ring).
  */
 export function EmptyHint({ families, coverage, what }: { families: string[]; coverage: Coverage; what: string }) {
-  const states = families.map((f) => familyState(coverage?.[f]));
+  const states = families.map((f) => familyState(coverage?.families[f]));
   const forbidden = states.includes("forbidden");
   return (
     <div className={forbidden ? "md-hint is-warn" : "md-hint"} role="note">
@@ -25,12 +26,21 @@ export function EmptyHint({ families, coverage, what }: { families: string[]; co
       <div>
         {forbidden ? (
           <>
-            <p>
-              <strong>{what}</strong> עוד לא מגיע, כי Oura לא אישרה לנו את ההרשאה הזאת. אחרי אישור וסנכרון הנתון יופיע כאן.
-            </p>
-            <a className="dash-btn md-btn" href="/api/oura/connect">
-              אישור הרשאות ב-Oura
-            </a>
+            {coverage?.askMore ? (
+              <>
+                <p>
+                  <strong>{what}</strong> עוד לא מגיע, כי Oura לא אישרה לנו את ההרשאה הזאת. אחרי אישור וסנכרון הנתון יופיע כאן.
+                </p>
+                <a className="dash-btn md-btn" href="/api/oura/connect">
+                  אישור הרשאות ב-Oura
+                </a>
+              </>
+            ) : (
+              <p>
+                <strong>{what}</strong> לא מגיע: Oura לא העניקה את ההרשאה הזאת בחיבור הנוכחי (ביקשנו הכול כבר). אפשר לבדוק באפליקציית Oura אם סימנת
+                אותה, או שהנתון לא קיים בדגם הטבעת.
+              </p>
+            )}
           </>
         ) : states.includes("error") ? (
           <p>

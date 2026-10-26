@@ -2,16 +2,16 @@ import { disconnectOura, syncNow } from "@/app/actions";
 import { fmtDateTime } from "@/lib/format";
 
 /**
- * The ring's connection: connect, sync now, disconnect. `missing` lists the Oura scopes the stored connection lacks
- * (members who connected before the app asked for everything): approving them is one pass through Oura's consent screen.
+ * The ring's connection: connect, sync now, disconnect. `askMore` (see needsMorePermissions) offers the one-time
+ * approval of more permissions to a member who connected before the app asked for everything.
  */
 export function RingCard({
   oura,
-  missing,
+  askMore,
   back,
 }: {
   oura: { lastSyncAt: Date | null } | null;
-  missing: string[];
+  askMore: boolean;
   back?: "ring";
 }) {
   return (
@@ -38,7 +38,7 @@ export function RingCard({
               </form>
             </span>
           </div>
-          {missing.length > 0 && (
+          {askMore && (
             <div className="row">
               <span className="muted">
                 יש עוד נתונים ש-Oura לא מסרה עדיין (למשל חמצן בדם, חוסן, גיל לב וכלי דם, VO2 max, סוללת הטבעת). כדי לקבל אותם צריך לאשר

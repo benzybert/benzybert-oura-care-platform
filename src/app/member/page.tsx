@@ -9,7 +9,7 @@ import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { experimentPhase } from "@/lib/experiments";
 import { fmt, fmtDay } from "@/lib/format";
-import { forbiddenFamilies, missingScopes } from "@/lib/oura/scopes";
+import { needsMorePermissions } from "@/lib/oura/scopes";
 import {
   getActiveInstinctAccess,
   getCoffeeClaimDays,
@@ -134,7 +134,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
 
       <TodayActionsCard actions={actions} />
 
-      <RingCard oura={oura} missing={oura ? [...missingScopes(oura.scopes), ...forbiddenFamilies(ouraProfile?.coverage)] : []} />
+      <RingCard oura={oura} askMore={oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: ouraProfile?.coverage }) : false} />
 
       <nav className="hub" aria-label="עוד באזור שלי">
         {tiles.map((t) => (
