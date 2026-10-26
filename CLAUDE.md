@@ -63,7 +63,7 @@ Stop and ask only for destructive, irreversible actions on real data (dropping t
 
 ## Member area: one tab per topic
 
-`/member` used to be one long page; it is now a short home tab plus one page per topic, with a shared frame (`src/app/member/_shell/member-shell.tsx`: title, tab bar, notices). Tabs: `/member` (היום: last night, today's actions, the ring, one status tile per tab), `/member/data`, `/member/experiments`, `/member/goals`, `/member/actions`, `/member/context`, `/member/sharing` (consent, doctor links, send to doctors, care-team view count), `/member/profile` (profile strength, Instinct).
+`/member` used to be one long page; it is now a short home tab plus one page per topic, with a shared frame (`src/app/member/_shell/member-shell.tsx`: title, tab bar, notices). Tabs: `/member` (היום: last night, today's actions, the ring, one status tile per tab), `/member/data`, `/member/experiments`, `/member/goals`, `/member/sharing` (consent, doctor links, send to doctors, care-team view count), `/member/profile` (profile strength, Instinct).
 
 - Every tab calls `loadMember()` (role check + own member; re-syncs a stale ring unless `{ sync: false }`). It is not a layout on purpose: each page checks the role itself.
 - Redirect notices are short query keys (`?doctor=saved`) mapped in `_shell/messages.ts`; any tab shows any of them. Server actions redirect to the tab that owns the feature and call `revalidatePath("/member", "layout")`.
@@ -110,7 +110,11 @@ On `/member/sharing`, card "דאשבורד לרופא": the member creates a rea
 
 ## Feature: "התגמולים שלי" self-rewards (member page)
 
-Built on `/member/goals`: the member sets a goal on their own Oura data and the treat they give themselves for reaching it (table `self_rewards`, migration `0004`, logic in `src/lib/self-rewards.ts`). Goal kinds: average over a period, X of Y days, streak with an optional joker, beat my own 28-day baseline, steady bedtime. Several reward options make a mystery reward drawn server-side when opened. Template gallery and live "contract" preview in `self-reward-builder.tsx`.
+Built on `/member/goals`: the member sets a goal on their own Oura data and the treat they give themselves for reaching it (table `self_rewards`, migration `0004`, logic in `src/lib/self-rewards.ts`). Goal kinds: average over a period, X of Y days, streak with an optional joker, beat my own 28-day baseline, steady bedtime. Several reward options make a mystery reward drawn server-side when opened.
+
+- Kept deliberately light (owner asked for less clutter): summary pills, a card per active goal with a progress ring and two short lines, details and delete behind the "⋯" menu, won and missed goals as one quiet row each, history folded. The bedtime points are one pill, not a card.
+- The builder (`self-reward-builder.tsx`) is three steps: 1 pick an idea (or "יעד משלי"; the list collapses to the pick), 2 the prize (one field per option, more options make the mystery draw, optional ₪), 3 the one-sentence deal and "סגרנו". The rule fields are folded under "לשנות את היעד". It posts the same form fields as before and previews with the same parser as the server.
+- Styles in `src/components/self-rewards.css` (`rw-*`). The old `sr-*` rules in `globals.css` are still used by the experiments pages.
 
 Rules to keep:
 
@@ -118,28 +122,9 @@ Rules to keep:
 - Status is computed on read from `daily_metrics`; only the claim is stored. Claiming re-evaluates on the server.
 - Separate from the platform's bedtime points (`reward_events`, `rewards` consent).
 
-## Feature: "הקשר חיצוני" public events (member page)
+## Removed: "מרכז פעולות" and "הקשר חיצוני"
 
-Tab `/member/context` that puts public events (war, pandemic, disaster) next to the member's own Oura data and says what to do. Migration `0005`: `daily_metrics.stress_minutes/recovery_minutes/stress_summary` (Oura `daily_stress`, same `daily` scope) and global table `context_events`.
-
-- `src/lib/context-events.ts` (pure, tested): impact of an event = member's days during it vs the 14 days before; stress tier (`calm`/`elevated`/`high`) from Oura's own day label; `playbook(kind, tier)` returns the Hebrew steps. Wellbeing guidance, never a diagnosis. The high tier ends with the doctor-summary pointer and ער"ן 1201.
-- `src/lib/event-feed.ts` + cron `/api/cron/events` (daily): counts headlines matching keywords in public RSS (ynet, see `src/config/events.ts`), opens an event at `minHeadlines`, closes it after `quietDaysToEnd` quiet days. Stores no headline, only our own label. A dead feed never closes an event. Keywords and thresholds are untuned guesses: tune them in `src/config/events.ts`, fix dates with `MANUAL_EVENTS`.
-- Sirens: `src/lib/alert-feed.ts` + table `alert_days` (migration `0008`, country-wide counts per day, no member data). Source `api.tzevaadom.co.il` (unofficial mirror; checked from Vercel: the official oref.org.il endpoints return 403 outside Israel). It only returns the last 50 alerts, so the daily cron and `refreshAlertsIfStale` (after a `/member` render, throttled to 20 minutes) both save it and days are only ever raised. The war event opens on a siren day (`ALERT_RULE.sirenDayAreas`); headlines are the fallback if the source is down. The card shows the pressure level, the last 7 days, and the member's own stress and next-morning sleep on siren days vs other days.
-- No member data goes to the news site or anywhere else; the comparison is computed on the page from the member's own rows. Events carry no health data, so no consent scope and no audit entry. The table has no per-member rows.
-- Not built: event shading on the doctor dashboard charts, push alerts when an event opens, Home Front Command (Oref) alerts feed.
-
-## Feature: "מרכז פעולות" action center (member page)
-
-On `/member/actions`: the member defines rules on their own Oura data (metric below/above a threshold) that fire a **webhook**, to either **Home Assistant** or **IFTTT** (tables `automation_rules`, `automation_runs`, migrations `0008` and `0011`; logic in `src/lib/automations.ts`, UI in `src/components/action-center.tsx`). Each rule has a `provider`. n8n also works through the Home Assistant path: only the URL template changes.
-
-Rules to keep:
-
-- Member-only, no consent scope, no staff or org page reads it. Fires only when the member presses the button (no automatic firing yet: the daily cron runs at 03:00, before the night's data exists).
-- The server re-checks the condition from `daily_metrics`; the unique `(rule_id, day)` row in `automation_runs` allows one run per rule per day. A failed webhook deletes that row so the member can retry. "Test" skips both.
-- **Home Assistant:** the URL comes from `src/config/home-assistant.ts` (`webhookUrlTemplate` with `{id}`; env `HOME_ASSISTANT_WEBHOOK_URL` overrides). Members enter only a webhook id (validated `[A-Za-z0-9_-]`), so they cannot point the server at an arbitrary URL. Vercel needs an internet-reachable address (Nabu Casa `https://hooks.nabu.casa/{id}` or a public HA URL). Payload: `buildWebhookPayload`.
-- **IFTTT:** needs no server setup. The host is fixed in `src/config/ifttt.ts` (`https://maker.ifttt.com/trigger/{event}/with/key/{key}`); the member enters an event name and their own Webhooks key (both charset-checked, so the URL cannot be changed). The key is a secret that can fire any of the member's applets: it is stored encrypted (`webhook_key_enc`, AES-256-GCM), is never sent to a page (`AutomationRule.hasKey` only), and a new IFTTT rule with an empty key field reuses the member's latest one. Payload: `buildIftttPayload`, i.e. `value1` = the rule title (free text the member wrote, so the UI warns against medical details), `value2` = `run`/`test`, `value3` = `oura-care-platform`. IFTTT is a US third party; do not send it anything else.
-- The payload names the rule only, never a health value. Never log the URL, body or key.
-- Connecting Oura to IFTTT directly (IFTTT's own Oura service) happens outside this platform and is not tracked in `consents` or `audit_log`.
+The owner removed both tabs (action center webhooks to Home Assistant / IFTTT, and public events with sirens). Their pages, components, server actions, libs, configs and the `/api/cron/events` cron are deleted. The tables (`automation_rules`, `automation_runs`, `context_events`, `alert_days`, the `daily_metrics.stress_*` columns) stay in the database untouched: dropping them is destructive and needs the owner's go-ahead. Do not bring the features back without being asked.
 
 ## Feature: "ניסויים" experiments (member page)
 

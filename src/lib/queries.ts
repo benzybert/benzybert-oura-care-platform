@@ -5,8 +5,6 @@ import { decrypt } from "./crypto";
 import { addDays, todayInIsrael } from "./dates";
 import { instinctPath } from "./instinct-brief";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
-import type { AutomationMetric, AutomationProvider, Comparator } from "./automations";
-import type { ContextEvent } from "./context-events";
 import type { ConsentScope, DayExtras, DayMetric, DoctorRole, OuraEvent, OuraEventKind, OuraProfileData } from "./types";
 
 const {
@@ -24,11 +22,7 @@ const {
   selfRewards,
   experiments,
   coffeeClaims,
-  contextEvents,
   actionDeliveries,
-  automationRules,
-  automationRuns,
-  alertDays,
   instinctAccess,
   dailyExtras,
   ouraEvents,
@@ -379,22 +373,6 @@ export async function getCoffeeClaimDays(memberId: string): Promise<string[]> {
   return rows.map((r) => r.day);
 }
 
-/** Events that are ongoing or ended in the last `days` days, newest first. Public context: no member data. */
-export async function getRecentEvents(sinceDay: string): Promise<ContextEvent[]> {
-  const rows = await getDb()
-    .select({
-      id: contextEvents.id,
-      kind: contextEvents.kind,
-      titleHe: contextEvents.titleHe,
-      startsOn: contextEvents.startsOn,
-      endsOn: contextEvents.endsOn,
-    })
-    .from(contextEvents)
-    .where(sql`${contextEvents.endsOn} is null or ${contextEvents.endsOn} >= ${sinceDay}`)
-    .orderBy(desc(contextEvents.startsOn));
-  return rows;
-}
-
 /** "rule:day" keys already delivered to a provider. */
 export async function getDeliveredActions(memberId: string, provider: string): Promise<string[]> {
   const rows = await getDb()
@@ -402,82 +380,6 @@ export async function getDeliveredActions(memberId: string, provider: string): P
     .from(actionDeliveries)
     .where(and(eq(actionDeliveries.memberId, memberId), eq(actionDeliveries.provider, provider)));
   return rows.map((r) => `${r.rule}:${r.day}`);
-}
-
-export type AutomationRule = {
-  id: string;
-  title: string;
-  metric: AutomationMetric;
-  comparator: Comparator;
-  threshold: number;
-  webhookId: string;
-  provider: AutomationProvider;
-  /** whether an IFTTT key is stored; the key itself never goes to a page */
-  hasKey: boolean;
-  /** days (YYYY-MM-DD) this rule already fired for */
-  ranDays: string[];
-};
-
-/** The member's own action-center rules with the days each already ran. */
-export async function getAutomationRules(memberId: string): Promise<AutomationRule[]> {
-  const db = getDb();
-  const rules = await db
-    .select()
-    .from(automationRules)
-    .where(eq(automationRules.memberId, memberId))
-    .orderBy(asc(automationRules.createdAt));
-  if (rules.length === 0) return [];
-  const runs = await db
-    .select({ ruleId: automationRuns.ruleId, day: automationRuns.day })
-    .from(automationRuns)
-    .where(inArray(automationRuns.ruleId, rules.map((r) => r.id)));
-  return rules.map((r) => ({
-    id: r.id,
-    title: r.title,
-    metric: r.metric as AutomationMetric,
-    comparator: r.comparator as Comparator,
-    threshold: r.threshold,
-    webhookId: r.webhookId,
-    provider: r.provider as AutomationProvider,
-    hasKey: r.webhookKeyEnc !== null,
-    ranDays: runs.filter((x) => x.ruleId === r.id).map((x) => x.day),
-  }));
-}
-
-/** The encrypted IFTTT key of one of the member's own rules, for the server action that fires it. */
-export async function getRuleWebhookKeyEnc(memberId: string, ruleId: string): Promise<string | null> {
-  const [row] = await getDb()
-    .select({ keyEnc: automationRules.webhookKeyEnc })
-    .from(automationRules)
-    .where(and(eq(automationRules.id, ruleId), eq(automationRules.memberId, memberId)))
-    .limit(1);
-  return row?.keyEnc ?? null;
-}
-
-/** The newest stored IFTTT key of the member, so later rules do not need the key pasted again. */
-export async function getLatestIftttKeyEnc(memberId: string): Promise<string | null> {
-  const [row] = await getDb()
-    .select({ keyEnc: automationRules.webhookKeyEnc })
-    .from(automationRules)
-    .where(
-      and(
-        eq(automationRules.memberId, memberId),
-        eq(automationRules.provider, "ifttt"),
-        isNotNull(automationRules.webhookKeyEnc),
-      ),
-    )
-    .orderBy(desc(automationRules.createdAt))
-    .limit(1);
-  return row?.keyEnc ?? null;
-}
-
-/** Public siren counts per day since `sinceDay`, oldest first. No member data. */
-export async function getAlertDays(sinceDay: string): Promise<Array<{ day: string; alerts: number; areas: number }>> {
-  return getDb()
-    .select({ day: alertDays.day, alerts: alertDays.alerts, areas: alertDays.areas })
-    .from(alertDays)
-    .where(sql`${alertDays.day} >= ${sinceDay}`)
-    .orderBy(asc(alertDays.day));
 }
 
 export type InstinctAccess = typeof instinctAccess.$inferSelect;

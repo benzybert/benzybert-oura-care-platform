@@ -16,8 +16,6 @@ export const MEMBER_TABS = [
   { id: "data", href: "/member/data", label: "הנתונים שלי" },
   { id: "experiments", href: "/member/experiments", label: "ניסויים" },
   { id: "goals", href: "/member/goals", label: "התגמולים שלי" },
-  { id: "actions", href: "/member/actions", label: "מרכז פעולות" },
-  { id: "context", href: "/member/context", label: "הקשר חיצוני" },
   { id: "sharing", href: "/member/sharing", label: "שיתוף ורופאים" },
   { id: "profile", href: "/member/profile", label: "פרופיל ו-Instinct" },
 ] as const;

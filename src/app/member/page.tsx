@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { claimCoffee } from "@/app/actions";
 import { pickFeatured } from "@/components/experiments-section";
 import { TodayActionsCard } from "@/components/onboarding-card";
@@ -13,7 +12,6 @@ import { fmt, fmtDay } from "@/lib/format";
 import { forbiddenFamilies, missingScopes } from "@/lib/oura/scopes";
 import {
   getActiveInstinctAccess,
-  getAutomationRules,
   getCoffeeClaimDays,
   getConsentRecords,
   getDeliveredActions,
@@ -21,14 +19,11 @@ import {
   getExperiments,
   getMetrics,
   getOuraProfile,
-  getRecentEvents,
   getSelfRewards,
   listShareLinks,
   ouraStatus,
   rewardTotal,
 } from "@/lib/queries";
-import { getDb } from "@/db";
-import { refreshAlertsIfStale } from "@/lib/event-feed";
 import { CONSENT_SCOPES } from "@/lib/types";
 import { MemberShell, loadMember } from "./_shell/member-shell";
 import type { MemberSearchParams } from "./_shell/messages";
@@ -46,10 +41,9 @@ const PHASE_HE = { planned: "מתוכנן", running: "רץ עכשיו", finished
 export default async function MemberPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member } = await loadMember();
   const today = todayInIsrael();
-  after(() => refreshAlertsIfStale(getDb()));
   const params = await searchParams;
 
-  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, events, delivered, instinctAccess, automations, experimentRows, ouraProfile] =
+  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, delivered, instinctAccess, experimentRows, ouraProfile] =
     await Promise.all([
       getMetrics(member.id),
       getConsentRecords(member.id),
@@ -59,10 +53,8 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       listShareLinks(member.id),
       getSelfRewards(member.id),
       getCoffeeClaimDays(member.id),
-      getRecentEvents(addDays(today, -90)),
       getDeliveredActions(member.id, "whatsapp"),
       getActiveInstinctAccess(member.id),
-      getAutomationRules(member.id),
       getExperiments(member.id),
       getOuraProfile(member.id),
     ]);
@@ -78,7 +70,6 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   });
   const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
   const featured = pickFeatured(experimentRows, today);
-  const activeEvents = events.filter((e) => e.endsOn === null);
   const sharedScopes = CONSENT_SCOPES.filter((s) => hasActiveConsent(records, s)).length;
   const activeLinks = links.filter((l) => l.status === "active").length;
 
@@ -93,17 +84,6 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       href: "/member/goals",
       title: "התגמולים שלי",
       text: `${selfRewards.length ? `${selfRewards.length} יעדים` : "עוד אין יעד"} · ${rewards.points} נקודות`,
-    },
-    {
-      href: "/member/actions",
-      title: "מרכז פעולות",
-      text: automations.length ? `${automations.length} פעולות מוגדרות` : "חיבור ל-Home Assistant או IFTTT.",
-    },
-    {
-      href: "/member/context",
-      title: "הקשר חיצוני",
-      text: activeEvents.length ? activeEvents.map((e) => e.titleHe).join(", ") : "אין כרגע אירוע ציבורי פעיל.",
-      attention: activeEvents.length > 0,
     },
     {
       href: "/member/sharing",
@@ -158,7 +138,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
 
       <nav className="hub" aria-label="עוד באזור שלי">
         {tiles.map((t) => (
-          <a key={t.href} className={t.attention ? "card hub-tile is-attention" : "card hub-tile"} href={t.href}>
+          <a key={t.href} className="card hub-tile" href={t.href}>
             <strong>{t.title}</strong>
             <span className="muted">{t.text}</span>
           </a>

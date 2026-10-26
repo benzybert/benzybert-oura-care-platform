@@ -1,0 +1,435 @@
+/* "התגמולים שלי" (/member/goals). Uses the global tokens from globals.css; works at phone width and in RTL. */
+
+.rw {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Summary pills */
+.rw-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rw-pills li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.rw-pills b {
+  color: var(--text);
+}
+
+/* Active goals */
+.rw-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+}
+.rw-goal {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.rw-goal-body {
+  flex: 1;
+  min-width: 0;
+  padding-inline-end: 24px;
+}
+.rw-goal-title {
+  display: block;
+  font-size: 1.02rem;
+}
+.rw-goal-body p {
+  margin: 4px 0 0;
+}
+.rw-goal-progress {
+  font-size: 0.95rem;
+}
+.rw-goal-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.rw-goal-prize {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rw-dot.ok {
+  color: var(--ok);
+}
+.rw-dot.warn {
+  color: var(--warn-text);
+}
+
+.rw-ring {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+.rw-ring svg {
+  width: 100%;
+  height: 100%;
+}
+.rw-ring circle {
+  fill: none;
+  stroke-width: 6;
+}
+.rw-ring-track {
+  stroke: var(--track);
+}
+.rw-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dasharray 400ms ease;
+}
+.rw-ring.ok .rw-ring-fill {
+  stroke: var(--ok);
+}
+.rw-ring.warn .rw-ring-fill {
+  stroke: var(--warn-text);
+}
+.rw-ring > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+}
+
+/* The "⋯" menu: details and delete, out of the way */
+.rw-menu {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+}
+.rw-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+.rw-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.rw-menu > summary:hover,
+.rw-menu[open] > summary {
+  background: var(--track);
+}
+.rw-menu-body {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 36px;
+  z-index: 2;
+  width: min(280px, 80vw);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+.rw-menu-body p {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+/* Reward waiting to be opened */
+.rw-ready {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  border-radius: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--gold-bg), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line));
+}
+.rw-ready > div {
+  flex: 1;
+  min-width: 180px;
+}
+.rw-ready p {
+  margin: 4px 0 0;
+}
+.rw-ready-emoji {
+  font-size: 2rem;
+}
+
+/* Won recently, missed recently: one quiet row each */
+.rw-won,
+.rw-missed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+}
+.rw-won > span:first-child,
+.rw-missed > span:first-child {
+  font-size: 1.4rem;
+}
+.rw-won > div,
+.rw-missed > div {
+  flex: 1;
+  min-width: 160px;
+}
+.rw-won p,
+.rw-missed p {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+}
+.rw-row-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Builder */
+.rw-builder {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.rw-builder > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  font-weight: 600;
+  color: var(--accent);
+  border-radius: 16px;
+}
+.rw-builder > summary::-webkit-details-marker {
+  display: none;
+}
+.rw-builder:not([open]) {
+  border-style: dashed;
+}
+.rw-builder[open] > summary {
+  border-bottom: 1px solid var(--line);
+  border-radius: 16px 16px 0 0;
+}
+.rw-builder > .rw-step,
+.rw-form {
+  padding: 0 16px 16px;
+}
+.rw-step h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  margin: 16px 0 10px;
+}
+.rw-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.8rem;
+}
+.rw-form .rw-step {
+  padding: 0;
+}
+
+.rw-ideas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.rw-ideas.picked {
+  grid-template-columns: 1fr;
+}
+.rw-change {
+  margin-top: 8px;
+}
+.rw-idea {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: start;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.rw-idea:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+.rw-idea.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+.rw-idea small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+@media (max-width: 480px) {
+  .rw-ideas:not(.picked) .rw-idea small {
+    display: none;
+  }
+  .rw-idea {
+    padding: 10px;
+  }
+}
+.rw-idea-emoji {
+  font-size: 1.4rem;
+}
+.rw-idea.custom {
+  border-style: dashed;
+}
+.rw-idea:focus-visible,
+.rw-menu > summary:focus-visible,
+.rw-builder > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rw-tune {
+  margin-top: 10px;
+}
+.rw-tuning {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.rw-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.rw-form label small {
+  font-size: 0.8rem;
+}
+.rw-form input,
+.rw-form select {
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.rw-form input:focus-visible,
+.rw-form select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.rw-form .rw-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.rw-form .rw-check input {
+  min-height: auto;
+  width: 18px;
+  height: 18px;
+}
+
+.rw-prizes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.rw-prize-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.rw-prize-row input {
+  flex: 1;
+}
+.rw-budget {
+  margin-top: 12px;
+  max-width: 220px;
+}
+.rw-budget-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rw-budget-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.rw-deal {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.rw-deal p {
+  margin: 0;
+  line-height: 1.6;
+}
+.rw-commit {
+  margin-top: 12px;
+  width: 100%;
+}
+.rw-error {
+  color: var(--danger);
+  margin: 8px 0 0;
+}
+
+/* History and the privacy line */
+.rw-history summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.rw-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.rw-private {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rw-ring-fill,
+  .rw-idea {
+    transition: none;
+  }
+}

@@ -7,12 +7,6 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
-import {
-  MAX_AUTOMATION_RULES,
-  fireRule,
-  parseRuleForm,
-  ruleStatus,
-} from "@/lib/automations";
 import { COFFEE_CONFIG } from "@/config/coffee";
 import { buildCoffeeMessage, coffeePaymentLink, coffeeStatus } from "@/lib/coffee";
 import { decrypt, encrypt } from "@/lib/crypto";
@@ -37,9 +31,6 @@ import {
   assignedMembers,
   getActiveInstinctAccess,
   countActiveShareLinks,
-  getAutomationRules,
-  getLatestIftttKeyEnc,
-  getRuleWebhookKeyEnc,
   findShareLinkByToken,
   getCoffeeClaimDays,
   getDoctorContacts,
@@ -81,7 +72,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, actionDeliveries, automationRules, automationRuns, instinctAccess } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, actionDeliveries, instinctAccess } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -754,108 +745,6 @@ export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
   revalidatePath("/member", "layout");
   redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctPrompt(action)));
-}
-
-/** Adds one action-center rule for the signed-in member. */
-export async function saveAutomationRule(formData: FormData): Promise<void> {
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
-  const rule = parseRuleForm(formData);
-  if (!rule) redirect("/member/actions?action=invalid");
-  const existing = await getAutomationRules(member.id);
-  if (existing.length >= MAX_AUTOMATION_RULES) redirect("/member/actions?action=limit");
-  // IFTTT: the member's Webhooks key is stored encrypted; leaving it empty reuses the one from their latest IFTTT rule.
-  let webhookKeyEnc: string | null = null;
-  if (rule.provider === "ifttt") {
-    webhookKeyEnc = rule.webhookKey ? encrypt(rule.webhookKey) : await getLatestIftttKeyEnc(member.id);
-    if (!webhookKeyEnc) redirect("/member/actions?action=need_key");
-  }
-  await getDb().insert(automationRules).values({
-    memberId: member.id,
-    title: rule.title,
-    metric: rule.metric,
-    comparator: rule.comparator,
-    threshold: rule.threshold,
-    webhookId: rule.webhookId,
-    provider: rule.provider,
-    webhookKeyEnc,
-  });
-  await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_saved" });
-  revalidatePath("/member", "layout");
-  redirect("/member/actions?action=saved");
-}
-
-/** Deletes one of the member's own rules (and its run history). */
-export async function deleteAutomationRule(formData: FormData): Promise<void> {
-  const user = await requireRole("member");
-  const id = z.uuid().parse(formData.get("id"));
-  const member = await getMemberForUser(user.id);
-  if (!member) return;
-  await getDb()
-    .delete(automationRules)
-    .where(and(eq(automationRules.id, id), eq(automationRules.memberId, member.id)));
-  await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_rule_deleted" });
-  revalidatePath("/member", "layout");
-  redirect("/member/actions?action=removed");
-}
-
-/** The decrypted IFTTT key of one of the member's own rules, or null if there is none or it cannot be read. */
-async function readRuleWebhookKey(memberId: string, rule: { id: string; provider: string }): Promise<string | null> {
-  if (rule.provider !== "ifttt") return null;
-  const keyEnc = await getRuleWebhookKeyEnc(memberId, rule.id);
-  if (!keyEnc) return null;
-  try {
-    return decrypt(keyEnc);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fires one rule's webhook (Home Assistant or IFTTT). Member-initiated. The condition is re-checked here
- * from the database, never trusted from the button, and a unique (rule, day) row stops a
- * double fire. `test=1` skips the condition and the daily lock so the member can try the wiring.
- */
-export async function runAutomationRule(formData: FormData): Promise<void> {
-  const user = await requireRole("member");
-  const id = z.uuid().parse(formData.get("id"));
-  const test = formData.get("test") === "1";
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
-
-  const rule = (await getAutomationRules(member.id)).find((r) => r.id === id);
-  if (!rule) redirect("/member/actions?action=missing");
-
-  const webhookKey = await readRuleWebhookKey(member.id, rule);
-
-  if (test) {
-    const result = await fireRule(rule, webhookKey, true);
-    await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_test" });
-    redirect(`/member/actions?action=${result.ok ? "test_sent" : result.reason}`);
-  }
-
-  const status = ruleStatus(rule, await getMetrics(member.id), todayInIsrael(), rule.ranDays);
-  if (status.state === "ran") redirect("/member/actions?action=already");
-  if (status.state !== "met") redirect("/member/actions?action=not_met");
-
-  const inserted = await getDb()
-    .insert(automationRuns)
-    .values({ ruleId: rule.id, day: status.day })
-    .onConflictDoNothing()
-    .returning({ id: automationRuns.id });
-  const runId = inserted[0]?.id;
-  if (!runId) redirect("/member/actions?action=already");
-
-  const result = await fireRule(rule, webhookKey, false);
-  if (!result.ok) {
-    await getDb().delete(automationRuns).where(eq(automationRuns.id, runId));
-    redirect(`/member/actions?action=${result.reason}`);
-  }
-
-  await logAudit({ actorUserId: user.id, memberId: member.id, action: "automation_run" });
-  revalidatePath("/member", "layout");
-  redirect("/member/actions?action=fired");
 }
 
 /**

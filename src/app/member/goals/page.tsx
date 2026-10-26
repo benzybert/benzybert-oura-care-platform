@@ -13,14 +13,14 @@ export default async function MemberGoalsPage({ searchParams }: { searchParams: 
   const [metrics, selfRewards, rewards] = await Promise.all([getMetrics(member.id), getSelfRewards(member.id), rewardTotal(member.id)]);
 
   return (
-    <MemberShell tab="goals" title="התגמולים שלי" params={await searchParams}>
+    <MemberShell
+      tab="goals"
+      title="התגמולים שלי"
+      lead="יעד על הנתונים של הטבעת, ופרס שמגיע לך כשתגיע אליו."
+      params={await searchParams}
+    >
       <div id="goals">
-        <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} />
-      </div>
-      <div className="card stat">
-        <h2>נקודות</h2>
-        <div className="value">{rewards.points}</div>
-        <p className="muted">על עקביות בשעת השינה, לא על ציון גבוה.</p>
+        <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} points={rewards.points} />
       </div>
     </MemberShell>
   );

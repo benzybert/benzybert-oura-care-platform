@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createSelfReward, type SelfRewardFormState } from "@/app/actions";
 import {
   KIND_LABELS_HE,
+  MAX_REWARD_OPTIONS,
   METRICS,
   METRICS_FOR_KIND,
   SELF_REWARD_KINDS,
@@ -24,7 +25,7 @@ type Draft = {
   requiredDays: string;
   windowDays: string;
   allowSingleMiss: boolean;
-  rewards: string;
+  rewards: string[];
   budget: string;
 };
 
@@ -46,7 +47,7 @@ function defaultTarget(kind: SelfRewardKind, metric: SelfRewardMetric) {
   return DEFAULT_TARGET[metric];
 }
 
-const EMPTY: Draft = {
+const CUSTOM: Draft = {
   title: "",
   emoji: "",
   kind: "average",
@@ -55,7 +56,7 @@ const EMPTY: Draft = {
   requiredDays: "",
   windowDays: "14",
   allowSingleMiss: true,
-  rewards: "",
+  rewards: [""],
   budget: "",
 };
 
@@ -69,286 +70,364 @@ function fromTemplate(t: SelfRewardTemplate): Draft {
     requiredDays: t.requiredDays?.toString() ?? "",
     windowDays: t.windowDays.toString(),
     allowSingleMiss: t.allowSingleMiss ?? true,
-    rewards: t.rewards.join("\n"),
+    rewards: [...t.rewards],
     budget: t.budget?.toString() ?? "",
   };
 }
 
 const needsDays = (k: SelfRewardKind) => k === "days_hit" || k === "streak" || k === "consistency";
 
-const TIPS: Array<{ icon: string; text: string }> = [
-  { icon: "🎧", text: "חבילת פיתוי: שמור הנאה (סדרה, ספר שמע) רק לזמן שאתה עושה את ההרגל. במחקר בוורטון זה הגדיל את הביקורים בחדר הכושר." },
-  { icon: "🎲", text: "פרס הפתעה: כתוב כמה פרסים, שורה לכל אחד, וההגרלה תבחר. הציפייה לא ידועה מגבירה מוטיבציה." },
-  { icon: "🃏", text: "לא לפספס פעמיים: ברצף עם ג׳וקר יום רע בודד לא מאפס כלום. שני ימים ברצף כן." },
-  { icon: "📈", text: "להתחרות בעצמך: יעד ביחס לבסיס האישי שלך הוגן יותר ממספר כללי, כמו שה-Readiness של Oura עובד." },
-  { icon: "🎯", text: "פרס שמתאים למטרה: חוויה, מנוחה או ציוד עדיפים על אוכל. ובחר משהו שאתה באמת רוצה ולא תיקח לפני הזמן." },
-  { icon: "💰", text: "קופת פינוקים: תן לכל יעד תקציב בשקלים ותראה כמה פינוקים הרווחת לאורך זמן." },
-];
+/** The draft as the server action will read it: same parser, so the preview can never disagree with the save. */
+function parseDraft(d: Draft) {
+  return parseSelfRewardForm((k) => {
+    if (k === "allowSingleMiss") return d.allowSingleMiss ? "on" : "";
+    if (k === "rewards") return d.rewards.join("\n");
+    return (d as unknown as Record<string, string | undefined>)[k];
+  });
+}
 
-/** Builds a goal + treat. Template chips fill the form; a live sentence shows the "contract". */
+function sentenceOf(d: Draft): string | null {
+  const r = parseDraft(d);
+  return r.ok ? describeRule({ ...r.value.rule, baseline: null }) : null;
+}
+
+/**
+ * Builds a goal and its treat in three short steps: pick a goal (a ready idea or your own), name the prize, and
+ * confirm the one-sentence "deal". The detailed rule fields stay folded away unless the member wants them.
+ */
 export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
   const initial: SelfRewardFormState = { ok: false, error: null, at: 0 };
   const [state, formAction, pending] = useActionState(createSelfReward, initial);
-  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [tuning, setTuning] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     if (state.ok) {
-      setDraft(EMPTY);
+      setDraft(null);
       setPicked(null);
+      setTuning(false);
       if (detailsRef.current) detailsRef.current.open = false;
     }
   }, [state.at, state.ok]);
 
-  // Editing the rule after picking a template: drop the template's title if it was not changed,
-  // so "10K" does not stay on a 9,000-step goal.
-  const template = SELF_REWARD_TEMPLATES.find((t) => t.id === picked);
-  const withoutTemplateTitle = (d: Draft): Draft => (template && d.title === template.title ? { ...d, title: "" } : d);
-  const editRule = (update: (d: Draft) => Draft) => {
-    if (template) setPicked(null);
-    setDraft((d) => update(withoutTemplateTitle(d)));
+  const ideas = useMemo(() => SELF_REWARD_TEMPLATES.map((t) => ({ t, sentence: sentenceOf(fromTemplate(t)) })), []);
+
+  const pick = (id: string | "custom") => {
+    const t = SELF_REWARD_TEMPLATES.find((x) => x.id === id);
+    setDraft(t ? fromTemplate(t) : { ...CUSTOM, rewards: [""] });
+    setPicked(id);
+    setTuning(id === "custom");
   };
 
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const setRule = <K extends keyof Draft>(key: K, value: Draft[K]) => editRule((d) => ({ ...d, [key]: value }));
+  const update = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
+  // Changing the rule of a picked idea drops its name, so "10K" does not stay on a 9,000-step goal.
+  const updateRule = (patch: Partial<Draft>) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const t = SELF_REWARD_TEMPLATES.find((x) => x.id === picked);
+      return { ...d, ...(t && d.title === t.title ? { title: "" } : {}), ...patch };
+    });
 
   const changeKind = (kind: SelfRewardKind) =>
-    editRule((d) => {
+    setDraft((d) => {
+      if (!d) return d;
       const metric = METRICS_FOR_KIND[kind].includes(d.metric) ? d.metric : (METRICS_FOR_KIND[kind][0] ?? "sleep_score");
       const windowDays = Number(d.windowDays) || 14;
       const requiredDays = needsDays(kind)
         ? d.requiredDays || String(kind === "streak" ? Math.min(7, windowDays) : Math.ceil(windowDays * 0.7))
         : "";
-      return { ...d, kind, metric, target: defaultTarget(kind, metric), requiredDays };
+      return { ...d, title: "", kind, metric, target: defaultTarget(kind, metric), requiredDays };
     });
-
-  const changeMetric = (metric: SelfRewardMetric) =>
-    editRule((d) => ({ ...d, metric, target: defaultTarget(d.kind, metric) }));
 
   const preview = useMemo(() => {
-    const r = parseSelfRewardForm((k) => {
-      if (k === "allowSingleMiss") return draft.allowSingleMiss ? "on" : "";
-      return (draft as Record<string, unknown>)[k] as string | undefined;
-    });
+    if (!draft) return null;
+    const r = parseDraft(draft);
     if (!r.ok) return { ok: false as const, error: r.error };
-    const sentence = describeRule({ ...r.value.rule, baseline: null });
     const options = r.value.rewardOptions;
-    const prize = options.length > 1 ? `פרס הפתעה מתוך ${options.length}: ${options.join(" / ")}` : options[0];
-    return { ok: true as const, sentence, prize, budget: r.value.rewardBudget };
+    return {
+      ok: true as const,
+      sentence: describeRule({ ...r.value.rule, baseline: null }),
+      prize: options.length > 1 ? `פרס הפתעה, אחד מתוך: ${options.join(" / ")}` : options[0],
+      budget: r.value.rewardBudget,
+    };
   }, [draft]);
 
-  const def = METRICS[draft.metric];
-  const timeInput = draft.metric === "bedtime" && draft.kind !== "consistency";
+  const def = draft ? METRICS[draft.metric] : null;
+  const timeInput = draft?.metric === "bedtime" && draft.kind !== "consistency";
 
   return (
-    <details className="sr-builder" ref={detailsRef} open={startOpen}>
-      <summary className="btn secondary">＋ יעד ופרס חדש</summary>
+    <details className="rw-builder" ref={detailsRef} open={startOpen}>
+      <summary>
+        <span aria-hidden="true">＋</span> יעד חדש
+      </summary>
 
-      <div className="sr-builder-body">
-        <h3>רעיונות להתחלה</h3>
-        <div className="sr-chips">
-          {SELF_REWARD_TEMPLATES.map((t) => (
+      <div className="rw-step">
+        <h3>
+          <span className="rw-step-num">1</span> מה היעד?
+        </h3>
+        <div className={`rw-ideas${picked ? " picked" : ""}`} role="list">
+          {ideas
+            .filter(({ t }) => !picked || picked === t.id)
+            .map(({ t, sentence }) => (
             <button
               key={t.id}
               type="button"
-              className={`sr-chip${picked === t.id ? " on" : ""}`}
+              role="listitem"
+              className={`rw-idea${picked === t.id ? " on" : ""}`}
               aria-pressed={picked === t.id}
-              onClick={() => {
-                setDraft(fromTemplate(t));
-                setPicked(t.id);
-              }}
+              onClick={() => pick(t.id)}
             >
-              <span aria-hidden="true">{t.emoji}</span> {t.title}
+              <span className="rw-idea-emoji" aria-hidden="true">
+                {t.emoji}
+              </span>
+              <strong>{t.title}</strong>
+              {sentence && <small>{sentence}</small>}
             </button>
           ))}
-        </div>
-        {picked && <p className="muted sr-why">{SELF_REWARD_TEMPLATES.find((t) => t.id === picked)?.why}</p>}
-
-        <form action={formAction} className="sr-form">
-          <input type="hidden" name="emoji" value={draft.emoji} />
-
-          <label>
-            סוג יעד
-            <select name="kind" value={draft.kind} onChange={(e) => changeKind(e.target.value as SelfRewardKind)}>
-              {SELF_REWARD_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {KIND_LABELS_HE[k].title}
-                </option>
-              ))}
-            </select>
-            <small className="muted">{KIND_LABELS_HE[draft.kind].hint}</small>
-          </label>
-
-          <label>
-            מדד
-            <select
-              name="metric"
-              value={draft.metric}
-              onChange={(e) => changeMetric(e.target.value as SelfRewardMetric)}
+          {(!picked || picked === "custom") && (
+            <button
+              type="button"
+              role="listitem"
+              className={`rw-idea custom${picked === "custom" ? " on" : ""}`}
+              aria-pressed={picked === "custom"}
+              onClick={() => pick("custom")}
             >
-              {METRICS_FOR_KIND[draft.kind].map((m) => (
-                <option key={m} value={m}>
-                  {METRICS[m].emoji} {METRICS[m].label}
-                </option>
-              ))}
-            </select>
-          </label>
+              <span className="rw-idea-emoji" aria-hidden="true">
+                ✏️
+              </span>
+              <strong>יעד משלי</strong>
+              <small>בוחרים מדד, יעד ותקופה</small>
+            </button>
+          )}
+        </div>
+        {picked && (
+          <button
+            type="button"
+            className="btn-link rw-change"
+            onClick={() => {
+              setPicked(null);
+              setDraft(null);
+              setTuning(false);
+            }}
+          >
+            לבחור יעד אחר
+          </button>
+        )}
+      </div>
 
-          <label>
-            {draft.kind === "beat_baseline"
-              ? "כמה אחוז שיפור"
-              : draft.kind === "consistency"
-                ? "טווח בדקות"
-                : timeInput
-                  ? draft.kind === "average"
-                    ? "שעת הירדמות ממוצעת"
-                    : "להירדם עד"
-                  : draft.kind === "average"
-                    ? `ממוצע של ${def.label}`
-                    : `${def.label} ביום`}
-            {timeInput ? (
-              <input
-                key="target-time"
-                name="target"
-                type="time"
-                required
-                value={draft.target}
-                onChange={(e) => setRule("target", e.target.value)}
-              />
-            ) : (
-              <input
-                key="target-number"
-                name="target"
-                type="number"
-                inputMode="decimal"
-                required
-                value={draft.target}
-                min={draft.kind === "beat_baseline" ? 1 : draft.kind === "consistency" ? 15 : def.range.min}
-                max={draft.kind === "beat_baseline" ? 50 : draft.kind === "consistency" ? 120 : def.range.max}
-                step={draft.kind === "beat_baseline" || draft.kind === "consistency" ? 1 : def.range.step}
-                onChange={(e) => setRule("target", e.target.value)}
-              />
-            )}
-            {timeInput && <small className="muted">שעה בפורמט 24 שעות, למשל 23:30</small>}
-            {!timeInput && draft.kind !== "beat_baseline" && draft.kind !== "consistency" && (
-              <small className="muted">{def.better === "higher" ? "ומעלה" : "ומטה"}</small>
-            )}
-          </label>
-
-          <label>
-            משך התקופה
-            <select name="windowDays" value={draft.windowDays} onChange={(e) => setRule("windowDays", e.target.value)}>
-              {WINDOW_CHOICES.map((n) => (
-                <option key={n} value={n}>
-                  {n} ימים
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {needsDays(draft.kind) && (
-            <label>
-              {draft.kind === "streak" ? "אורך הרצף (ימים)" : "בכמה ימים מתוך התקופה"}
-              <input
-                name="requiredDays"
-                type="number"
-                inputMode="numeric"
-                required
-                min={1}
-                max={Number(draft.windowDays) || 90}
-                value={draft.requiredDays}
-                onChange={(e) => setRule("requiredDays", e.target.value)}
-              />
-            </label>
+      {draft && def && (
+        <form action={formAction} className="rw-form">
+          <input type="hidden" name="emoji" value={draft.emoji} />
+          <input type="hidden" name="rewards" value={draft.rewards.join("\n")} />
+          {!tuning && (
+            <>
+              <input type="hidden" name="kind" value={draft.kind} />
+              <input type="hidden" name="metric" value={draft.metric} />
+              <input type="hidden" name="target" value={draft.target} />
+              <input type="hidden" name="windowDays" value={draft.windowDays} />
+              <input type="hidden" name="requiredDays" value={draft.requiredDays} />
+              {draft.allowSingleMiss && <input type="hidden" name="allowSingleMiss" value="on" />}
+              <input type="hidden" name="title" value={draft.title} />
+            </>
           )}
 
-          {draft.kind === "streak" && (
-            <label className="sr-check">
-              <input
-                name="allowSingleMiss"
-                type="checkbox"
-                checked={draft.allowSingleMiss}
-                onChange={(e) => setRule("allowSingleMiss", e.target.checked)}
-              />
-              ג׳וקר: יום רע בודד לא שובר את הרצף
-            </label>
+          {!tuning ? (
+            <button type="button" className="btn-link rw-tune" onClick={() => setTuning(true)}>
+              לשנות את היעד (מספר, תקופה, שם)
+            </button>
+          ) : (
+            <div className="rw-tuning">
+              <label>
+                סוג
+                <select name="kind" value={draft.kind} onChange={(e) => changeKind(e.target.value as SelfRewardKind)}>
+                  {SELF_REWARD_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {KIND_LABELS_HE[k].title}
+                    </option>
+                  ))}
+                </select>
+                <small className="muted">{KIND_LABELS_HE[draft.kind].hint}</small>
+              </label>
+
+              <label>
+                מדד
+                <select
+                  name="metric"
+                  value={draft.metric}
+                  onChange={(e) => {
+                    const metric = e.target.value as SelfRewardMetric;
+                    updateRule({ metric, target: defaultTarget(draft.kind, metric) });
+                  }}
+                >
+                  {METRICS_FOR_KIND[draft.kind].map((m) => (
+                    <option key={m} value={m}>
+                      {METRICS[m].emoji} {METRICS[m].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                {draft.kind === "beat_baseline"
+                  ? "כמה אחוז שיפור"
+                  : draft.kind === "consistency"
+                    ? "טווח בדקות"
+                    : timeInput
+                      ? "להירדם עד"
+                      : `${def.label} ${def.better === "higher" ? "(ומעלה)" : "(ומטה)"}`}
+                {timeInput ? (
+                  <input
+                    key="t-time"
+                    name="target"
+                    type="time"
+                    required
+                    value={draft.target}
+                    onChange={(e) => updateRule({ target: e.target.value })}
+                  />
+                ) : (
+                  <input
+                    key="t-num"
+                    name="target"
+                    type="number"
+                    inputMode="decimal"
+                    required
+                    value={draft.target}
+                    min={draft.kind === "beat_baseline" ? 1 : draft.kind === "consistency" ? 15 : def.range.min}
+                    max={draft.kind === "beat_baseline" ? 50 : draft.kind === "consistency" ? 120 : def.range.max}
+                    step={draft.kind === "beat_baseline" || draft.kind === "consistency" ? 1 : def.range.step}
+                    onChange={(e) => updateRule({ target: e.target.value })}
+                  />
+                )}
+              </label>
+
+              <label>
+                תקופה
+                <select name="windowDays" value={draft.windowDays} onChange={(e) => updateRule({ windowDays: e.target.value })}>
+                  {WINDOW_CHOICES.map((n) => (
+                    <option key={n} value={n}>
+                      {n} ימים
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {needsDays(draft.kind) && (
+                <label>
+                  {draft.kind === "streak" ? "אורך הרצף (ימים)" : "בכמה ימים מתוך התקופה"}
+                  <input
+                    name="requiredDays"
+                    type="number"
+                    inputMode="numeric"
+                    required
+                    min={1}
+                    max={Number(draft.windowDays) || 90}
+                    value={draft.requiredDays}
+                    onChange={(e) => updateRule({ requiredDays: e.target.value })}
+                  />
+                </label>
+              )}
+
+              {draft.kind === "streak" && (
+                <label className="rw-check">
+                  <input
+                    name="allowSingleMiss"
+                    type="checkbox"
+                    checked={draft.allowSingleMiss}
+                    onChange={(e) => updateRule({ allowSingleMiss: e.target.checked })}
+                  />
+                  ג׳וקר: יום רע בודד לא שובר את הרצף
+                </label>
+              )}
+
+              <label>
+                שם (לא חובה)
+                <input name="title" maxLength={60} value={draft.title} onChange={(e) => update({ title: e.target.value })} />
+              </label>
+            </div>
           )}
 
-          <label className="sr-wide">
-            הפרס שלי
-            <textarea
-              name="rewards"
-              rows={3}
-              required
-              maxLength={500}
-              placeholder={"מסאז׳ של שעה\nאו כמה אפשרויות, שורה לכל אחת, להגרלה"}
-              value={draft.rewards}
-              onChange={(e) => set("rewards", e.target.value)}
-            />
-            <small className="muted">שורה אחת = פרס קבוע. כמה שורות = פרס הפתעה בהגרלה.</small>
-          </label>
-
-          <label>
-            תקציב בשקלים (לא חובה)
-            <input
-              name="budget"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={100000}
-              step={1}
-              value={draft.budget}
-              onChange={(e) => set("budget", e.target.value)}
-            />
-          </label>
-
-          <label>
-            שם (לא חובה)
-            <input name="title" maxLength={60} value={draft.title} onChange={(e) => set("title", e.target.value)} />
-          </label>
-
-          <div className="sr-contract sr-wide" aria-live="polite">
-            {preview.ok ? (
-              <>
-                <span className="muted">ההתחייבות שלי, מהיום:</span>
-                <p>
-                  אם <strong>{preview.sentence}</strong>
-                </p>
-                <p>
-                  אני מקבל: <strong>{preview.prize}</strong>
-                  {preview.budget ? ` (${preview.budget.toLocaleString("he-IL")} ₪)` : ""}
-                </p>
-              </>
-            ) : (
-              <span className="muted">{preview.error}</span>
-            )}
+          <div className="rw-step">
+            <h3>
+              <span className="rw-step-num">2</span> מה הפרס?
+            </h3>
+            <div className="rw-prizes">
+              {draft.rewards.map((value, i) => (
+                <div className="rw-prize-row" key={i}>
+                  <input
+                    aria-label={draft.rewards.length > 1 ? `אפשרות ${i + 1}` : "הפרס"}
+                    maxLength={80}
+                    placeholder={i === 0 ? "למשל: מסאז׳ של שעה" : "עוד אפשרות להגרלה"}
+                    value={value}
+                    onChange={(e) => update({ rewards: draft.rewards.map((r, j) => (j === i ? e.target.value : r)) })}
+                  />
+                  {draft.rewards.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-link"
+                      aria-label={`הסר את אפשרות ${i + 1}`}
+                      onClick={() => update({ rewards: draft.rewards.filter((_, j) => j !== i) })}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              {draft.rewards.length < MAX_REWARD_OPTIONS && (
+                <button type="button" className="btn-link" onClick={() => update({ rewards: [...draft.rewards, ""] })}>
+                  ＋ עוד אפשרות (פרס הפתעה בהגרלה)
+                </button>
+              )}
+            </div>
+            <label className="rw-budget">
+              כמה זה שווה? (לא חובה)
+              <span className="rw-budget-field">
+                <input
+                  name="budget"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={100000}
+                  step={1}
+                  value={draft.budget}
+                  onChange={(e) => update({ budget: e.target.value })}
+                />
+                ₪
+              </span>
+            </label>
           </div>
 
-          {state.error && (
-            <p className="sr-error sr-wide" role="alert">
-              {state.error}
-            </p>
-          )}
-
-          <div className="sr-wide sr-actions">
-            <button className="btn" type="submit" disabled={pending || !preview.ok}>
-              {pending ? "שומר..." : "🤝 אני מתחייב"}
+          <div className="rw-step">
+            <h3>
+              <span className="rw-step-num">3</span> סוגרים
+            </h3>
+            <div className="rw-deal" aria-live="polite">
+              {preview?.ok ? (
+                <>
+                  <p>
+                    אם <strong>{preview.sentence}</strong>,
+                  </p>
+                  <p>
+                    אני מקבל <strong>{preview.prize}</strong>
+                    {preview.budget ? ` (${preview.budget.toLocaleString("he-IL")} ₪)` : ""}.
+                  </p>
+                </>
+              ) : (
+                <p className="muted">{preview?.error}</p>
+              )}
+            </div>
+            {state.error && (
+              <p className="rw-error" role="alert">
+                {state.error}
+              </p>
+            )}
+            <button className="btn rw-commit" type="submit" disabled={pending || !preview?.ok}>
+              {pending ? "שומר..." : "🤝 סגרנו, מתחילים היום"}
             </button>
           </div>
         </form>
-
-        <details className="sr-tips">
-          <summary>למה זה עובד: רעיונות מהמחקר ומאפליקציות הרגלים</summary>
-          <ul>
-            {TIPS.map((t) => (
-              <li key={t.icon}>
-                <span aria-hidden="true">{t.icon}</span> {t.text}
-              </li>
-            ))}
-          </ul>
-        </details>
-      </div>
+      )}
     </details>
   );
 }

@@ -3,7 +3,6 @@
   "framework": "nextjs",
   "regions": ["fra1"],
   "crons": [
-    { "path": "/api/cron/oura-sync", "schedule": "0 3 * * *" },
-    { "path": "/api/cron/events", "schedule": "30 2 * * *" }
+    { "path": "/api/cron/oura-sync", "schedule": "0 3 * * *" }
   ]
 }
