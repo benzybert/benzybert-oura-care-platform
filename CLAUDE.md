@@ -139,6 +139,15 @@ Tab `/member/experiments`, pages `/member/experiments/[id]` and `/member/experim
 - Plain-text drafts put a left-to-right mark before signed numbers (`LRM`), and pages wrap numbers in `<Num>`, so a minus or plus does not jump to the wrong side in Hebrew text.
 - Not built: sending the post to n8n (design and open questions in `docs/BLOG-WORKFLOW.md`), editing the dates of an experiment (delete and recreate), event shading on the chart, a follow-up window after the last night.
 
+## Feature: "הבייסליין שלי" (the blog's first post)
+
+Page `/member/experiments/baseline`, reached from the "הבייסליין של החודש הראשון" button at the top of `/member/experiments`. It describes the member's first month with the ring without any experiment and builds a copy-only draft post (blog, Telegram, newsletter) about it. Logic in `src/lib/baseline.ts` (window and summary, pure, tested) and `src/lib/baseline-post.ts` (draft, `BaselinePostPackage` `schemaVersion: 1`, change it only with a new version).
+
+- The window is 30 nights from the night before the first Oura day with sleep data (`getFirstSleepDay`). An experiment inside it ends the window the evening before (if 14+ nights remain), otherwise the window starts again after the experiment. Computed on read, nothing stored.
+- The summary: per metric mean, usual range (mean ± one sd), lowest and highest; Thursday/Friday evenings against other nights; week by week; best and least good night; and the change a later experiment would need (0.5 and 1 sd, the same thresholds as `experiments.ts`). Same honesty rules as the experiments: one person, one month, a sign and not a proof.
+- Ranges are written "74 עד 81", never with a dash between two numbers (it flips in RTL text).
+- Member-only, own data, no consent scope, no audit, nothing sent. The draft cards are shared with the experiment post (`src/components/post-draft.tsx`).
+
 ## Oura sync schedule
 
 Functions run in `fra1` (`vercel.json`) next to the database (Supabase eu-central-1): keep them together, a region mismatch made every query a transatlantic round trip. Page visits never wait for Oura: `syncOnVisit` atomically claims a stale connection (stamps `last_sync_at`), syncs 3 days in `after()`, and `SyncRefresher` re-renders the page once.

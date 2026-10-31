@@ -103,7 +103,7 @@ export function comparisonLine(c: MetricComparison): string {
   return `${def.label}${unitSuffix(c.key)}: ${before} לפני, ${during} בניסוי (${formatDelta(c.key, c.delta)}). ${verdictHe(c)}.`;
 }
 
-function cutAtWord(s: string, max: number): string {
+export function cutAtWord(s: string, max: number): string {
   if (s.length <= max) return s;
   const cut = s.slice(0, max);
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 1)).trimEnd()}…`;

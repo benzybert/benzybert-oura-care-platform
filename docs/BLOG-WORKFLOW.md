@@ -2,6 +2,8 @@
 
 Status: the platform side (steps 1 and 2) is built. The hand-off (step 3) and the n8n side (steps 4 and 5) are a proposal, waiting for the decisions at the end.
 
+The blog's first post is the member's baseline month (`/member/experiments/baseline`, `BaselinePostPackage` v1 in `src/lib/baseline-post.ts`): the same copy-only draft cards, built from the first month with no experiment. The hand-off below applies to it too when it is built.
+
 ## Principles
 
 - The platform owns the **facts**: the numbers, the dates, the member's own notes. It never invents a figure and the numbers never pass through an AI.

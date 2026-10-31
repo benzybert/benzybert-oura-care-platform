@@ -18,6 +18,13 @@ export default async function MemberExperimentsPage({ searchParams }: { searchPa
 
   return (
     <MemberShell tab="experiments" title="ניסויים" params={await searchParams}>
+      <section className="card" aria-label="הבייסליין שלי">
+        <h2>הבייסליין שלי</h2>
+        <p className="muted">החודש הראשון עם הטבעת, בלי אף ניסוי: מה רגיל אצלך, ומוכן כטיוטה לפוסט הראשון בבלוג.</p>
+        <a className="btn" href="/member/experiments/baseline">
+          הבייסליין של החודש הראשון
+        </a>
+      </section>
       <ExperimentsSection rows={rows} featured={featured} today={today} />
     </MemberShell>
   );

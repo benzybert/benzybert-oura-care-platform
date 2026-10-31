@@ -251,6 +251,22 @@ export async function getExperimentMetrics(memberId: string, fromDay: string, to
     .orderBy(asc(dailyMetrics.day));
 }
 
+/** The member's first Oura day with sleep data, or null. The baseline month starts the night before it. */
+export async function getFirstSleepDay(memberId: string): Promise<string | null> {
+  const [row] = await getDb()
+    .select({ day: dailyMetrics.day })
+    .from(dailyMetrics)
+    .where(
+      and(
+        eq(dailyMetrics.memberId, memberId),
+        sql`(${dailyMetrics.sleepScore} is not null or ${dailyMetrics.totalSleepHours} is not null)`,
+      ),
+    )
+    .orderBy(asc(dailyMetrics.day))
+    .limit(1);
+  return row?.day ?? null;
+}
+
 export async function ouraStatus(memberId: string) {
   const [c] = await getDb()
     .select({ lastSyncAt: ouraConnections.lastSyncAt, connectedAt: ouraConnections.connectedAt, scopes: ouraConnections.scopes })
