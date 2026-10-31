@@ -27,6 +27,8 @@ const {
   dailyExtras,
   ouraEvents,
   ouraProfile,
+  suggestionBoxes,
+  experimentSuggestions,
 } = schema;
 
 export type DoctorContact = { role: DoctorRole; name: string; email: string };
@@ -434,4 +436,49 @@ export async function recordInstinctRead(id: string): Promise<void> {
     .update(instinctAccess)
     .set({ readCount: sql`${instinctAccess.readCount} + 1`, lastReadAt: new Date() })
     .where(eq(instinctAccess.id, id));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Experiment suggestions from readers (src/lib/suggestions.ts). Member-only: no staff or org page reads them.
+
+export type SuggestionRow = typeof experimentSuggestions.$inferSelect;
+
+export async function getSuggestionBox(memberId: string): Promise<{ slug: string } | null> {
+  const [row] = await getDb()
+    .select({ slug: suggestionBoxes.slug })
+    .from(suggestionBoxes)
+    .where(eq(suggestionBoxes.memberId, memberId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function findSuggestionBox(slug: string): Promise<{ memberId: string } | null> {
+  const [row] = await getDb()
+    .select({ memberId: suggestionBoxes.memberId })
+    .from(suggestionBoxes)
+    .where(eq(suggestionBoxes.slug, slug))
+    .limit(1);
+  return row ?? null;
+}
+
+/** The member's suggestions, newest first: the new ones and the last few handled. */
+export async function getSuggestions(memberId: string, limit = 100): Promise<SuggestionRow[]> {
+  return getDb()
+    .select()
+    .from(experimentSuggestions)
+    .where(eq(experimentSuggestions.memberId, memberId))
+    .orderBy(desc(experimentSuggestions.createdAt))
+    .limit(limit);
+}
+
+/** Ideas sent to this member since `since`, and how many are still new: the public form's limits. */
+export async function suggestionLoad(memberId: string, since: Date): Promise<{ recent: number; waiting: number }> {
+  const [row] = await getDb()
+    .select({
+      recent: sql<number>`count(*) filter (where ${experimentSuggestions.createdAt} >= ${since.toISOString()})`.mapWith(Number),
+      waiting: sql<number>`count(*) filter (where ${experimentSuggestions.status} = 'new')`.mapWith(Number),
+    })
+    .from(experimentSuggestions)
+    .where(eq(experimentSuggestions.memberId, memberId));
+  return { recent: row?.recent ?? 0, waiting: row?.waiting ?? 0 };
 }

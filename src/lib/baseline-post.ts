@@ -8,6 +8,7 @@ import {
 } from "./baseline";
 import { fmtDay } from "./format";
 import { cutAtWord } from "./experiment-post";
+import { suggestSection } from "./post-parts";
 import {
   EXPERIMENT_METRICS,
   LRM,
@@ -32,6 +33,8 @@ export type BaselinePostPackage = {
   kind: "sleep_baseline";
   generatedAt: string;
   title: string;
+  /** the member's public "suggest an experiment" page, when they made one */
+  suggestUrl: string | null;
   tldr: string;
   blog: { title: string; titleOptions: string[]; markdown: string; html: string };
   telegram: { text: string };
@@ -94,12 +97,15 @@ function tldrOf(s: BaselineSummary): string {
   } else if (hours?.mean != null) {
     parts.push(`ישנתי בממוצע ${fv("totalSleepHours", hours.mean)} שעות.`);
   }
-  parts.push("זה הבסיס שאליו אשווה כל ניסוי מכאן והלאה.");
+  parts.push("זה הבסיס שאליו אשווה כל ניסוי מכאן והלאה, ומעכשיו יש ניסוי חדש כל שבוע.");
   return parts.join(" ");
 }
 
 function titleOptionsOf(s: BaselineSummary): string[] {
-  const options = ["הבייסליין שלי: חודש של שינה בלי לשנות כלום", `לפני כל ניסוי: מה רגיל אצלי? ${nightsHe(s.nightsWithData)} עם Oura`];
+  const options = [
+    "פוסט ראשון: הבייסליין שלי, ומה יהיה כאן כל שבוע",
+    "הבייסליין שלי: חודש של שינה בלי לשנות כלום",
+    `לפני כל ניסוי: מה רגיל אצלי? ${nightsHe(s.nightsWithData)} עם Oura`];
   const score = statOf(s, "sleepScore");
   if (s.ready && score?.mean != null) options.push(`ציון שינה ${fv("sleepScore", score.mean)} בממוצע: הנקודה שממנה אני מתחיל`);
   return options;
@@ -200,13 +206,36 @@ function caveat(s: BaselineSummary): string {
   return parts.join("\n\n");
 }
 
-export function buildBaselinePost(s: BaselineSummary, now: Date = new Date()): BaselinePostPackage {
+/** The weekly format, for the first post: what every experiment will look like from here. */
+export const FORMAT_SECTION = [
+  "## מה יהיה כאן מעכשיו: ניסוי כל שבוע",
+  "",
+  "כל שבוע אני משנה דבר אחד ובודק מה קרה לשינה. הכללים קבועים, כדי שיהיה אפשר לסמוך על התוצאות, או לפחות לדעת כמה אי אפשר:",
+  "",
+  "- **דבר אחד בכל פעם.** שבוע אחד, שינוי אחד. שני שינויים יחד ואי אפשר לדעת מה גרם למה.",
+  "- **מחליט מראש מה בודקים.** לפני השבוע אני כותב השערה ובוחר מדד אחד שמכריע, למשל ציון שינה או שינה עמוקה. ככה אני לא בוחר בדיעבד את המספר שנראה הכי טוב.",
+  "- **משווה לעצמי.** לילות הניסוי מול הלילות הרגילים שלי מהשבועות שלפניו.",
+  "- **הערה קצרה כל בוקר.** מה היה שונה, איך הרגשתי.",
+  "- **מפרסם גם כשלא יצא כלום.** ״בתוך התנודה הרגילה״ היא תוצאה, והיא תופיע כאן כמו כל תוצאה אחרת.",
+  "",
+  "כל פוסט ייראה אותו דבר: מה בדקתי, איך, מה יצא (עם טבלה), הלילה הכי טוב והכי פחות טוב, מה אני מסיק ומה חשוב לזכור.",
+].join("\n");
+
+export function buildBaselinePost(
+  s: BaselineSummary,
+  { suggestUrl = null, now = new Date() }: { suggestUrl?: string | null; now?: Date } = {},
+): BaselinePostPackage {
   const tldr = tldrOf(s);
   const titleOptions = titleOptionsOf(s);
   const title = titleOptions[0] as string;
 
   const sections: string[] = [
     `**בקצרה:** ${tldr}`,
+    [
+      "## על מה זה",
+      "",
+      "אני עונד טבעת Oura ומודד את השינה שלי כל לילה. מעכשיו אני הופך את זה לסדרת ניסויים: כל שבוע משנה דבר אחד ובודק מה קרה לשינה. כאן אשתף את התוצאות, עם המספרים, גם כשהם לא מרשימים.",
+    ].join("\n"),
     [
       "## למה להתחיל מבייסליין",
       "",
@@ -236,6 +265,7 @@ export function buildBaselinePost(s: BaselineSummary, now: Date = new Date()): B
     if (spread.length) sections.push(["## כמה זה זז מלילה ללילה", "", ...spread].join("\n"));
     for (const part of [splitSection(s), weeksSection(s), extremesSection(s), nextSection(s)]) if (part) sections.push(part);
   }
+  sections.push(FORMAT_SECTION, suggestSection(suggestUrl));
   sections.push(`## מה חשוב לזכור\n\n${caveat(s)}`);
 
   const body = sections.join("\n\n");
@@ -260,7 +290,8 @@ export function buildBaselinePost(s: BaselineSummary, now: Date = new Date()): B
         ]
       : []),
     "",
-    "מכאן כל ניסוי יושווה לזה. אדם אחד, חודש אחד.",
+    "מעכשיו: ניסוי חדש כל שבוע, וכל ניסוי יושווה לזה. אדם אחד, חודש אחד.",
+    ...(suggestUrl ? ["", `רעיון לניסוי? ${suggestUrl}`] : []),
     "#בייסליין #Oura #שינה",
   ];
 
@@ -276,6 +307,7 @@ export function buildBaselinePost(s: BaselineSummary, now: Date = new Date()): B
   }
   if (s.window.cutByExperiment) warnings.push(`התקופה קצרה מחודש: היא נגמרת ${fmtNight(s.window.endNight)}, ערב לפני שהתחיל ניסוי.`);
   if (!s.ready) warnings.push(`יש רק ${s.nightsWithData} לילות עם נתונים. צריך לפחות ${MIN_SUMMARY_NIGHTS} כדי לתאר מה רגיל.`);
+  if (!suggestUrl) warnings.push("עוד אין דף הצעות לניסויים, אז הטיוטה מבקשת להשיב למייל. אפשר ליצור דף בלשונית הניסויים ולקבל כפתור.");
   warnings.push("הטיוטה בנויה רק מהמספרים. הוסף כמה משפטים משלך: איך הרגשת בחודש הזה, מה הפתיע אותך ומה תרצה לבדוק ראשון.");
 
   return {
@@ -283,11 +315,12 @@ export function buildBaselinePost(s: BaselineSummary, now: Date = new Date()): B
     kind: "sleep_baseline",
     generatedAt: now.toISOString(),
     title,
+    suggestUrl: suggestUrl ?? null,
     tldr,
     blog: { title, titleOptions, markdown: blogMarkdown, html: markdownToHtml(blogMarkdown) },
     telegram: { text: telegramLines.join("\n") },
     newsletter: {
-      subject: "הבייסליין שלי: חודש של שינה, בלי לשנות כלום",
+      subject: "פוסט ראשון: הבייסליין שלי, וניסוי חדש כל שבוע",
       previewText: cutAtWord(tldr.replaceAll(LRM, ""), PREVIEW_MAX),
       markdown: `${body}\n`,
       html: markdownToHtml(body),

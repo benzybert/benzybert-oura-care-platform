@@ -456,6 +456,37 @@ export const experiments = pgTable(
   ],
 );
 
+/**
+ * The member's public "suggest an experiment" page (/suggest/<slug>), linked from their posts. The
+ * slug is not a secret worth hashing: it only lets someone send an idea, never read anything.
+ * Replacing the slug turns the old link off.
+ */
+export const suggestionBoxes = pgTable("suggestion_boxes", {
+  memberId: uuid("member_id")
+    .primaryKey()
+    .references(() => members.id, { onDelete: "cascade" }),
+  slug: text("slug").notNull().unique(),
+  createdAt: createdAt(),
+});
+
+/** Experiment ideas readers sent through the member's suggestion page. Free text from the public: shown only to that member. */
+export const experimentSuggestions = pgTable(
+  "experiment_suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    idea: text("idea").notNull(),
+    /** what the reader asked to be called, optional */
+    suggestedBy: text("suggested_by"),
+    /** new | used | dismissed */
+    status: text("status").notNull().default("new"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("experiment_suggestions_member_idx").on(t.memberId, t.createdAt)],
+);
+
 /** One "coffee on me" claim per member per day, so a bad night pays out once. */
 export const coffeeClaims = pgTable(
   "coffee_claims",

@@ -19,6 +19,7 @@ import {
   type NightRow,
 } from "./experiments";
 import { markdownToHtml } from "./markdown-lite";
+import { suggestSection } from "./post-parts";
 
 /**
  * Draft post for the member's blog, Telegram and newsletter, built from one experiment.
@@ -42,6 +43,8 @@ export type PostSource = {
   endNight: string;
   baselineDays: number;
   primaryMetric: ExperimentMetricKey;
+  /** the member's public "suggest an experiment" page; adds a call for ideas to the drafts */
+  suggestUrl?: string | null;
 };
 
 /**
@@ -274,6 +277,7 @@ export function buildExperimentPost(src: PostSource, ev: ExperimentEvaluation, n
   }
   if (src.conclusion) sections.push(`## מה אני מסיק\n\n${src.conclusion}`);
   sections.push(`## מה חשוב לזכור\n\n${caveat(ev, src)}`);
+  if (src.suggestUrl) sections.push(suggestSection(src.suggestUrl));
 
   const body = sections.join("\n\n");
   const blogMarkdown = `# ${title}\n\n${body}\n`;
@@ -286,6 +290,7 @@ export function buildExperimentPost(src: PostSource, ev: ExperimentEvaluation, n
     ...(src.conclusion ? ["", cutAtWord(src.conclusion, 400)] : []),
     "",
     "ניסוי של אדם אחד, זה סימן ולא הוכחה.",
+    ...(src.suggestUrl ? [`רעיון לניסוי הבא? ${src.suggestUrl}`] : []),
     "#ניסוי_שינה #Oura",
   ];
 

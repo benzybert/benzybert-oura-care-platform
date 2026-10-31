@@ -15,7 +15,7 @@ export type PostDraft = {
  * options, blog, Telegram and newsletter. Nothing is sent from here. The HTML must come from
  * markdownToHtml, which escapes every character of the text first.
  */
-export function PostDraftCards({ post, privacyNote }: { post: PostDraft; privacyNote: string }) {
+export function PostDraftCards({ post, privacyNote, suggestUrl }: { post: PostDraft; privacyNote: string; suggestUrl: string | null }) {
   return (
     <>
       {post.warnings.length > 0 && (
@@ -31,6 +31,26 @@ export function PostDraftCards({ post, privacyNote }: { post: PostDraft; privacy
 
       <div className="card">
         <p className="muted">{privacyNote}</p>
+      </div>
+
+      <div className="card">
+        <h2>כפתור ״הציעו ניסוי״</h2>
+        {suggestUrl ? (
+          <>
+            <p className="muted">
+              הטיוטה כבר כוללת קישור ״הציעו ניסוי״. ב-Kit אפשר להחליף אותו בבלוק Button עם הכתובת הזו, כדי שייראה ככפתור.
+            </p>
+            <p className="suggest-url">{suggestUrl}</p>
+            <CopyTextButton text={suggestUrl} label="העתק קישור לכפתור" />
+          </>
+        ) : (
+          <>
+            <p className="muted">עוד אין דף הצעות, אז הטיוטה מבקשת מהקוראים להשיב למייל. דף הצעות נותן להם כפתור, וההצעות מגיעות ללשונית הניסויים.</p>
+            <a className="btn secondary" href="/member/experiments#suggestions">
+              ליצירת דף הצעות
+            </a>
+          </>
+        )}
       </div>
 
       <div className="card">

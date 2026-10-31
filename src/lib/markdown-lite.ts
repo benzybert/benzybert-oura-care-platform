@@ -1,6 +1,6 @@
 /**
  * Markdown to HTML for the small subset the experiment drafts use: `#`/`##` headings, `- ` lists,
- * pipe tables, paragraphs and `**bold**`. Everything is HTML-escaped first, so the member's own
+ * pipe tables, paragraphs, `**bold**` and `[text](https://...)` links (http and https only). Everything is HTML-escaped first, so the member's own
  * words cannot inject markup: the output is safe to render in the preview and to put on the
  * clipboard as rich text. Not a general Markdown parser, on purpose.
  */
@@ -8,7 +8,16 @@
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-const inline = (s: string) => escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+/**
+ * Links are matched after escaping, so neither part can carry markup: quotes are already entities
+ * and the address must start with http(s)://.
+ */
+const LINK_RE = /\[([^\]\n]+)\]\((https?:\/\/[^\s()<>"]+)\)/g;
+
+const inline = (s: string) =>
+  escapeHtml(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(LINK_RE, '<a href="$2">$1</a>');
 
 const isTableRow = (line: string) => /^\|.*\|$/.test(line.trim());
 const isTableSeparator = (line: string) => /^\|(\s*:?-{3,}:?\s*\|)+$/.test(line.trim());
@@ -84,6 +93,7 @@ export function markdownToPlain(md: string): string {
       l
         .replace(/^#{1,3} /, "")
         .replace(/\*\*(.+?)\*\*/g, "$1")
+        .replace(LINK_RE, "$1: $2")
         .replace(/^\|(.*)\|$/, (_, inner: string) => inner.split("|").map((c) => c.trim()).join(" · ")),
     )
     .join("\n");

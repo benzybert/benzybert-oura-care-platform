@@ -1,7 +1,9 @@
 import { ExperimentsSection, pickFeatured } from "@/components/experiments-section";
 import { todayInIsrael } from "@/lib/dates";
 import { loadExperimentView } from "@/lib/experiment-view";
-import { getExperiments } from "@/lib/queries";
+import { SuggestionsCard } from "@/components/suggestions-card";
+import { getExperiments, getSuggestionBox, getSuggestions } from "@/lib/queries";
+import { suggestUrl } from "@/lib/suggestions";
 import { MemberShell, loadMember } from "../_shell/member-shell";
 import type { MemberSearchParams } from "../_shell/messages";
 
@@ -12,7 +14,7 @@ export const maxDuration = 60;
 export default async function MemberExperimentsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member } = await loadMember();
   const today = todayInIsrael();
-  const rows = await getExperiments(member.id);
+  const [rows, box, suggestions] = await Promise.all([getExperiments(member.id), getSuggestionBox(member.id), getSuggestions(member.id)]);
   const featuredRow = pickFeatured(rows, today);
   const featured = featuredRow ? await loadExperimentView(featuredRow, today, rows) : null;
 
@@ -26,6 +28,7 @@ export default async function MemberExperimentsPage({ searchParams }: { searchPa
         </a>
       </section>
       <ExperimentsSection rows={rows} featured={featured} today={today} />
+      <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} />
     </MemberShell>
   );
 }

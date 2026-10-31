@@ -147,6 +147,16 @@ Page `/member/experiments/baseline`, reached from the "הבייסליין של �
 - The summary: per metric mean, usual range (mean ± one sd), lowest and highest; Thursday/Friday evenings against other nights; week by week; best and least good night; and the change a later experiment would need (0.5 and 1 sd, the same thresholds as `experiments.ts`). Same honesty rules as the experiments: one person, one month, a sign and not a proof.
 - Ranges are written "74 עד 81", never with a dash between two numbers (it flips in RTL text).
 - Member-only, own data, no consent scope, no audit, nothing sent. The draft cards are shared with the experiment post (`src/components/post-draft.tsx`).
+- It is the newsletter's first post (the owner pastes it into Kit), so it also explains the format, one experiment every week (`FORMAT_SECTION`), and ends with the call for experiment ideas (`suggestSection` in `src/lib/post-parts.ts`).
+
+## Feature: "הציעו ניסוי" (experiment suggestions from readers)
+
+A public page `/suggest/<slug>` (migration `0016`, tables `suggestion_boxes` one per member and `experiment_suggestions`, logic in `src/lib/suggestions.ts`). The member creates it from the "הצעות לניסויים" card on `/member/experiments`; its absolute URL (`suggestUrl`, from `siteUrl()`) goes into the baseline and experiment drafts as a "הציעו ניסוי" link (Kit: a Button block with that URL) and the Telegram text. Without a page the drafts ask readers to reply to the email.
+
+- The page has no member name and no health data, and only writes: an idea (3 to 300 chars) and an optional name. Honeypot field `website`; at most 30 ideas an hour and 200 waiting per member (`submitSuggestion`). `noindex`, `no-referrer`. Unknown slugs 404.
+- The slug is not hashed: it only lets someone send an idea. "החלף קישור" replaces it and the old link stops working.
+- Ideas are public free text: shown only to that member, never logged, not part of any aggregate, no staff or org page reads them. The member marks each one "בחרתי" or "הסתר" (status `new|used|dismissed`).
+- `markdown-lite` renders `[text](https://...)` links (http and https only, after escaping).
 
 ## Oura sync schedule
 

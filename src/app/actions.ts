@@ -32,6 +32,8 @@ import {
   getActiveInstinctAccess,
   countActiveShareLinks,
   findShareLinkByToken,
+  findSuggestionBox,
+  suggestionLoad,
   getCoffeeClaimDays,
   getDoctorContacts,
   getMemberForUser,
@@ -54,6 +56,15 @@ import {
 } from "@/lib/self-rewards";
 import { cookieOptions, requireRole } from "@/lib/session";
 import {
+  MAX_NEW_SUGGESTIONS,
+  SUGGESTIONS_PER_HOUR,
+  isSuggestionSlug,
+  isSuggestionStatus,
+  newSuggestionSlug,
+  parseSuggestionForm,
+  suggestPath,
+} from "@/lib/suggestions";
+import {
   DEFAULT_SHARE_EXPIRY,
   DEFAULT_SHARE_WINDOW,
   MAX_ACTIVE_SHARE_LINKS,
@@ -72,7 +83,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, actionDeliveries, instinctAccess } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, actionDeliveries, instinctAccess, suggestionBoxes, experimentSuggestions } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -671,6 +682,63 @@ export async function deleteExperiment(formData: FormData): Promise<void> {
     .where(and(eq(experiments.id, id), eq(experiments.memberId, member.id)));
   revalidatePath("/member", "layout");
   redirect("/member/experiments");
+}
+
+/**
+ * Member creates their public "suggest an experiment" page, or replaces its address (the old link
+ * stops working). One page per member.
+ */
+export async function saveSuggestionBox(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  const rotate = formData.get("rotate") === "1";
+  const slug = newSuggestionSlug();
+  await getDb()
+    .insert(suggestionBoxes)
+    .values({ memberId: member.id, slug })
+    .onConflictDoUpdate({ target: suggestionBoxes.memberId, set: { slug, createdAt: new Date() } });
+  revalidatePath("/member", "layout");
+  redirect(`/member/experiments?suggest=${rotate ? "rotated" : "created"}#suggestions`);
+}
+
+/** Member marks one of their suggestions as used, dismissed, or back to new. */
+export async function setSuggestionStatus(formData: FormData): Promise<void> {
+  const user = await requireRole("member");
+  const id = z.uuid().parse(formData.get("id"));
+  const status = formData.get("status");
+  if (!isSuggestionStatus(status)) redirect("/member/experiments#suggestions");
+  const member = await getMemberForUser(user.id);
+  if (!member) redirect("/member");
+  await getDb()
+    .update(experimentSuggestions)
+    .set({ status })
+    .where(and(eq(experimentSuggestions.id, id), eq(experimentSuggestions.memberId, member.id)));
+  revalidatePath("/member/experiments");
+  redirect("/member/experiments#suggestions");
+}
+
+/**
+ * Public: a reader sends an experiment idea from /suggest/<slug>. No sign-in. Only writes, and only
+ * text; the page never shows anything back except "thanks". A bot filling the honeypot gets the
+ * same "thanks" and nothing is stored. The text is never logged.
+ */
+export async function submitSuggestion(formData: FormData): Promise<void> {
+  const slug = formData.get("slug");
+  if (!isSuggestionSlug(slug)) redirect("/");
+  const path = suggestPath(slug);
+  const box = await findSuggestionBox(slug);
+  if (!box) redirect(path);
+
+  const parsed = parseSuggestionForm(formValue(formData));
+  if (!parsed.ok) redirect(`${path}?sent=${parsed.reason === "spam" ? "1" : parsed.reason}`);
+
+  const load = await suggestionLoad(box.memberId, new Date(Date.now() - 60 * 60 * 1000));
+  if (load.recent >= SUGGESTIONS_PER_HOUR || load.waiting >= MAX_NEW_SUGGESTIONS) redirect(`${path}?sent=busy`);
+
+  await getDb().insert(experimentSuggestions).values({ memberId: box.memberId, ...parsed.value });
+  revalidatePath("/member/experiments");
+  redirect(`${path}?sent=1`);
 }
 
 /**

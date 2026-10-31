@@ -4,7 +4,8 @@ import { baselineRange, findBaselineWindow, summarizeBaseline, usualRange, type 
 import { buildBaselinePost } from "@/lib/baseline-post";
 import { todayInIsrael } from "@/lib/dates";
 import { EXPERIMENT_METRICS, fmtNight, formatMetricValue, nightsHe } from "@/lib/experiments";
-import { getExperimentMetrics, getExperiments, getFirstSleepDay } from "@/lib/queries";
+import { getExperimentMetrics, getExperiments, getFirstSleepDay, getSuggestionBox } from "@/lib/queries";
+import { suggestUrl } from "@/lib/suggestions";
 import { loadMember } from "../../_shell/member-shell";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +19,17 @@ export const maxDuration = 60;
 export default async function BaselinePage() {
   const { member } = await loadMember();
   const today = todayInIsrael();
-  const [firstDay, experiments] = await Promise.all([getFirstSleepDay(member.id), getExperiments(member.id)]);
+  const [firstDay, experiments, box] = await Promise.all([getFirstSleepDay(member.id), getExperiments(member.id), getSuggestionBox(member.id)]);
+  const suggest = box ? suggestUrl(box.slug) : null;
   const period = findBaselineWindow(firstDay, experiments);
 
   const header = (
     <div className="topbar">
       <div>
         <h1>הבייסליין שלי</h1>
-        <p className="muted">החודש הראשון עם הטבעת שבו לא רץ אף ניסוי: מה רגיל אצלך, וטיוטת פוסט ראשון לבלוג.</p>
+        <p className="muted">
+          החודש הראשון עם הטבעת שבו לא רץ אף ניסוי: מה רגיל אצלך, וטיוטת פוסט ראשון לבלוג ולניוזלטר שמסבירה גם את הפורמט, ניסוי כל שבוע.
+        </p>
       </div>
       <a className="btn secondary" href="/member/experiments">
         חזרה לניסויים
@@ -46,7 +50,7 @@ export default async function BaselinePage() {
 
   const { from, to } = baselineRange(period);
   const summary = summarizeBaseline(period, await getExperimentMetrics(member.id, from, to), today);
-  const post = buildBaselinePost(summary);
+  const post = buildBaselinePost(summary, { suggestUrl: suggest });
 
   return (
     <>
@@ -65,6 +69,7 @@ export default async function BaselinePage() {
 
       <PostDraftCards
         post={post}
+        suggestUrl={suggest}
         privacyNote="הטיוטה מכילה ממוצעים, טווחים, ממוצע לכל שבוע ושני לילות לדוגמה. אין בה שם, ואין עקומות דופק או נתוני שינה גולמיים. מה שתעתיק ותפרסם הוא באחריותך, ולכן קרא הכול לפני."
       />
     </>

@@ -102,10 +102,17 @@ describe("buildBaselinePost", () => {
   const w = findBaselineWindow("2026-10-04", [])!;
 
   it("builds the drafts from a finished month", () => {
-    const post = buildBaselinePost(summarizeBaseline(w, month(), "2026-11-05"), new Date("2026-11-05T08:00:00Z"));
+    const post = buildBaselinePost(summarizeBaseline(w, month(), "2026-11-05"), {
+      suggestUrl: "https://example.test/suggest/abcdefghijkl",
+      now: new Date("2026-11-05T08:00:00Z"),
+    });
     expect(post.schemaVersion).toBe(1);
     expect(post.kind).toBe("sleep_baseline");
-    expect(post.blog.titleOptions.length).toBe(3);
+    expect(post.blog.titleOptions.length).toBe(4);
+    expect(post.blog.markdown).toContain("## מה יהיה כאן מעכשיו: ניסוי כל שבוע");
+    expect(post.blog.html).toContain('<a href="https://example.test/suggest/abcdefghijkl">הציעו ניסוי</a>');
+    expect(post.telegram.text).toContain("https://example.test/suggest/abcdefghijkl");
+    expect(post.suggestUrl).toBe("https://example.test/suggest/abcdefghijkl");
     expect(post.blog.markdown).toContain("## המספרים");
     expect(post.blog.markdown).toContain("## מה זה אומר לניסויים הבאים");
     expect(post.blog.markdown).toContain("## שבוע אחרי שבוע");
@@ -124,6 +131,9 @@ describe("buildBaselinePost", () => {
     const post = buildBaselinePost(summarizeBaseline(w, month(20), "2026-10-31"));
     expect(post.warnings.some((x) => x.includes("עוד לא נגמר"))).toBe(true);
     expect(post.warnings.some((x) => x.includes("חסרים נתונים"))).toBe(true);
+    // Without a suggestion page the post asks for replies instead of a button.
+    expect(post.blog.markdown).toContain("השיבו למייל הזה");
+    expect(post.warnings.some((x) => x.includes("דף הצעות"))).toBe(true);
   });
 
   it("stays short without enough data", () => {
