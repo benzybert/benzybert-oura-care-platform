@@ -1,14 +1,23 @@
+import { redirect } from "next/navigation";
 import { claimCoffee } from "@/app/actions";
 import { pickFeatured } from "@/components/experiments-section";
+import { HebrewIsland } from "@/components/hebrew-island";
+import "@/components/heart/heart.css";
 import { TodayActionsCard } from "@/components/onboarding-card";
 import { RingCard } from "@/components/ring-card";
+import { getDb } from "@/db";
 import { suggestActions } from "@/lib/actions-engine";
+import { listCircleLinks } from "@/lib/circle/queries";
+import { listMyChallenges } from "@/lib/challenge-data";
 import { profileStrength } from "@/lib/profile-strength";
 import { coffeeStatus } from "@/lib/coffee";
 import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { experimentPhase } from "@/lib/experiments";
-import { fmt, fmtDay } from "@/lib/format";
+import { fmt } from "@/lib/format";
+import { formatDay } from "@/lib/format-locale";
+import { assessHeart, getHeartSettings, loadHeartInputs } from "@/lib/heart/data";
+import { getT } from "@/lib/i18n/server";
 import { needsMorePermissions } from "@/lib/oura/scopes";
 import {
   getActiveInstinctAccess,
@@ -32,18 +41,21 @@ export const dynamic = "force-dynamic";
 // "Sync now" runs the Oura sync inside this page's server action.
 export const maxDuration = 60;
 
-const PHASE_HE = { planned: "מתוכנן", running: "רץ עכשיו", finished: "הסתיים" } as const;
-
 /**
- * Member home ("היום"): last night, today's actions, the ring, and one tile per tab with a
- * one-line status. Everything else lives on its own tab so this page stays short.
+ * Member home ("Today"): last night, the heart watch, the ring, and one tile per tab with a one-line status.
+ * Everything else lives on its own tab so this page stays short. A member who has not answered "what matters most?"
+ * is asked first (once; it can be skipped).
  */
 export default async function MemberPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember();
-  const today = todayInIsrael();
+  const { member, prefs } = await loadMember();
   const params = await searchParams;
+  if (!prefs?.onboardedAt) redirect("/member/welcome");
+  const { locale, t } = await getT();
+  const h = t.home;
+  const today = todayInIsrael();
+  const db = getDb();
 
-  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, delivered, instinctAccess, experimentRows, ouraProfile] =
+  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, delivered, instinctAccess, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges] =
     await Promise.all([
       getMetrics(member.id),
       getConsentRecords(member.id),
@@ -57,6 +69,10 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       getActiveInstinctAccess(member.id),
       getExperiments(member.id),
       getOuraProfile(member.id),
+      getHeartSettings(db, member.id),
+      loadHeartInputs(db, member.id, today),
+      listCircleLinks(db, member.id),
+      listMyChallenges(db, member.id),
     ]);
 
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
@@ -72,39 +88,53 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const featured = pickFeatured(experimentRows, today);
   const sharedScopes = CONSENT_SCOPES.filter((s) => hasActiveConsent(records, s)).length;
   const activeLinks = links.filter((l) => l.status === "active").length;
+  const heart = assessHeart(heartInputs, heartSettings, today);
+  const heartFirst = prefs.focusAreas?.[0] === "heart";
+  const people = circle.filter((l) => !l.revokedAt).length;
+  const running = challenges.filter((c) => c.endDay >= today).length;
 
   const tiles = [
-    { href: "/member/data", title: "הנתונים שלי", text: "דאשבורד מלא: מגמות, שלבי שינה, לוח שנה ו-PDF." },
+    { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
+    { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
+    { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
+    { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
     {
       href: "/member/experiments",
-      title: "ניסויים",
-      text: featured ? `${featured.title} · ${PHASE_HE[experimentPhase(featured, today)]}` : "עוד אין ניסוי. משנים דבר אחד ובודקים.",
+      title: t.core.tabs.experiments,
+      text: featured ? `${featured.title} · ${h.tiles.experiments.phase[experimentPhase(featured, today)]}` : h.tiles.experiments.none,
     },
-    {
-      href: "/member/goals",
-      title: "התגמולים שלי",
-      text: `${selfRewards.length ? `${selfRewards.length} יעדים` : "עוד אין יעד"} · ${rewards.points} נקודות`,
-    },
-    {
-      href: "/member/sharing",
-      title: "שיתוף ורופאים",
-      text: `${sharedScopes ? `${sharedScopes} שיתופים פעילים` : "שום דבר לא משותף"} · ${activeLinks} קישורים לרופא`,
-    },
-    { href: "/member/profile", title: "פרופיל ו-Instinct", text: `חוזק הפרופיל ${strength.score}%` },
+    { href: "/member/goals", title: t.core.tabs.goals, text: h.tiles.goals(selfRewards.length, rewards.points) },
+    { href: "/member/sharing", title: t.core.tabs.sharing, text: h.tiles.sharing(sharedScopes, activeLinks) },
+    { href: "/member/profile", title: t.core.tabs.profile, text: h.tiles.profile(strength.score) },
   ];
 
   return (
-    <MemberShell tab="home" title={`שלום, ${member.displayId}`} lead="הנתונים שלך. אתה שולט במה משותף." params={params}>
+    <MemberShell tab="home" title={h.greeting(member.displayId)} lead={h.lead} params={params}>
+      {(heartFirst || heartSettings.monitoring) && (
+        <a className={`card hw-status is-${heart.status}`} href="/member/heart" style={{ textDecoration: "none", color: "inherit" }}>
+          <div className="hw-dot-big" aria-hidden="true">
+            {{ steady: "✓", learning: "…", watch: "•", alert: "!", urgent: "!!", no_data: "?" }[heart.status]}
+          </div>
+          <div className="hw-status-text">
+            <h2>
+              {h.heartCard.title}: {t.heart.status[heart.status].label}
+            </h2>
+            <p className="muted">{heartSettings.monitoring ? t.heart.status[heart.status].text : h.heartCard.setup}</p>
+            <span className="btn secondary">{h.heartCard.open}</span>
+          </div>
+        </a>
+      )}
+
       {coffee.state === "eligible" && (
         <div className="card">
           <div className="row">
             <div>
-              <h2>לילה קשה? קפה על חשבוני ☕</h2>
-              <p className="muted">ציון השינה האחרון שלך היה {coffee.sleepScore}. מגיע לך קפה.</p>
+              <h2>{h.coffee.title}</h2>
+              <p className="muted">{h.coffee.text(coffee.sleepScore)}</p>
             </div>
             <form action={claimCoffee}>
               <button className="btn" type="submit">
-                שלחו לי כסף לקפה
+                {h.coffee.button}
               </button>
             </form>
           </div>
@@ -112,35 +142,37 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       )}
 
       {latest && (
-        <section className="today" aria-label={`הנתונים האחרונים, ${fmtDay(latest.day)}`}>
+        <section className="today" aria-label={h.todayLabel(formatDay(latest.day, locale))}>
           <div className="card">
-            <div className="label">ציון שינה</div>
+            <div className="label">{h.labels.sleep}</div>
             <div className="value">{fmt(latest.sleepScore)}</div>
           </div>
           <div className="card">
-            <div className="label">מוכנות</div>
+            <div className="label">{h.labels.readiness}</div>
             <div className="value">{fmt(latest.readinessScore)}</div>
           </div>
           <div className="card">
-            <div className="label">HRV</div>
+            <div className="label">{h.labels.hrv}</div>
             <div className="value">{fmt(latest.averageHrv, 0)}</div>
           </div>
           <div className="card">
-            <div className="label">שעות שינה</div>
+            <div className="label">{h.labels.hours}</div>
             <div className="value">{fmt(latest.totalSleepHours, 1)}</div>
           </div>
         </section>
       )}
 
-      <TodayActionsCard actions={actions} />
+      <HebrewIsland locale={locale}>
+        <TodayActionsCard actions={actions} />
+      </HebrewIsland>
 
       <RingCard oura={oura} askMore={oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: ouraProfile?.coverage }) : false} />
 
-      <nav className="hub" aria-label="עוד באזור שלי">
-        {tiles.map((t) => (
-          <a key={t.href} className="card hub-tile" href={t.href}>
-            <strong>{t.title}</strong>
-            <span className="muted">{t.text}</span>
+      <nav className="hub" aria-label={h.tilesLabel}>
+        {tiles.map((tile) => (
+          <a key={tile.href} className="card hub-tile" href={tile.href}>
+            <strong>{tile.title}</strong>
+            <span className="muted">{tile.text}</span>
           </a>
         ))}
       </nav>

@@ -295,7 +295,7 @@ export async function logAudit(entry: {
   memberId?: string | null;
   action: string;
   /** a consent scope, the doctor role for doctor sends and share links, or "share_link" */
-  scope?: ConsentScope | DoctorRole | "share_link" | "instinct" | null;
+  scope?: ConsentScope | DoctorRole | "share_link" | "instinct" | "circle" | "heart" | "challenge" | null;
 }) {
   await getDb().insert(auditLog).values({
     actorUserId: entry.actorUserId,

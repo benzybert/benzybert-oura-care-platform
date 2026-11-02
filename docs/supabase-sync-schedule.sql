@@ -17,3 +17,13 @@ select cron.schedule(
 -- Check the last runs:   select status, return_message, start_time from cron.job_run_details order by start_time desc limit 5;
 -- Check the responses:   select status_code, created from net._http_response order by created desc limit 5;
 -- Stop it:               select cron.unschedule('oura-sync-tick');
+
+-- Heart watch clock: every 5 minutes re-run the watch for members who switched alerts on and send an unanswered
+-- serious alert again when it is due. Needs no secret for the same reason as the sync tick: it returns only counts, and
+-- every send is guarded by a unique delivery row and timestamps, so extra hits change nothing.
+select cron.schedule(
+  'heart-watch-tick',
+  '*/5 * * * *',
+  $$ select net.http_get(url := 'https://oura-care-platform.vercel.app/api/alerts/tick', timeout_milliseconds := 60000); $$
+);
+-- Stop it:               select cron.unschedule('heart-watch-tick');

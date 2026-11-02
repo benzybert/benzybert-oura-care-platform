@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { completeLogin } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -7,22 +8,24 @@ export const dynamic = "force-dynamic";
  * only when the person presses the button (a POST). The token stays in this page's form, never in a log.
  */
 export default async function VerifyPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+  const { t } = await getT();
+  const V = t.site.verify;
   const { token } = await searchParams;
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <h1>כניסה ל-Oura Care</h1>
+        <h1>{V.title}</h1>
         {token ? (
           <form action={completeLogin}>
             <input type="hidden" name="token" value={token} />
-            <p className="muted">לחצו כדי להיכנס. הקישור עובד פעם אחת.</p>
+            <p className="muted">{V.press}</p>
             <button className="btn" type="submit">
-              כניסה
+              {V.button}
             </button>
           </form>
         ) : (
           <p className="muted">
-            חסר קישור. <a href="/login">בקשו קישור חדש</a>.
+            {V.missing} <a href="/login">{V.requestNew}</a>.
           </p>
         )}
       </div>

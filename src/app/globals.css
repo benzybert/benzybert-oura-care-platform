@@ -735,6 +735,23 @@ html {
   color: var(--text);
   text-decoration: none;
 }
+.appbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-inline: 16px;
+}
+.appbar-inner .brand {
+  margin: 0;
+  padding-inline: 0;
+}
+.locale-switch .btn-link {
+  min-height: 44px;
+  padding-inline: 4px;
+}
 .brand-mark {
   width: 16px;
   height: 16px;
@@ -1432,4 +1449,10 @@ td .badge.plain {
   flex: 1 1 240px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* ---------- heart watch, family circle, challenges (shared bits) ---------- */
+.notice.danger {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
 }

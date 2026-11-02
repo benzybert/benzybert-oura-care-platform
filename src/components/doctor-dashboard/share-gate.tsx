@@ -14,7 +14,7 @@ const fmtStamp = fmtDateTime;
  */
 export function ShareGate({ token, expiresAt, windowDays }: { token: string; expiresAt: Date; windowDays: number }) {
   return (
-    <div className="dash">
+    <div className="dash" dir="rtl" lang="he">
       <section className="share-gate" aria-labelledby="gate-title">
         <span className="share-gate-badge">
           <IconShield size={28} />
@@ -47,7 +47,7 @@ export function ShareGate({ token, expiresAt, windowDays }: { token: string; exp
 
 export function ShareUnavailable() {
   return (
-    <div className="dash">
+    <div className="dash" dir="rtl" lang="he">
       <section className="share-gate" aria-labelledby="gate-title">
         <span className="share-gate-badge is-muted">
           <IconShield size={28} />

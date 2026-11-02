@@ -10,6 +10,7 @@ import { personalInfoItem } from "@/lib/oura/map-extras";
 import { OURA_STATE_COOKIE, OURA_STATE_COOKIE_PATH, decodeOAuthState, startPath } from "@/lib/oura/oauth-state";
 import { grantedScopes, requestedScopes } from "@/lib/oura/scopes";
 import { HISTORY_DAYS, SYNC_WINDOW_DAYS, syncMember } from "@/lib/oura/sync";
+import { takeDestination } from "@/lib/post-login";
 import { getMemberForUser, logAudit } from "@/lib/queries";
 import { getSessionUser, startSession } from "@/lib/session";
 
@@ -116,7 +117,7 @@ async function signInWithOura(req: Request, code: string, basic: boolean) {
     await startSession(existing.userId);
     await logAudit({ actorUserId: existing.userId, memberId: existing.memberId, action: "signed_in_oura" });
     syncInBackground(existing.memberId);
-    return NextResponse.redirect(new URL("/member", req.url));
+    return NextResponse.redirect(new URL(await takeDestination("/member", true), req.url));
   }
 
   const { userId, memberId } = await createMemberAccount(null);
@@ -125,5 +126,5 @@ async function signInWithOura(req: Request, code: string, basic: boolean) {
   await logAudit({ actorUserId: userId, memberId, action: "account_created_oura" });
   await logAudit({ actorUserId: userId, memberId, action: "oura_connected" });
   syncInBackground(memberId);
-  return NextResponse.redirect(new URL("/member?welcome=1", req.url));
+  return NextResponse.redirect(new URL(await takeDestination("/member?welcome=1", true), req.url));
 }

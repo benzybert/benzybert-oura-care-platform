@@ -637,6 +637,209 @@ export const instinctAccess = pgTable(
   (t) => [index("instinct_access_member_idx").on(t.memberId, t.createdAt)],
 );
 
+/**
+ * What the member told us at onboarding and about how they appear to their circle. Kept out of `members` on
+ * purpose: staff and organization queries load whole member rows, and none of this is theirs to see.
+ */
+export const memberPrefs = pgTable("member_prefs", {
+  memberId: uuid("member_id")
+    .primaryKey()
+    .references(() => members.id, { onDelete: "cascade" }),
+  /** what matters most, most important first (heart | sleep | recovery | activity | general); null until onboarding */
+  focusAreas: text("focus_areas").array(),
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  /** the name the family circle sees ("Dad"); entered by the member, never shown to staff */
+  circleName: text("circle_name"),
+  /** optional: a phone number guardians can tap to call the member */
+  circlePhone: text("circle_phone"),
+  /** the language of emails sent to the member themselves: en | he */
+  locale: text("locale").notNull().default("en"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Heart watch settings (src/lib/heart). `monitoring` switches alerts on. The numbers are the limits the
+ * member (or their doctor) chose: they only act when `urgent_enabled` is on, so nothing urgent is ever a default.
+ */
+export const heartSettings = pgTable("heart_settings", {
+  memberId: uuid("member_id")
+    .primaryKey()
+    .references(() => members.id, { onDelete: "cascade" }),
+  monitoring: boolean("monitoring").notNull().default(false),
+  /** relaxed | standard | sensitive */
+  sensitivity: text("sensitivity").notNull().default("standard"),
+  urgentEnabled: boolean("urgent_enabled").notNull().default(false),
+  /** daytime heart rate at rest that counts as urgent, and for how many minutes in a row */
+  restHrMax: integer("rest_hr_max"),
+  restHrMaxMinutes: integer("rest_hr_max_minutes").notNull().default(30),
+  restHrMin: integer("rest_hr_min"),
+  restHrMinMinutes: integer("rest_hr_min_minutes").notNull().default(30),
+  /** the night's lowest heart rate above / below which the member wants an alert */
+  nightHrMax: integer("night_hr_max"),
+  nightHrMin: integer("night_hr_min"),
+  /** the night's average blood oxygen below which the member wants an alert */
+  spo2Min: integer("spo2_min"),
+  /** an urgent alert nobody has taken is sent again after this many minutes */
+  escalateAfterMinutes: integer("escalate_after_minutes").notNull().default(15),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * People in the member's family circle ("guardians"): they get alerts and can open a read-only status page.
+ * The page link carries a random 256-bit token; lookup is by SHA-256 hash only and `token_enc` lets the member
+ * copy the link again. Contact details live here and never in source. It is the member's own sharing: it does not
+ * read or widen any consent scope. Revoking sets `revoked_at`; inviting again inserts a new row.
+ */
+export const circleLinks = pgTable(
+  "circle_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    /** how the member names this person, e.g. "Sarah (daughter)" */
+    label: text("label").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenEnc: text("token_enc").notNull(),
+    email: text("email"),
+    /** E.164, e.g. +972501234567 */
+    phone: text("phone"),
+    viaEmail: boolean("via_email").notNull().default(true),
+    viaSms: boolean("via_sms").notNull().default(false),
+    viaCall: boolean("via_call").notNull().default(false),
+    /** can open the status page; false = alerts only */
+    canViewStatus: boolean("can_view_status").notNull().default(true),
+    /** the language of alerts sent to this person: en | he */
+    locale: text("locale").notNull().default("en"),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /** the guardian paused their own alerts */
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    viewCount: integer("view_count").notNull().default(0),
+    lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
+  },
+  (t) => [index("circle_links_member_idx").on(t.memberId, t.createdAt)],
+);
+
+/** Physical alarms and smart-home hooks (Home Assistant, IFTTT, a siren): a webhook the member owns. The URL is a secret, so it is encrypted. */
+export const alertDevices = pgTable(
+  "alert_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** home_assistant | ifttt | webhook */
+    kind: text("kind").notNull(),
+    urlEnc: text("url_enc").notNull(),
+    /** watch | alert | urgent: the lowest level that triggers it */
+    minLevel: text("min_level").notNull().default("urgent"),
+    lastTestAt: timestamp("last_test_at", { withTimezone: true }),
+    lastStatus: text("last_status"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("alert_devices_member_idx").on(t.memberId)],
+);
+
+/**
+ * Heart alerts (src/lib/heart): one row per member, rule and day. The numbers behind it are in `data`, never
+ * free text. Open until the member says "I'm OK", a guardian says "I'm on it", or the signal clears.
+ */
+export const heartAlerts = pgTable(
+  "heart_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    rule: text("rule").notNull(),
+    /** watch | alert | urgent */
+    level: text("level").notNull(),
+    raisedForDay: date("raised_for_day", { mode: "string" }).notNull(),
+    data: jsonb("data").$type<Record<string, number | string | null>>().notNull().default({}),
+    /** open | acknowledged | resolved */
+    status: text("status").notNull().default("open"),
+    lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
+    notifyRound: integer("notify_round").notNull().default(0),
+    /** self (the member) or circle */
+    ackBy: text("ack_by"),
+    ackCircleId: uuid("ack_circle_id").references(() => circleLinks.id, { onDelete: "set null" }),
+    ackAt: timestamp("ack_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("heart_alerts_member_rule_day_uq").on(t.memberId, t.rule, t.raisedForDay),
+    index("heart_alerts_member_status_idx").on(t.memberId, t.status),
+  ],
+);
+
+/** One delivered notification per alert, recipient, channel, level and round: the unique row is the lock against double sends. */
+export const alertDeliveries = pgTable(
+  "alert_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => heartAlerts.id, { onDelete: "cascade" }),
+    /** self | c:<circle link id> | d:<device id> */
+    recipientKey: text("recipient_key").notNull(),
+    /** email | sms | call | webhook */
+    channel: text("channel").notNull(),
+    level: text("level").notNull(),
+    round: integer("round").notNull().default(0),
+    /** sent | failed */
+    status: text("status").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("alert_deliveries_uq").on(t.alertId, t.recipientKey, t.channel, t.level, t.round)],
+);
+
+/** A friendly competition between members (steps, sleep, readiness...). Scores are computed on read, only for joined members. */
+export const challenges = pgTable(
+  "challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    creatorMemberId: uuid("creator_member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** steps | sleep_score | readiness_score | active_minutes | total_sleep_hours */
+    metric: text("metric").notNull(),
+    /** total | average | vs_baseline */
+    scoring: text("scoring").notNull(),
+    startDay: date("start_day", { mode: "string" }).notNull(),
+    endDay: date("end_day", { mode: "string" }).notNull(),
+    /** what people type or open to join; unlike a health link it grants no data, only a place in the game */
+    inviteCode: text("invite_code").notNull().unique(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("challenges_creator_idx").on(t.creatorMemberId),
+    check("challenges_days_ck", sql`${t.endDay} >= ${t.startDay}`),
+  ],
+);
+
+/** Joining is the consent: a participant's score for the challenge's metric and days is visible to the other participants until they leave. */
+export const challengeParticipants = pgTable(
+  "challenge_participants",
+  {
+    challengeId: uuid("challenge_id")
+      .notNull()
+      .references(() => challenges.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    /** the name the others see */
+    nickname: text("nickname").notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.challengeId, t.memberId] }), index("challenge_participants_member_idx").on(t.memberId)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",

@@ -4,6 +4,7 @@ import { hasActiveConsent } from "../consent";
 import { decrypt, encrypt } from "../crypto";
 import { addDays, todayInIsrael } from "../dates";
 import { evaluateAlerts } from "../alerts";
+import { runHeartWatch } from "../heart/watch";
 import { BEDTIME_REWARD_KIND, evaluateBedtimeConsistency, lastCompletedWeek } from "../rewards";
 import type { DayMetric } from "../types";
 import { OuraAuthError, fetchCollection, fetchOptional, refreshTokens } from "./client";
@@ -174,6 +175,8 @@ export async function syncMember(
       .set(history ? { historySyncedAt: now } : { lastSyncAt: now })
       .where(eq(ouraConnections.memberId, memberId));
     await runInsights(db, memberId, today);
+    // The heart watch tells the member's family if something moved. Best effort: it must not fail a sync that worked.
+    await runHeartWatch(db, memberId, today, now).catch(() => undefined);
     return { status: "synced", days: rows.length };
   } catch (err) {
     if (err instanceof OuraAuthError) {

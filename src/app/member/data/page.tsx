@@ -8,6 +8,7 @@ import { RingView } from "@/components/member-data/ring-view";
 import { SleepExtras } from "@/components/member-data/sleep-extras";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
+import { getT } from "@/lib/i18n/server";
 import { dataHref, resolveView, type DataView } from "@/lib/member-nav";
 import { needsMorePermissions } from "@/lib/oura/scopes";
 import { getDashboardMetrics, getDayExtras, getOuraEvents, getOuraProfile, ouraStatus } from "@/lib/queries";
@@ -32,6 +33,7 @@ const NEEDS_PROFILE: DataView[] = ["sleep", "recovery", "activity", "heart", "ev
  */
 export default async function MemberDataPage({ searchParams }: { searchParams: Promise<MemberSearchParams & { view?: string }> }) {
   const { member } = await loadMember();
+  const { t } = await getT();
   const params = await searchParams;
   const view = resolveView(params.view);
   const asked = Number(params.days);
@@ -72,7 +74,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
     );
 
   return (
-    <MemberShell tab="data" title="הנתונים שלי" params={params}>
+    <MemberShell tab="data" title={t.core.tabs.data} params={params} hebrew>
       <DataViewTabs active={view} windowDays={windowDays} withWindow={WINDOWED.includes(view)} />
 
       <section id="data" className="data-section" aria-label="הנתונים שלי">

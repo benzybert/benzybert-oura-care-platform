@@ -5,7 +5,9 @@
 import { sql } from "drizzle-orm";
 import { createDb, schema } from "../src/db";
 import { addDays, dayOfWeek, todayInIsrael } from "../src/lib/dates";
+import { encrypt } from "../src/lib/crypto";
 import { runInsights } from "../src/lib/oura/sync";
+import { hashShareToken, newShareToken } from "../src/lib/share-links";
 import { shiftBedtime, unshiftBedtime } from "../src/lib/rewards";
 import { sampleDays } from "../src/lib/sample-nights";
 import { COVERAGE_FAMILIES } from "../src/lib/member-data";
@@ -80,7 +82,7 @@ async function main() {
   if (reset) {
     console.log(`Resetting database on host ${new URL(url as string).hostname} ...`);
     await db.execute(
-      sql`truncate table audit_log, self_rewards, reward_events, alerts, daily_metrics, consents, oura_connections, care_assignments, members, users, organizations restart identity cascade`,
+      sql`truncate table audit_log, challenge_participants, challenges, alert_deliveries, heart_alerts, alert_devices, circle_links, heart_settings, member_prefs, self_rewards, reward_events, alerts, daily_metrics, consents, oura_connections, care_assignments, members, users, organizations restart identity cascade`,
     );
   } else {
     const [{ count } = { count: 0 }] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.users);
@@ -228,6 +230,12 @@ async function main() {
       const d = row.memberId === demoMember.id ? detail.get(row.day) : undefined;
       if (d) Object.assign(row, Object.fromEntries(keys.map((k) => [k, d[k] ?? null])));
     }
+    // The demo heart story: the last two nights drift away from T-01's usual, so the Heart tab shows a heads-up.
+    const mine = metricRows.filter((r) => r.memberId === demoMember.id).sort((a, b) => (a.day < b.day ? -1 : 1));
+    for (const r of mine.slice(-2)) {
+      r.lowestHeartRate = (r.lowestHeartRate ?? 55) + 11;
+      r.averageHrv = Math.round((r.averageHrv ?? 60) * 0.68 * 10) / 10;
+    }
   }
   for (let i = 0; i < metricRows.length; i += 400) {
     await db.insert(schema.dailyMetrics).values(metricRows.slice(i, i + 400));
@@ -247,6 +255,7 @@ async function main() {
   for (const m of memberRows) await runInsights(db, m.id, today);
 
   await seedSelfRewards(memberRows[0]?.id, metricRows, today);
+  await seedHeartDemo(memberRows.map((m) => m.id), today);
 
   const [alertCount] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.alerts);
   const [rewardCount] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.rewardEvents);
@@ -272,6 +281,75 @@ async function main() {
  * A few self-rewards for the demo member (T-01), one in each state, with targets
  * derived from that member's synthetic data so the states come out as labelled.
  */
+
+/**
+ * The heart-watch and family demo for T-01: onboarding done with heart as the main focus, the watch on, a two-person
+ * family circle, one open heads-up, and a challenge with three other demo members. It only writes rows: nothing is sent.
+ * The circle's addresses end in .invalid, which can never receive mail.
+ */
+async function seedHeartDemo(memberIds: string[], today: string) {
+  const [demoId, ...others] = memberIds;
+  if (!demoId) return;
+  const now = new Date();
+  await db.insert(schema.memberPrefs).values(
+    memberIds.map((id, i) => ({
+      memberId: id,
+      focusAreas: i === 0 ? ["heart", "sleep"] : ["general"],
+      onboardedAt: now,
+      circleName: i === 0 ? "Dad" : null,
+    })),
+  );
+  await db.insert(schema.heartSettings).values({ memberId: demoId, monitoring: true });
+
+  try {
+    const people = [
+      { label: "Sarah (daughter)", email: "sarah@family.invalid", viaEmail: true, viaSms: false, viaCall: false },
+      { label: "Dan (son)", email: "dan@family.invalid", viaEmail: true, viaSms: false, viaCall: false },
+    ];
+    await db.insert(schema.circleLinks).values(
+      people.map((p) => {
+        const token = newShareToken();
+        return {
+          memberId: demoId,
+          ...p,
+          tokenHash: hashShareToken(token),
+          tokenEnc: encrypt(token),
+          expiresAt: new Date(now.getTime() + 365 * 86_400_000),
+        };
+      }),
+    );
+  } catch {
+    console.warn("Skipped the demo family circle: set TOKEN_ENCRYPTION_KEY to create it.");
+  }
+
+  await db.insert(schema.heartAlerts).values({
+    memberId: demoId,
+    rule: "resting_hr_high",
+    level: "alert",
+    raisedForDay: today,
+    data: { value: 66, baseline: 55, delta: 11, pct: null, nights: 2 },
+  });
+
+  const [row] = await db
+    .insert(schema.challenges)
+    .values({
+      creatorMemberId: demoId,
+      title: "Family step-off",
+      metric: "steps",
+      scoring: "vs_baseline",
+      startDay: addDays(today, -4),
+      endDay: addDays(today, 2),
+      inviteCode: "HEART234",
+    })
+    .returning({ id: schema.challenges.id });
+  if (row) {
+    await db.insert(schema.challengeParticipants).values(
+      [demoId, ...others.slice(0, 3)].map((id, i) => ({ challengeId: row.id, memberId: id, nickname: ["Dad", "Sarah", "Dan", "Uncle Ben"][i] ?? `Player ${i + 1}` })),
+    );
+  }
+  console.log("Heart demo for T-01: focus heart, watch on, open heads-up, family circle, a challenge (code HEAR-T234)");
+}
+
 async function seedSelfRewards(
   memberId: string | undefined,
   rows: Array<typeof schema.dailyMetrics.$inferInsert>,

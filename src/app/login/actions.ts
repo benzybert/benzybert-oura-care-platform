@@ -3,8 +3,10 @@
 import { redirect } from "next/navigation";
 import { consumeLoginToken, createLoginToken, createMemberAccount, findUserByEmail } from "@/lib/auth";
 import { ROLE_HOME, normalizeEmail } from "@/lib/auth-rules";
+import { getT } from "@/lib/i18n/server";
 import { sendMail } from "@/lib/mail";
 import { logAudit } from "@/lib/queries";
+import { takeDestination } from "@/lib/post-login";
 import { startSession } from "@/lib/session";
 import { siteUrl } from "@/config/site";
 
@@ -20,17 +22,11 @@ export async function requestLoginLink(formData: FormData): Promise<void> {
   if (!link.ok) redirect("/login?sent=1");
 
   const url = `${siteUrl()}/login/verify?token=${encodeURIComponent(link.token)}`;
+  const { t } = await getT();
   const result = await sendMail({
     to: email,
-    subject: "קישור כניסה ל-Oura Care",
-    text: [
-      "שלום,",
-      "",
-      "זה הקישור שלך לכניסה ל-Oura Care. הוא עובד פעם אחת, במשך 15 דקות:",
-      url,
-      "",
-      "אם לא ביקשת להתחבר, אפשר להתעלם מההודעה הזאת.",
-    ].join("\n"),
+    subject: t.site.email.subject,
+    text: t.site.email.lines(url).join("\n"),
   });
   if (!result.ok) redirect(`/login?error=${result.reason === "not_configured" ? "mail_off" : "mail_failed"}`);
   redirect("/login?sent=1");
@@ -49,11 +45,11 @@ export async function completeLogin(formData: FormData): Promise<void> {
   if (existing) {
     await startSession(existing.id);
     await logAudit({ actorUserId: existing.id, action: "signed_in_email" });
-    redirect(ROLE_HOME[existing.role]);
+    redirect(await takeDestination(ROLE_HOME[existing.role], existing.role === "member"));
   }
 
   const { userId, memberId } = await createMemberAccount(email);
   await startSession(userId);
   await logAudit({ actorUserId: userId, memberId, action: "account_created_email" });
-  redirect("/member?welcome=new");
+  redirect(await takeDestination("/member?welcome=new", true));
 }

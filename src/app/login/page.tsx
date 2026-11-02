@@ -2,32 +2,25 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ROLE_HOME } from "@/lib/auth-rules";
 import { demoAuthEnabled } from "@/lib/env";
+import { getT } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/session";
 import { requestLoginLink } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const ERRORS: Record<string, string> = {
-  email: "כתובת האימייל לא תקינה. נסו שוב.",
-  link: "הקישור לא תקף: הוא כבר שומש או שפג תוקפו (15 דקות). בקשו קישור חדש.",
-  mail_off: "שליחת מייל עוד לא הוגדרה בשרת. אפשר להתחבר עם Oura.",
-  mail_failed: "לא הצלחנו לשלוח את המייל. נסו שוב, או התחברו עם Oura.",
-  denied: "ההתחברות דרך Oura בוטלה. אפשר לנסות שוב בכל זמן.",
-  invalid_state: "ההתחברות נכשלה מסיבות אבטחה. נסו שוב.",
-  oura_personal: "כדי שנזהה אותך בפעם הבאה צריך לאשר ב-Oura את ההרשאה \"Personal\". נסו שוב ואשרו אותה.",
-};
-
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const { t } = await getT();
+  const L = t.site.login;
   const user = await getSessionUser().catch(() => null);
   if (user) redirect(ROLE_HOME[user.role]);
   const params = await searchParams;
-  const error = params.error ? ERRORS[params.error] : undefined;
+  const error = params.error ? (L.errors as Record<string, string>)[params.error] : undefined;
 
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <h1>כניסה והרשמה</h1>
-        <p className="muted">משתמשים חדשים נרשמים באותה דרך. החשבון נוצר בכניסה הראשונה.</p>
+        <h1>{L.title}</h1>
+        <p className="muted">{L.lead}</p>
 
         {error && (
           <div className="notice warn" role="alert">
@@ -36,50 +29,50 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         )}
         {params.sent === "1" && (
           <div className="notice" role="status">
-            אם הכתובת נכונה, נשלח אליה קישור כניסה. הוא עובד פעם אחת, במשך 15 דקות.
+            {L.sent}
           </div>
         )}
 
         <a className="btn auth-oura" href="/api/auth/oura">
-          <span className="brand-mark" aria-hidden="true" /> התחברות עם Oura
+          <span className="brand-mark" aria-hidden="true" /> {L.ouraButton}
         </a>
-        <p className="muted small">הדרך המהירה: מאשרים ב-Oura, והנתונים שלך נטענים מיד, כולל ההיסטוריה.</p>
+        <p className="muted small">{L.ouraHint}</p>
 
         <div className="auth-divider">
-          <span>או עם אימייל</span>
+          <span>{L.orEmail}</span>
         </div>
 
         <form action={requestLoginLink} className="auth-form">
-          <label htmlFor="email">אימייל</label>
+          <label htmlFor="email">{L.email}</label>
           <input id="email" name="email" type="email" dir="ltr" autoComplete="email" required maxLength={200} />
           <button className="btn secondary" type="submit">
-            שלחו לי קישור כניסה
+            {L.sendLink}
           </button>
         </form>
-        <p className="muted small">צוותים רפואיים וארגונים נכנסים עם האימייל שהוגדר להם.</p>
+        <p className="muted small">{L.staffHint}</p>
 
         {demoAuthEnabled() && (
           <>
             <div className="auth-divider">
-              <span>רק להתרשם</span>
+              <span>{L.orDemo}</span>
             </div>
             <div className="links">
               <a className="btn-link" href="/api/demo-login?role=member">
-                דמו: מתאמן
+                {L.demoMember}
               </a>
               <a className="btn-link" href="/api/demo-login?role=care">
-                דמו: צוות רפואי
+                {L.demoCare}
               </a>
               <a className="btn-link" href="/api/demo-login?role=org">
-                דמו: ארגון
+                {L.demoOrg}
               </a>
             </div>
-            <p className="muted small">חשבונות הדמו מציגים נתונים סינתטיים בלבד.</p>
+            <p className="muted small">{L.demoNote}</p>
           </>
         )}
       </div>
       <p className="muted small">
-        <Link href="/">חזרה לעמוד הבית</Link>
+        <Link href="/">{L.back}</Link>
       </p>
     </div>
   );

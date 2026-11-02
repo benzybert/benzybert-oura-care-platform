@@ -29,6 +29,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Family circle pages: the URL is the key, so it never travels in a Referer header and the page is never indexed.
+        source: "/family/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+        ],
+      },
+      {
         // Public suggestion page: linked from posts, never indexed, the slug never leaks in a Referer.
         source: "/suggest/:path*",
         headers: [

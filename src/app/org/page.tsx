@@ -2,6 +2,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { aggregateCohort } from "@/lib/consent";
 import { orgMinCohort } from "@/lib/env";
 import { fmt } from "@/lib/format";
+import { getT } from "@/lib/i18n/server";
 import { getMetrics, logAudit, membersWithConsent, orgMembers } from "@/lib/queries";
 import { requireRole } from "@/lib/session";
 import { recentSummary } from "@/lib/summary";
@@ -10,7 +11,9 @@ export const dynamic = "force-dynamic";
 
 export default async function OrgPage() {
   const user = await requireRole("org_admin", "platform_admin");
-  if (!user.orgId) return <p>החשבון לא משויך לארגון.</p>;
+  const { t } = await getT();
+  const o = t.staff.org;
+  if (!user.orgId) return <p>{o.noOrg}</p>;
 
   const min = orgMinCohort();
   const all = await orgMembers(user.orgId);
@@ -29,42 +32,37 @@ export default async function OrgPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>תמונת מצב ארגונית</h1>
-          <p className="muted">
-            ממוצעים קבוצתיים של מי שהצטרף, ל-7 הימים האחרונים. אין נתונים אישיים, ואין תצוגה מתחת ל-{min}{" "}
-            משתתפים.
-          </p>
+          <h1>{o.title}</h1>
+          <p className="muted">{o.lead(min)}</p>
         </div>
         <LogoutButton />
       </div>
 
       {agg.suppressed ? (
         <div className="card">
-          <h2>אין מספיק משתתפים להצגה</h2>
-          <p className="muted">
-            כדי להגן על הפרטיות, נתונים מוצגים רק כשיש לפחות {min} משתתפים שאישרו הצטרפות לסטטיסטיקה ארגונית.
-          </p>
+          <h2>{o.few}</h2>
+          <p className="muted">{o.fewText(min)}</p>
         </div>
       ) : (
         <div className="grid">
           <div className="card stat">
-            <h2>משתתפים</h2>
+            <h2>{o.stats.n}</h2>
             <div className="value">{agg.n}</div>
           </div>
           <div className="card stat">
-            <h2>ציון שינה</h2>
+            <h2>{o.stats.sleep}</h2>
             <div className="value">{fmt(agg.sleepScore, 1)}</div>
           </div>
           <div className="card stat">
-            <h2>מוכנות</h2>
+            <h2>{o.stats.readiness}</h2>
             <div className="value">{fmt(agg.readinessScore, 1)}</div>
           </div>
           <div className="card stat">
-            <h2>HRV</h2>
+            <h2>{o.stats.hrv}</h2>
             <div className="value">{fmt(agg.averageHrv, 1)}</div>
           </div>
           <div className="card stat">
-            <h2>שעות שינה</h2>
+            <h2>{o.stats.hours}</h2>
             <div className="value">{fmt(agg.totalSleepHours, 1)}</div>
           </div>
         </div>

@@ -35,7 +35,7 @@ export default async function SuggestPage({
   const notice = NOTICES[(await searchParams).sent ?? ""];
 
   return (
-    <div className="suggest-page">
+    <div className="suggest-page" dir="rtl" lang="he">
       <div className="card">
         <h1>יש לכם רעיון לניסוי?</h1>
         <p>

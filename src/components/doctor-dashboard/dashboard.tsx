@@ -477,7 +477,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
   const show = (id: string) => !meta.sections || (meta.sections as string[]).includes(id);
 
   return (
-    <div className={isMember ? "dash is-member" : "dash"}>
+    <div className={isMember ? "dash is-member" : "dash"} dir="rtl" lang="he">
       {meta.mode === "preview" && (
         <div className="dash-preview no-print" role="note">
           <IconEye size={18} />

@@ -30,7 +30,7 @@ export function RingView({
 
   return (
     <Shell>
-      <RingCard oura={oura} askMore={askMore} back="ring" />
+      <RingCard oura={oura} askMore={askMore} back="ring" locale="he" />
 
       <Section id="ring-device" icon={<IconZap size={20} />} title="הטבעת שלך" lead="פרטים ש-Oura מדווחת על הטבעת עצמה.">
         {hasDevice ? (

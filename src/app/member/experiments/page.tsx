@@ -2,6 +2,7 @@ import { ExperimentsSection, pickFeatured } from "@/components/experiments-secti
 import { todayInIsrael } from "@/lib/dates";
 import { loadExperimentView } from "@/lib/experiment-view";
 import { SuggestionsCard } from "@/components/suggestions-card";
+import { getT } from "@/lib/i18n/server";
 import { getExperiments, getSuggestionBox, getSuggestions } from "@/lib/queries";
 import { suggestUrl } from "@/lib/suggestions";
 import { MemberShell, loadMember } from "../_shell/member-shell";
@@ -13,13 +14,14 @@ export const maxDuration = 60;
 
 export default async function MemberExperimentsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member } = await loadMember();
+  const { t } = await getT();
   const today = todayInIsrael();
   const [rows, box, suggestions] = await Promise.all([getExperiments(member.id), getSuggestionBox(member.id), getSuggestions(member.id)]);
   const featuredRow = pickFeatured(rows, today);
   const featured = featuredRow ? await loadExperimentView(featuredRow, today, rows) : null;
 
   return (
-    <MemberShell tab="experiments" title="ניסויים" params={await searchParams}>
+    <MemberShell tab="experiments" title={t.core.tabs.experiments} params={await searchParams} hebrew>
       <section className="card" aria-label="הבייסליין שלי">
         <h2>הבייסליין שלי</h2>
         <p className="muted">החודש הראשון עם הטבעת, בלי אף ניסוי: מה רגיל אצלך, ומוכן כטיוטה לפוסט הראשון בבלוג.</p>

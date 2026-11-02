@@ -1,5 +1,6 @@
 import { SelfRewardsSection } from "@/components/self-rewards-section";
 import { todayInIsrael } from "@/lib/dates";
+import { getT } from "@/lib/i18n/server";
 import { getMetrics, getSelfRewards, rewardTotal } from "@/lib/queries";
 import { MemberShell, loadMember } from "../_shell/member-shell";
 import type { MemberSearchParams } from "../_shell/messages";
@@ -10,14 +11,16 @@ export const maxDuration = 60;
 
 export default async function MemberGoalsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member } = await loadMember();
+  const { t } = await getT();
   const [metrics, selfRewards, rewards] = await Promise.all([getMetrics(member.id), getSelfRewards(member.id), rewardTotal(member.id)]);
 
   return (
     <MemberShell
       tab="goals"
-      title="התגמולים שלי"
-      lead="יעד על הנתונים של הטבעת, ופרס שמגיע לך כשתגיע אליו."
+      title={t.core.tabs.goals}
+      lead="A goal on your ring data, and a treat for reaching it."
       params={await searchParams}
+      hebrew
     >
       <div id="goals">
         <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} points={rewards.points} />

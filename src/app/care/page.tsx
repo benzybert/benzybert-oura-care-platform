@@ -1,7 +1,9 @@
 import { acknowledgeAlert } from "@/app/actions";
 import { LogoutButton } from "@/components/logout-button";
-import { ALERT_MESSAGES_HE, computeBaseline, type AlertRule } from "@/lib/alerts";
-import { fmt, fmtDay, signed } from "@/lib/format";
+import { computeBaseline } from "@/lib/alerts";
+import { fmt, signed } from "@/lib/format";
+import { formatDay } from "@/lib/format-locale";
+import { getT } from "@/lib/i18n/server";
 import {
   assignedMembers,
   getMetrics,
@@ -16,6 +18,8 @@ export const dynamic = "force-dynamic";
 
 export default async function CarePage() {
   const user = await requireRole("care_team");
+  const { locale, t } = await getT();
+  const c = t.staff.care;
 
   const assigned = await assignedMembers(user.id);
   const consented = await membersWithConsent(
@@ -57,29 +61,26 @@ export default async function CarePage() {
     <>
       <div className="topbar">
         <div>
-          <h1>צוות רפואי</h1>
-          <p className="muted">
-            {visible.length} מתאמנים שיתפו נתונים
-            {notSharing > 0 ? ` · ${notSharing} לא שיתפו (לא מוצגים)` : ""}. התראות הן כלי סינון, לא אבחון.
-          </p>
+          <h1>{c.title}</h1>
+          <p className="muted">{c.summary(visible.length, notSharing)}</p>
         </div>
         <LogoutButton />
       </div>
 
       <div className="card">
-        <h2>דורשים תשומת לב ({needAttention.length})</h2>
-        {needAttention.length === 0 && <p className="muted">אין התראות פתוחות.</p>}
+        <h2>{c.attention(needAttention.length)}</h2>
+        {needAttention.length === 0 && <p className="muted">{c.none}</p>}
         {needAttention.map((r) =>
           r.alerts.map((a) => (
             <div className="row" key={a.id}>
               <span>
-                <strong>{r.m.displayId}</strong> · {ALERT_MESSAGES_HE[a.rule as AlertRule] ?? a.rule}{" "}
-                <span className="muted">({fmtDay(a.raisedForDay)})</span>
+                <strong>{r.m.displayId}</strong> · {(c.rules as Record<string, string>)[a.rule] ?? a.rule}{" "}
+                <span className="muted">({formatDay(a.raisedForDay, locale)})</span>
               </span>
               <form action={acknowledgeAlert}>
                 <input type="hidden" name="alertId" value={a.id} />
                 <button className="btn secondary" type="submit">
-                  טופל
+                  {c.handled}
                 </button>
               </form>
             </div>
@@ -88,19 +89,19 @@ export default async function CarePage() {
       </div>
 
       <div className="card">
-        <h2>כל המתאמנים</h2>
+        <h2>{c.all}</h2>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>מזהה</th>
-                <th>גיל</th>
-                <th>יעד</th>
-                <th>HRV (7 ימים)</th>
-                <th>שינוי מקו בסיס</th>
-                <th>ציון שינה</th>
-                <th>עדכון אחרון</th>
-                <th>התראות</th>
+                <th>{c.cols.id}</th>
+                <th>{c.cols.age}</th>
+                <th>{c.cols.goal}</th>
+                <th>{c.cols.hrv}</th>
+                <th>{c.cols.change}</th>
+                <th>{c.cols.sleep}</th>
+                <th>{c.cols.updated}</th>
+                <th>{c.cols.alerts}</th>
               </tr>
             </thead>
             <tbody>
@@ -114,7 +115,7 @@ export default async function CarePage() {
                     {r.pct === null ? "–" : <span dir="ltr">{signed(r.pct)}%</span>}
                   </td>
                   <td>{fmt(r.summary.sleepScore, 1)}</td>
-                  <td>{r.lastDay ? fmtDay(r.lastDay) : "–"}</td>
+                  <td>{r.lastDay ? formatDay(r.lastDay, locale) : "–"}</td>
                   <td>{r.alerts.length > 0 ? <span className="badge">{r.alerts.length}</span> : "–"}</td>
                 </tr>
               ))}

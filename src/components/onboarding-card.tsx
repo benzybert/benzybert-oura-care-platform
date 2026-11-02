@@ -1,6 +1,5 @@
 import { connectInstinctData, openInstinctWhatsApp, revokeInstinctAccess } from "@/app/actions";
 import { buildInstinctInstructions } from "@/lib/instinct-brief";
-import type { StrengthItem } from "@/lib/profile-strength";
 
 type ActionRow = { rule: string; title: string; task: string; opened: boolean };
 
@@ -8,41 +7,11 @@ export type InstinctAccessView = { expiresAt: Date; readCount: number; lastReadA
 
 const dateTime = (d: Date) => d.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" });
 
-export function OnboardingCard({
-  score,
-  items,
-  access,
-}: {
-  score: number;
-  items: StrengthItem[];
-  access: InstinctAccessView | null;
-}) {
+/** The Instinct (personal assistant) part of the profile tab. Profile strength has its own card: ProfileStrengthCard. */
+export function OnboardingCard({ access }: { access: InstinctAccessView | null }) {
   return (
-    <div className="card" id="integrations">
-      <h2>חוזק הפרופיל: {score}%</h2>
-      <p className="muted">ככל שהפרופיל שלם יותר, הנתונים שלך הופכים ליותר פעולות.</p>
-      <div
-        role="progressbar"
-        aria-label="חוזק הפרופיל"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={score}
-        style={{ height: 8, borderRadius: 4, background: "var(--border, #ddd)", overflow: "hidden", margin: "8px 0 12px" }}
-      >
-        <div style={{ width: `${score}%`, height: "100%", background: "currentColor" }} />
-      </div>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {items.map((it) => (
-          <li className="row" key={it.id}>
-            <span>
-              <span aria-hidden="true">{it.done ? "✓" : "○"}</span> {it.done ? it.label : <a href={it.href}>{it.label}</a>}
-            </span>
-            <span className="muted">{it.weight}%</span>
-          </li>
-        ))}
-      </ul>
-
-      <h2 style={{ marginTop: 20 }}>Instinct, העוזר האישי</h2>
+    <div className="card">
+      <h2>Instinct, העוזר האישי</h2>
       <div className="row">
         <p className="muted">פתחו צ׳אט WhatsApp עם Instinct. הטקסט מוכן ואתם לוחצים שלח.</p>
         <form action={openInstinctWhatsApp}>

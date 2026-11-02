@@ -8,7 +8,7 @@ Oura-based member health platform with three views over one dataset: member (`/m
 
 - Repo: `benzybert/benzybert-oura-care-platform`
 - Vercel project: `oura-care-platform`
-- UI language is **Hebrew, RTL**. Keep new UI text in Hebrew and layouts RTL-safe (works at phone width).
+- UI language is **English by default, Hebrew (RTL) one click away** (owner's decision, Nov 2026). New UI text goes into the typed dictionaries in `src/lib/i18n/dict/*.ts` (English first, Hebrew laid over it key by key; a missing Hebrew key falls back to English), never hard-coded in a component. Use logical CSS (`text-align: start`, `margin-inline-*`) so both directions work, and keep layouts good at phone width. Parts still written only in Hebrew (the data tab and its views, experiments and blog drafts, self-rewards, doctor links, PDF and mail, Instinct, `/suggest`) are shown as a right-to-left island (`hebrew` prop on `MemberShell`, `HebrewIsland`); translating them is open work, and doctor- and blog-facing text may reasonably stay Hebrew. Pages that third parties read in Hebrew (`/share`, `/suggest`) set `dir="rtl"` on their own root.
 
 ## Where things live
 
@@ -20,6 +20,11 @@ src/components/doctor-dashboard/  the doctor dashboard: dashboard.tsx (server), 
 src/db/             Drizzle schema + connection
 src/lib/            pure logic (alerts, consent, rewards, self-rewards, summary, auth-rules) + server helpers (queries, session, auth)
 src/app/login/      sign-in page, email-link actions, /login/verify
+src/lib/i18n/       locale cookie, typed dictionaries (dict/*.ts), getT() for server components
+src/lib/heart/      the heart watch: engine.ts (baselines, signals), episodes.ts (all-day curve), watch.ts (alerts, sending, escalation), data.ts (queries), view.ts
+src/lib/notify/     alert delivery: policy (who hears what), channels (Twilio, webhooks), text (messages), phone, webhook-url (SSRF guard)
+src/lib/circle/     family circle queries; src/lib/challenges.ts + challenge-data.ts: competitions
+src/components/heart/  heart-watch UI (charts, settings form, alert list, focus picker) + heart.css (hw-*)
 src/lib/oura/       OAuth client, API mapping (map.ts core, map-extras.ts everything else), sync (sync.ts, sync-extras.ts), scopes.ts
 scripts/seed.ts     synthetic demo data
 drizzle/            generated SQL migrations (never hand-edit applied ones)
@@ -67,7 +72,8 @@ Stop and ask only for destructive, irreversible actions on real data (dropping t
 
 - Every tab calls `loadMember()` (role check + own member; re-syncs a stale ring unless `{ sync: false }`). It is not a layout on purpose: each page checks the role itself.
 - Redirect notices are short query keys (`?doctor=saved`) mapped in `_shell/messages.ts`; any tab shows any of them. Server actions redirect to the tab that owns the feature and call `revalidatePath("/member", "layout")`.
-- New member features get their own tab (add it to `MEMBER_TABS` and a tile on the home tab), not another card on the home tab.
+- New member features get their own tab (add it to `TAB_IDS`/`TAB_HREFS` in `src/lib/member-tabs.ts`, its label to `core.tabs` in the dictionary, and a tile on the home tab), not another card on the home tab. Tabs: home, heart, circle (family), challenges, data, experiments, goals, sharing, profile. Their order follows the member's main focus (`tabOrder`).
+- `loadMember()` also loads `member_prefs` and the open heart alerts; `MemberShell` reads them for the tab order and the alert banner. A member who has not answered onboarding (`member_prefs.onboarded_at`) is sent from Home to `/member/welcome` once; skipping counts.
 
 ## Feature: "send to my doctors" (member page)
 
@@ -122,9 +128,22 @@ Rules to keep:
 - Status is computed on read from `daily_metrics`; only the claim is stored. Claiming re-evaluates on the server.
 - Separate from the platform's bedtime points (`reward_events`, `rewards` consent).
 
+## Feature: heart watch, family circle, alarms, challenges, onboarding (Nov 2026)
+
+Built for a family member with a heart condition, details in `docs/ARCHITECTURE.md` (Heart watch, Family circle and alarms, Challenges, Onboarding) and `docs/PRIVACY.md`. Migration `0017` (tables `member_prefs`, `heart_settings`, `heart_alerts`, `alert_deliveries`, `circle_links`, `alert_devices`, `challenges`, `challenge_participants`).
+
+- **The watch is not a diagnosis and not live.** It compares a person with their own normal (`src/lib/heart/engine.ts`, thresholds in `SPECS`, scaled by sensitivity) and says so. Ring data arrives minutes to hours late; every page and message says so and tells the person to call their local emergency number. Never describe it as detecting heart attacks or arrhythmia, and never add medical claims.
+- **Nothing urgent is a default.** `urgent` (phone calls, sirens) comes only from the member's own limits with "urgent triggers" switched on (`heart_settings`). Derived-baseline rules stop at `alert`. Do not add default limits, and keep the limit forms empty until the member fills them.
+- **Alerts must stay quiet and exactly-once.** One message per run for the most serious new alert (the others are named in it); a persistent drift updates one row; the `alert_deliveries` unique row is inserted before every send; `runHeartWatch`/`escalateOpenAlerts` are idempotent. Changing `notifiable()` or the delivery lock needs the integration test (below).
+- **Family circle is the member's own sharing, not a consent scope.** Guardians use `/family/<token>` (same pattern as doctor links: hash lookup, `circle_open` cookie scoped to the path, audited opening, 404 for unknown/removed/expired). They see heart measures only. Alarm webhooks (`alert_devices`) are encrypted, https-only, public-host-only (`checkWebhookUrl` plus `assertPublicHost` before each call) and carry no health numbers. Text and calls need Twilio keys in `src/config/notify.ts` (empty = off; keys in code are the owner's accepted trade-off, as for mail). Sends the member starts (tests, invites) are rate-limited; nobody is ever messaged by a build or a seed.
+- **Challenges** read only the chosen metric column for the challenge days (`loadStandings`); the default scoring is against the person's own previous four weeks so a cardiac patient and a runner can play fairly. Joining is the consent; leaving removes the score. Invite codes use an alphabet without 0, O, 1, I, L: seed or test codes must too.
+- **Tests that need a real database**: `src/lib/heart/watch.integration.test.ts` runs only with `TEST_DATABASE_URL` set to a throwaway Postgres with every migration applied (channels are mocked, nothing is sent). Run it when touching `watch.ts`, `challenge-data.ts` or the schema. Known gaps in the repo's migrations on a fresh database: `0006` enables RLS on `context_events` that no migration creates, and no SQL file adds `daily_metrics.stress_*` (they exist in Production). Create those two by hand when building a scratch database.
+- **Schedule**: `docs/supabase-sync-schedule.sql` also defines `heart-watch-tick` (every 5 minutes, `/api/alerts/tick`, no secret, returns counts only). It must be created in the database once for repeats and "no data" alerts to run between syncs.
+- **Branch note**: this work was developed on `claude/heart-health-monitoring-r58zzd` (the session's designated branch), not `main`.
+
 ## Removed: "מרכז פעולות" and "הקשר חיצוני"
 
-The owner removed both tabs (action center webhooks to Home Assistant / IFTTT, and public events with sirens). Their pages, components, server actions, libs, configs and the `/api/cron/events` cron are deleted. The tables (`automation_rules`, `automation_runs`, `context_events`, `alert_days`, the `daily_metrics.stress_*` columns) stay in the database untouched: dropping them is destructive and needs the owner's go-ahead. Do not bring the features back without being asked.
+The owner removed both tabs (action center webhooks to Home Assistant / IFTTT, and public events with sirens). Their pages, components, server actions, libs, configs and the `/api/cron/events` cron are deleted. The tables (`automation_rules`, `automation_runs`, `context_events`, `alert_days`, the `daily_metrics.stress_*` columns) stay in the database untouched: dropping them is destructive and needs the owner's go-ahead. Do not bring the features back without being asked. (The heart-watch alarms above are a different, explicitly requested feature with their own tables; they do not revive the old rules, webhook tables or code.)
 
 ## Feature: "ניסויים" experiments (member page)
 
@@ -166,4 +185,4 @@ Vercel is on the Hobby plan: its cron can only run daily, so `vercel.json` keeps
 
 ## Not built yet (do not assume it exists)
 
-Sending experiment posts to n8n / Telegram / Kit (`docs/BLOG-WORKFLOW.md`), a verified Resend sending domain (until then sign-in emails only reach the Resend account owner), staff invitations and SSO, Oura app approval for more than ~10 users, live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.
+Alerts to the care team (only the member's own family circle is alerted), push notifications and WhatsApp alerts, live (real-time) heart monitoring, fall detection, translating the Hebrew-only parts to English, sending experiment posts to n8n / Telegram / Kit (`docs/BLOG-WORKFLOW.md`), a verified Resend sending domain (until then sign-in emails only reach the Resend account owner), staff invitations and SSO, Oura app approval for more than ~10 users, live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.
