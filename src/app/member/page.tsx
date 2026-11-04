@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { claimCoffee } from "@/app/actions";
 import { pickFeatured } from "@/components/experiments-section";
-import { HebrewIsland } from "@/components/hebrew-island";
 import "@/components/heart/heart.css";
 import { TodayActionsCard } from "@/components/onboarding-card";
 import { RingCard } from "@/components/ring-card";
@@ -193,10 +192,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
           </div>
         </section>
       )}
-
-      <HebrewIsland locale={locale}>
         <TodayActionsCard actions={actions} />
-      </HebrewIsland>
 
       <RingCard oura={oura} askMore={oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: ouraProfile?.coverage }) : false} />
 

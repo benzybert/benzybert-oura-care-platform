@@ -1,0 +1,86 @@
+import { defineDict } from "../index";
+
+/**
+ * Strings used by client components in the member area (they import this file directly, so keep it small and
+ * free of server-only imports). Server components read the same strings as `t.memberUi`.
+ */
+export const memberUi = defineDict(
+  {
+    copy: {
+      link: "The link",
+      copy: "Copy link",
+      copied: "Copied ✓",
+      failed: "Could not copy",
+      copiedStatus: "The link was copied",
+      share: "Share…",
+      shareTitle: "Sleep and recovery summary",
+      shareText: "A link to the summary of my Oura ring data:",
+      copyText: "Copy",
+      copiedText: "Copied ✓",
+    },
+    shareCreate: {
+      ready: "The link is ready",
+      readyText: (days: number, until: string) => `Shows the last ${days} days and updates by itself. Valid until ${until}.`,
+      recipient: "Who the link is for",
+      other: "Someone else",
+      savedAs: "The doctor will see it addressed to:",
+      savedFrom: "(from your saved doctors)",
+      doctorName: "Doctor's name",
+      optional: "(optional)",
+      doctorPlaceholder: "e.g. Dr. Cohen",
+      patientName: "Your name as the doctor will see it",
+      window: "Which data",
+      windowOpt: (d: number) => `Last ${d} days`,
+      expiry: "The link works for",
+      expiryOpt: (d: number): string => (d === 7 ? "A week" : d === 14 ? "Two weeks" : "A month"),
+      note: "Note for the doctor",
+      notePlaceholder: "e.g. I have been waking up tired for two weeks and wanted you to see the trend.",
+      whatTitle: "What the doctor sees:",
+      what:
+        "sleep duration, bedtime, HRV, resting heart rate, sleep and readiness scores and steps for every day of the period, with trends and notable findings. Not your email, nothing outside the period, and nothing from the medical team. The dashboard itself is in Hebrew.",
+      preview: "Preview",
+      creating: "Creating the link…",
+      create: "Create link",
+    },
+    roles: { neurologist: "Neurologist", family_doctor: "Family doctor" },
+  },
+  {
+    copy: {
+      link: "הקישור",
+      copy: "העתק קישור",
+      copied: "הועתק ✓",
+      failed: "לא הצלחתי להעתיק",
+      copiedStatus: "הקישור הועתק",
+      share: "שתף…",
+      shareTitle: "סיכום נתוני שינה והתאוששות",
+      shareText: "קישור לסיכום הנתונים שלי מטבעת Oura:",
+      copyText: "העתק",
+      copiedText: "הועתק ✓",
+    },
+    shareCreate: {
+      ready: "הקישור מוכן",
+      readyText: (days, until) => `מציג את ${days} הימים האחרונים ומתעדכן לבד. בתוקף עד ${until}.`,
+      recipient: "למי הקישור",
+      other: "מישהו אחר",
+      savedAs: "יופיע לרופא כ:",
+      savedFrom: "(מהרופאים השמורים שלך)",
+      doctorName: "שם הרופא",
+      optional: "(לא חובה)",
+      doctorPlaceholder: "למשל: ד״ר כהן",
+      patientName: "השם שלך כפי שיופיע לרופא",
+      window: "אילו נתונים",
+      windowOpt: (d) => `${d} ימים אחרונים`,
+      expiry: "הקישור יפעל",
+      expiryOpt: (d) => (d === 7 ? "שבוע" : d === 14 ? "שבועיים" : "חודש"),
+      note: "הערה לרופא",
+      notePlaceholder: "למשל: אני מתעורר עייף כבר שבועיים, רציתי שתראה את המגמה.",
+      whatTitle: "מה הרופא יראה:",
+      what:
+        "משך שינה, שעת הירדמות, HRV, דופק מנוחה, ציוני שינה ומוכנות וצעדים, לכל יום בתקופה, עם מגמות וממצאים בולטים. לא האימייל שלך, לא נתונים מחוץ לתקופה, ולא שום דבר מהצוות הרפואי.",
+      preview: "תצוגה מקדימה",
+      creating: "יוצר קישור…",
+      create: "צור קישור",
+    },
+    roles: { neurologist: "נוירולוג", family_doctor: "רופא משפחה" },
+  },
+);

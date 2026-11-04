@@ -1,5 +1,4 @@
 import { FocusPicker } from "@/components/heart/focus-picker";
-import { HebrewIsland } from "@/components/hebrew-island";
 import "@/components/heart/heart.css";
 import { OnboardingCard } from "@/components/onboarding-card";
 import { ProfileStrengthCard } from "@/components/profile-strength-card";
@@ -41,11 +40,9 @@ export default async function MemberProfilePage({ searchParams }: { searchParams
         <FocusPicker t={t} current={prefs?.focusAreas ?? null} />
       </section>
       <ProfileStrengthCard t={t} score={strength.score} items={strength.items} />
-      <HebrewIsland locale={locale}>
         <OnboardingCard
           access={instinctAccess ? { expiresAt: instinctAccess.row.expiresAt, readCount: instinctAccess.row.readCount, lastReadAt: instinctAccess.row.lastReadAt } : null}
         />
-      </HebrewIsland>
     </MemberShell>
   );
 }

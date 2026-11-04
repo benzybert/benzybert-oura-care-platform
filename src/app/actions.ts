@@ -55,6 +55,7 @@ import {
   parseSelfRewardForm,
 } from "@/lib/self-rewards";
 import { cookieOptions, requireRole } from "@/lib/session";
+import { getT } from "@/lib/i18n/server";
 import {
   MAX_NEW_SUGGESTIONS,
   SUGGESTIONS_PER_HOUR,
@@ -381,7 +382,8 @@ export async function createShareLink(
 ): Promise<CreateShareLinkState> {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
-  if (!member) return { ok: false, error: "לא נמצא פרופיל מתאמן." };
+  const E = (await getT()).t.member.errors;
+  if (!member) return { ok: false, error: E.noMember };
 
   const parsed = shareLinkSchema.safeParse({
     recipient: formData.get("recipient"),
@@ -391,7 +393,7 @@ export async function createShareLink(
     windowDays: formData.get("windowDays"),
     expiryDays: formData.get("expiryDays"),
   });
-  if (!parsed.success) return { ok: false, error: "חלק מהשדות לא תקינים. בדקו ונסו שוב." };
+  if (!parsed.success) return { ok: false, error: E.invalidFields };
   const input = parsed.data;
 
   const role = input.recipient === "other" ? null : input.recipient;
@@ -411,8 +413,8 @@ export async function createShareLink(
       ok: false,
       error:
         link.reason === "too_many"
-          ? `יש כבר ${MAX_ACTIVE_SHARE_LINKS} קישורים פעילים. בטלו אחד ונסו שוב.`
-          : "השרת עוד לא הוגדר ליצירת קישורים (חסר מפתח הצפנה).",
+          ? E.tooManyLinks(MAX_ACTIVE_SHARE_LINKS)
+          : E.noKey,
     };
   }
   const { token, expiresAt } = link;
@@ -494,7 +496,8 @@ export async function createSelfReward(
   const fail = (error: string): SelfRewardFormState => ({ ok: false, error, at: Date.now() });
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
-  if (!member) return fail("לא נמצא פרופיל מתאמן.");
+  const E = (await getT()).t.member.errors;
+  if (!member) return fail(E.noMember);
 
   const parsed = parseSelfRewardForm(formValue(formData));
   if (!parsed.ok) return fail(parsed.error);
@@ -503,15 +506,15 @@ export async function createSelfReward(
   const today = todayInIsrael();
   const { open, total, metrics } = await openSelfRewardCount(member.id, today);
   if (open >= MAX_OPEN_SELF_REWARDS) {
-    return fail(`יש לך כבר ${MAX_OPEN_SELF_REWARDS} יעדים פתוחים. כדאי לסיים או למחוק אחד קודם.`);
+    return fail(E.tooManyGoals(MAX_OPEN_SELF_REWARDS));
   }
-  if (total >= MAX_SELF_REWARD_ROWS) return fail("ההיסטוריה מלאה. מחק כמה יעדים ישנים ונסה שוב.");
+  if (total >= MAX_SELF_REWARD_ROWS) return fail(E.historyFull);
 
   let baseline: number | null = null;
   if (rule.kind === "beat_baseline") {
     baseline = computeSelfBaseline(metrics, rule.metric, today);
     if (baseline === null) {
-      return fail("כדי להתחרות בעצמך צריך לפחות 14 ימים עם נתונים בחודש האחרון.");
+      return fail(E.baselineDays);
     }
   }
 
@@ -608,15 +611,16 @@ export async function createExperiment(_prev: ExperimentFormState, formData: For
   const fail = (error: string): ExperimentFormState => ({ ok: false, error, at: Date.now() });
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
-  if (!member) return fail("לא נמצא פרופיל מתאמן.");
+  const E = (await getT()).t.member.errors;
+  if (!member) return fail(E.noMember);
 
   const parsed = parseExperimentForm(formValue(formData), todayInIsrael());
   if (!parsed.ok) return fail(parsed.error);
 
   const existing = await getExperiments(member.id);
-  if (existing.length >= MAX_EXPERIMENTS) return fail("ההיסטוריה מלאה. מחק כמה ניסויים ישנים ונסה שוב.");
+  if (existing.length >= MAX_EXPERIMENTS) return fail(E.historyFull);
   const clash = existing.find((e) => nightsOverlap(e, parsed.value));
-  if (clash) return fail(`הניסוי ״${clash.title}״ חופף לתאריכים האלה. ניסוי אחד בכל פעם, אחרת אי אפשר לדעת מה גרם למה.`);
+  if (clash) return fail(E.overlap(clash.title));
 
   const [created] = await getDb()
     .insert(experiments)
