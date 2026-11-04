@@ -177,6 +177,14 @@ A public page `/suggest/<slug>` (migration `0016`, tables `suggestion_boxes` one
 - Ideas are public free text: shown only to that member, never logged, not part of any aggregate, no staff or org page reads them. The member marks each one "בחרתי" or "הסתר" (status `new|used|dismissed`).
 - `markdown-lite` renders `[text](https://...)` links (http and https only, after escaping).
 
+## Landing page (`/`)
+
+Public marketing page, designed in v0 and rebuilt here in plain CSS (no Tailwind, no motion library, no third-party scripts): `src/app/page.tsx`, styles in `src/app/landing.css` (scoped to `.lp`, tokens `--lp-*`; it hides the global app bar and runs full width via `:has`), components in `src/components/landing/` (the 24-hour dial is pure SVG + CSS, the counter and the solutions tabs are the only client components), geometry and sample numbers in `src/lib/landing/` (pure, tested). Copy in `src/lib/i18n/dict/landing.ts` (English and Hebrew). Display fonts are self-hosted: Instrument Serif (Latin) and Frank Ruhl Libre (Hebrew).
+
+- Same honesty rules as the product: not a diagnosis, not live monitoring, no testimonials, user counts or logos, every chart labelled illustrative. Promises to doctors and organizations must match what the platform enforces (coded care view, audit, aggregates only above `ORG_MIN_COHORT`).
+- Wearables: only Oura is connected. The other devices and the "wear more than one" timeline are marked **planned**; do not change a device to "connected" until a real connector exists.
+- Signed-in visitors get "My area" instead of sign-up buttons; demo links appear only with `DEMO_AUTH`.
+
 ## Oura sync schedule
 
 Functions run in `fra1` (`vercel.json`) next to the database (Supabase eu-central-1): keep them together, a region mismatch made every query a transatlantic round trip. Page visits never wait for Oura: `syncOnVisit` atomically claims a stale connection (stamps `last_sync_at`), syncs 3 days in `after()`, and `SyncRefresher` re-renders the page once.
@@ -185,4 +193,4 @@ Vercel is on the Hobby plan: its cron can only run daily, so `vercel.json` keeps
 
 ## Not built yet (do not assume it exists)
 
-Alerts to the care team (only the member's own family circle is alerted), push notifications and WhatsApp alerts, live (real-time) heart monitoring, fall detection, translating the Hebrew-only parts to English, sending experiment posts to n8n / Telegram / Kit (`docs/BLOG-WORKFLOW.md`), a verified Resend sending domain (until then sign-in emails only reach the Resend account owner), staff invitations and SSO, Oura app approval for more than ~10 users, live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.
+Wearables other than Oura and merging several devices on one timeline (the landing page lists them as planned), alerts to the care team (only the member's own family circle is alerted), push notifications and WhatsApp alerts, live (real-time) heart monitoring, fall detection, translating the Hebrew-only parts to English, sending experiment posts to n8n / Telegram / Kit (`docs/BLOG-WORKFLOW.md`), a verified Resend sending domain (until then sign-in emails only reach the Resend account owner), staff invitations and SSO, Oura app approval for more than ~10 users, live Oura verification, alert delivery outside the app, data export and deletion, retention policy, legal review. See `docs/ARCHITECTURE.md#open-items` and `docs/PRIVACY.md`.
