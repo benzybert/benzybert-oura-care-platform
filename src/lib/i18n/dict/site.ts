@@ -10,6 +10,26 @@ export const site = defineDict(
       start: "Start with Oura, free",
       signIn: "Sign in",
       demo: "or peek at the demo",
+      eyebrow: "For Oura ring owners and the people who care about them",
+      trust: ["Nothing shared by default", "Your own baseline, not averages", "Delete the connection any time"],
+      preview: {
+        label: "A preview of the member area with sample data",
+        night: "Last night",
+        sleep: "Sleep",
+        readiness: "Readiness",
+        hours: "Hours",
+        heart: "Heart watch",
+        steady: "Steady: within your usual",
+        circle: "Family circle",
+        circleText: "2 people would be told",
+        sample: "Sample data",
+      },
+      stepsTitle: "How it works",
+      steps: [
+        { title: "Connect your ring", text: "Sign in with Oura. Your history loads in the background, nothing to install." },
+        { title: "It learns your normal", text: "About a week of nights gives the watch your own usual to compare with." },
+        { title: "You choose who hears", text: "Add family, a doctor link or a care team, each with only what you allow." },
+      ],
       featuresLabel: "What is inside",
       features: [
         {
@@ -113,6 +133,26 @@ export const site = defineDict(
       start: "התחילו עם Oura, בחינם",
       signIn: "כניסה",
       demo: "או הציצו בדמו",
+      eyebrow: "לבעלי טבעת Oura ולאנשים שאכפת להם מהם",
+      trust: ["שום דבר לא משותף כברירת מחדל", "מול הרגיל שלך, לא מול ממוצעים", "אפשר למחוק את החיבור בכל רגע"],
+      preview: {
+        label: "תצוגה מקדימה של האזור האישי עם נתוני דוגמה",
+        night: "הלילה האחרון",
+        sleep: "שינה",
+        readiness: "מוכנות",
+        hours: "שעות",
+        heart: "מעקב הלב",
+        steady: "יציב: בתוך הרגיל שלך",
+        circle: "מעגל המשפחה",
+        circleText: "2 אנשים יקבלו הודעה",
+        sample: "נתוני דוגמה",
+      },
+      stepsTitle: "איך זה עובד",
+      steps: [
+        { title: "מחברים את הטבעת", text: "נכנסים עם Oura. ההיסטוריה נטענת ברקע, אין מה להתקין." },
+        { title: "לומד מה רגיל אצלך", text: "בערך שבוע של לילות נותן למעקב את הרגיל שלך להשוואה." },
+        { title: "בוחרים מי שומע", text: "מוסיפים משפחה, קישור לרופא או צוות רפואי, כל אחד רק עם מה שאישרת." },
+      ],
       featuresLabel: "מה יש בפנים",
       features: [
         {

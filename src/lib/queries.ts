@@ -71,6 +71,40 @@ export async function getMetrics(memberId: string): Promise<DayMetric[]> {
 }
 
 /**
+ * The same columns as getMetrics for many members in one query (staff pages), oldest first per member.
+ * `sinceDay` limits it to recent days when the caller does not need the history (the org trend).
+ * Callers pass only ids they are allowed to read: assigned and consenting, or consenting to the aggregate.
+ */
+export async function getMetricsForMembers(memberIds: string[], sinceDay?: string): Promise<Map<string, DayMetric[]>> {
+  const out = new Map<string, DayMetric[]>(memberIds.map((id) => [id, []]));
+  if (memberIds.length === 0) return out;
+  const rows = await getDb()
+    .select({
+      memberId: dailyMetrics.memberId,
+      day: dailyMetrics.day,
+      sleepScore: dailyMetrics.sleepScore,
+      readinessScore: dailyMetrics.readinessScore,
+      averageHrv: dailyMetrics.averageHrv,
+      lowestHeartRate: dailyMetrics.lowestHeartRate,
+      totalSleepHours: dailyMetrics.totalSleepHours,
+      steps: dailyMetrics.steps,
+      bedtimeStartMinute: dailyMetrics.bedtimeStartMinute,
+      stressMinutes: dailyMetrics.stressMinutes,
+      recoveryMinutes: dailyMetrics.recoveryMinutes,
+      stressSummary: dailyMetrics.stressSummary,
+    })
+    .from(dailyMetrics)
+    .where(
+      sinceDay
+        ? and(inArray(dailyMetrics.memberId, memberIds), gte(dailyMetrics.day, sinceDay))
+        : inArray(dailyMetrics.memberId, memberIds),
+    )
+    .orderBy(asc(dailyMetrics.memberId), asc(dailyMetrics.day));
+  for (const { memberId, ...day } of rows) out.get(memberId)?.push(day);
+  return out;
+}
+
+/**
  * The member's days for the doctor dashboard and PDF: everything getMetrics has, plus the sleep
  * structure and night curves, limited to the window so the heavy columns of old days are never read.
  * Only ever called for the signed-in member or for the member behind an active share link.
@@ -303,6 +337,16 @@ export async function logAudit(entry: {
     action: entry.action,
     scope: entry.scope ?? null,
   });
+}
+
+/** Several audit rows in one insert (a staff page that shows many members records one row per member). */
+export async function logAuditMany(entries: Array<Parameters<typeof logAudit>[0]>) {
+  if (entries.length === 0) return;
+  await getDb()
+    .insert(auditLog)
+    .values(
+      entries.map((e) => ({ actorUserId: e.actorUserId, memberId: e.memberId ?? null, action: e.action, scope: e.scope ?? null })),
+    );
 }
 
 export type ShareLink = typeof shareLinks.$inferSelect;
