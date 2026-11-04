@@ -15,6 +15,9 @@ import { hasActiveConsent } from "@/lib/consent";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { experimentPhase } from "@/lib/experiments";
 import { fmt } from "@/lib/format";
+import { Icon } from "@/components/icon";
+import { dataHref } from "@/lib/member-nav";
+import { latestVsUsual, type HomeMetricKey } from "@/lib/summary";
 import { formatDay } from "@/lib/format-locale";
 import { assessHeart, getHeartSettings, loadHeartInputs } from "@/lib/heart/data";
 import { getT } from "@/lib/i18n/server";
@@ -38,6 +41,14 @@ import { MemberShell, loadMember } from "./_shell/member-shell";
 import type { MemberSearchParams } from "./_shell/messages";
 
 export const dynamic = "force-dynamic";
+
+/** Which label and data view each home tile uses. */
+const TILE: Record<HomeMetricKey, { label: "sleep" | "readiness" | "hrv" | "hours"; view: "sleep" | "recovery" }> = {
+  sleepScore: { label: "sleep", view: "sleep" },
+  readinessScore: { label: "readiness", view: "recovery" },
+  averageHrv: { label: "hrv", view: "recovery" },
+  totalSleepHours: { label: "hours", view: "sleep" },
+};
 // "Sync now" runs the Oura sync inside this page's server action.
 export const maxDuration = 60;
 
@@ -76,6 +87,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
     ]);
 
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
+  const vs = latestVsUsual(metrics);
   const coffee = coffeeStatus(metrics, today, coffeeClaimDays);
   const strength = profileStrength({
     ouraConnected: Boolean(oura),
@@ -94,18 +106,19 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const running = challenges.filter((c) => c.endDay >= today).length;
 
   const tiles = [
-    { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
-    { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
-    { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
-    { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
+    { href: "/member/heart", icon: "heart" as const, title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
+    { href: "/member/circle", icon: "users" as const, title: t.core.tabs.circle, text: h.tiles.circle(people) },
+    { href: "/member/challenges", icon: "trophy" as const, title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
+    { href: "/member/data", icon: "chart" as const, title: t.core.tabs.data, text: h.tiles.data },
     {
       href: "/member/experiments",
+      icon: "flask" as const,
       title: t.core.tabs.experiments,
       text: featured ? `${featured.title} · ${h.tiles.experiments.phase[experimentPhase(featured, today)]}` : h.tiles.experiments.none,
     },
-    { href: "/member/goals", title: t.core.tabs.goals, text: h.tiles.goals(selfRewards.length, rewards.points) },
-    { href: "/member/sharing", title: t.core.tabs.sharing, text: h.tiles.sharing(sharedScopes, activeLinks) },
-    { href: "/member/profile", title: t.core.tabs.profile, text: h.tiles.profile(strength.score) },
+    { href: "/member/goals", icon: "gift" as const, title: t.core.tabs.goals, text: h.tiles.goals(selfRewards.length, rewards.points) },
+    { href: "/member/sharing", icon: "share" as const, title: t.core.tabs.sharing, text: h.tiles.sharing(sharedScopes, activeLinks) },
+    { href: "/member/profile", icon: "user" as const, title: t.core.tabs.profile, text: h.tiles.profile(strength.score) },
   ];
 
   return (
@@ -141,23 +154,42 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
         </div>
       )}
 
-      {latest && (
-        <section className="today" aria-label={h.todayLabel(formatDay(latest.day, locale))}>
-          <div className="card">
-            <div className="label">{h.labels.sleep}</div>
-            <div className="value">{fmt(latest.sleepScore)}</div>
+      {latest && vs.day && (
+        <section className="today-block" aria-label={h.todayLabel(formatDay(vs.day, locale))}>
+          <div className="today-head">
+            <h2>{h.latestTitle(formatDay(vs.day, locale))}</h2>
+            <span className="muted small">{h.vsUsual.note}</span>
           </div>
-          <div className="card">
-            <div className="label">{h.labels.readiness}</div>
-            <div className="value">{fmt(latest.readinessScore)}</div>
-          </div>
-          <div className="card">
-            <div className="label">{h.labels.hrv}</div>
-            <div className="value">{fmt(latest.averageHrv, 0)}</div>
-          </div>
-          <div className="card">
-            <div className="label">{h.labels.hours}</div>
-            <div className="value">{fmt(latest.totalSleepHours, 1)}</div>
+          <div className="today">
+            {vs.metrics.map((m) => {
+              const k = TILE[m.key];
+              const digits = m.key === "totalSleepHours" ? 1 : 0;
+              const d = m.delta === null ? "" : fmt(Math.abs(m.delta), digits);
+              return (
+                <a className={`card today-tile trend-${m.trend ?? "none"}`} href={dataHref({ view: k.view })} key={m.key}>
+                  <div className="label">{h.labels[k.label]}</div>
+                  <div className="value">
+                    {fmt(m.value, digits)}
+                    <span className="unit"> {h.units[k.label]}</span>
+                  </div>
+                  <div className="vs">
+                    {m.trend === "up" ? (
+                      <>
+                        <span aria-hidden="true">▲</span> {h.vsUsual.up(d)}
+                      </>
+                    ) : m.trend === "down" ? (
+                      <>
+                        <span aria-hidden="true">▼</span> {h.vsUsual.down(d)}
+                      </>
+                    ) : m.trend === "same" ? (
+                      h.vsUsual.same
+                    ) : (
+                      h.vsUsual.unknown
+                    )}
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </section>
       )}
@@ -171,7 +203,10 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       <nav className="hub" aria-label={h.tilesLabel}>
         {tiles.map((tile) => (
           <a key={tile.href} className="card hub-tile" href={tile.href}>
-            <strong>{tile.title}</strong>
+            <span className="hub-tile-head">
+              <Icon name={tile.icon} size={18} />
+              <strong>{tile.title}</strong>
+            </span>
             <span className="muted">{tile.text}</span>
           </a>
         ))}

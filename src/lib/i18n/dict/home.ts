@@ -12,6 +12,15 @@ export const home = defineDict(
     },
     todayLabel: (day: string) => `Latest data, ${day}`,
     labels: { sleep: "Sleep score", readiness: "Readiness", hrv: "HRV", hours: "Hours asleep" },
+    units: { sleep: "/ 100", readiness: "/ 100", hrv: "ms", hours: "h" },
+    latestTitle: (day: string) => `Latest night · ${day}`,
+    vsUsual: {
+      same: "about your usual",
+      up: (d: string) => `${d} above your usual`,
+      down: (d: string) => `${d} below your usual`,
+      unknown: "usual still being learned",
+      note: "Compared with your own previous two weeks.",
+    },
     heartCard: {
       title: "Heart watch",
       setup: "Set up the heart watch and choose who hears about it.",
@@ -55,6 +64,15 @@ export const home = defineDict(
     },
     todayLabel: (day) => `הנתונים האחרונים, ${day}`,
     labels: { sleep: "ציון שינה", readiness: "מוכנות", hrv: "HRV", hours: "שעות שינה" },
+    units: { sleep: "/ 100", readiness: "/ 100", hrv: "ms", hours: "שע׳" },
+    latestTitle: (day) => `הלילה האחרון · ${day}`,
+    vsUsual: {
+      same: "בערך כרגיל אצלך",
+      up: (d) => `${d} מעל הרגיל שלך`,
+      down: (d) => `${d} מתחת לרגיל שלך`,
+      unknown: "הרגיל שלך עוד נלמד",
+      note: "בהשוואה לשבועיים הקודמים שלך.",
+    },
     heartCard: {
       title: "מעקב הלב",
       setup: "הגדירו את מעקב הלב ובחרו מי מקבל הודעה.",

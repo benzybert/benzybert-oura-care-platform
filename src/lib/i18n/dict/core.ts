@@ -9,6 +9,21 @@ export const core = defineDict(
     language: "Language",
     syncing: "Updating data from Oura in the background…",
     memberAreaLabel: "My area",
+    account: {
+      label: "Account",
+      roles: { member: "Member", care_team: "Medical team", org_admin: "Organization", platform_admin: "Admin" },
+      home: "My area",
+      signIn: "Sign in",
+    },
+    errors: {
+      notFoundTitle: "We could not find that page",
+      notFoundText: "The address may be mistyped, or the page has moved.",
+      errorTitle: "Something went wrong",
+      errorText: "The page could not be shown. Nothing was changed. Try again, and if it keeps happening, come back in a few minutes.",
+      retry: "Try again",
+      home: "Back to the home page",
+      loading: "Loading…",
+    },
     tabs: {
       home: "Today",
       heart: "Heart",
@@ -123,6 +138,21 @@ export const core = defineDict(
     language: "שפה",
     syncing: "מעדכן נתונים מ-Oura ברקע…",
     memberAreaLabel: "האזור שלי",
+    account: {
+      label: "חשבון",
+      roles: { member: "מתאמן", care_team: "צוות רפואי", org_admin: "ארגון", platform_admin: "מנהל" },
+      home: "האזור שלי",
+      signIn: "התחברות",
+    },
+    errors: {
+      notFoundTitle: "לא מצאנו את הדף הזה",
+      notFoundText: "אולי הכתובת שגויה, או שהדף עבר למקום אחר.",
+      errorTitle: "משהו השתבש",
+      errorText: "לא הצלחנו להציג את הדף. שום דבר לא השתנה. נסו שוב, ואם זה חוזר, חזרו בעוד כמה דקות.",
+      retry: "לנסות שוב",
+      home: "חזרה לדף הבית",
+      loading: "טוען…",
+    },
     tabs: {
       home: "היום",
       heart: "הלב",

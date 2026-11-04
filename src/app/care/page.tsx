@@ -1,5 +1,4 @@
 import { acknowledgeAlert } from "@/app/actions";
-import { LogoutButton } from "@/components/logout-button";
 import { computeBaseline } from "@/lib/alerts";
 import { fmt, signed } from "@/lib/format";
 import { formatDay } from "@/lib/format-locale";
@@ -64,7 +63,6 @@ export default async function CarePage() {
           <h1>{c.title}</h1>
           <p className="muted">{c.summary(visible.length, notSharing)}</p>
         </div>
-        <LogoutButton />
       </div>
 
       <div className="card">

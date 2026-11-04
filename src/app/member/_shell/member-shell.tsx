@@ -1,7 +1,7 @@
 import { cache, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { LogoutButton } from "@/components/logout-button";
+import { Icon, type IconName } from "@/components/icon";
 import { SyncRefresher } from "@/components/sync-refresher";
 import { getMemberForUser } from "@/lib/queries";
 import { alertLevel, getMemberPrefs, getOpenHeartAlerts, type HeartAlertRow, type MemberPrefsRow } from "@/lib/heart/data";
@@ -18,6 +18,18 @@ export type { MemberTab };
  * The member area is split into pages (tabs) instead of one long page. Each tab is its own
  * route and server-checks the role itself; this file only holds the shared frame.
  */
+
+const TAB_ICONS: Record<MemberTab, IconName> = {
+  home: "home",
+  heart: "heart",
+  circle: "users",
+  challenges: "trophy",
+  data: "chart",
+  experiments: "flask",
+  goals: "gift",
+  sharing: "share",
+  profile: "user",
+};
 
 type VisitState = { syncing: boolean; prefs: MemberPrefsRow | null; alerts: HeartAlertRow[] };
 
@@ -69,13 +81,13 @@ export async function MemberShell({
           <h1>{title}</h1>
           {lead && <p className="muted">{lead}</p>}
         </div>
-        <LogoutButton />
       </div>
 
       <nav className="section-nav member-tabs" aria-label={t.core.memberAreaLabel}>
         {tabOrder(state.prefs?.focusAreas).map((id) => (
           <a key={id} href={TAB_HREFS[id]} aria-current={id === tab ? "page" : undefined}>
-            {t.core.tabs[id]}
+            <Icon name={TAB_ICONS[id]} size={17} />
+            <span>{t.core.tabs[id]}</span>
           </a>
         ))}
       </nav>
@@ -90,8 +102,11 @@ export async function MemberShell({
 
       {top && topRule && tab !== "heart" && (
         <div className={`notice ${alertLevel(top) === "watch" ? "" : "warn"} ${alertLevel(top) === "urgent" ? "danger" : ""}`} role="alert">
-          <strong>{t.heart.levels[alertLevel(top)]}:</strong> {t.heart.rules[topRule].title}.{" "}
-          <a href={TAB_HREFS.heart}>{t.core.tabs.heart}</a>
+          <Icon name="alert" size={18} />
+          <span>
+            <strong>{t.heart.levels[alertLevel(top)]}:</strong> {t.heart.rules[topRule].title}.{" "}
+            <a href={TAB_HREFS.heart}>{t.core.tabs.heart}</a>
+          </span>
         </div>
       )}
 
@@ -103,7 +118,7 @@ export async function MemberShell({
 
       {hebrew && locale === "en" ? (
         <>
-          <p className="muted small">{t.core.hebrewOnly}</p>
+          <p className="muted small hebrew-note">{t.core.hebrewOnly}</p>
           <div lang="he" dir="rtl">
             {children}
           </div>

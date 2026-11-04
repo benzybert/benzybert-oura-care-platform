@@ -1,4 +1,3 @@
-import { LogoutButton } from "@/components/logout-button";
 import { aggregateCohort } from "@/lib/consent";
 import { orgMinCohort } from "@/lib/env";
 import { fmt } from "@/lib/format";
@@ -35,7 +34,6 @@ export default async function OrgPage() {
           <h1>{o.title}</h1>
           <p className="muted">{o.lead(min)}</p>
         </div>
-        <LogoutButton />
       </div>
 
       {agg.suppressed ? (

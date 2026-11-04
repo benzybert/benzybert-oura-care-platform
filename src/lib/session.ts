@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb, schema } from "../db";
@@ -35,14 +36,15 @@ export async function endSession(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+/** Cached per request: the app bar and the page both ask, and it should cost one query. */
+export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const userId = readSessionToken(token);
   if (!userId) return null;
   const [user] = await getDb().select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
   return user ?? null;
-}
+});
 
 /** Redirects to sign-in when signed out, and to the landing page when the role does not match. */
 export async function requireRole(...roles: Role[]): Promise<SessionUser> {

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LogoutButton } from "@/components/logout-button";
 import { ROLE_HOME } from "@/lib/auth-rules";
 import { databaseUrl, demoAuthEnabled } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
@@ -28,7 +27,6 @@ export default async function Home() {
             <Link className="btn" href={ROLE_HOME[signedInAs]}>
               {L.continue}
             </Link>
-            <LogoutButton />
           </div>
         ) : (
           <div className="links">
