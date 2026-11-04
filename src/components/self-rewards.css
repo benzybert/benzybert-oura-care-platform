@@ -433,3 +433,13 @@
     transition: none;
   }
 }
+
+/* Goal titles and prizes are the member's own words, in whatever language they wrote them: each line takes its
+   direction from its own text, so a Hebrew title reads right inside the English page and the other way round. */
+.rw-goal-title,
+.rw-goal-prize,
+.rw-ready strong,
+.rw-won strong,
+.rw-missed strong {
+  unicode-bidi: plaintext;
+}

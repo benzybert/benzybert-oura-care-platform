@@ -11,19 +11,18 @@ export const maxDuration = 60;
 
 export default async function MemberGoalsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member } = await loadMember();
-  const { t } = await getT();
+  const { locale, t } = await getT();
   const [metrics, selfRewards, rewards] = await Promise.all([getMetrics(member.id), getSelfRewards(member.id), rewardTotal(member.id)]);
 
   return (
     <MemberShell
       tab="goals"
       title={t.core.tabs.goals}
-      lead="A goal on your ring data, and a treat for reaching it."
+      lead={t.member.rewardsLead}
       params={await searchParams}
-      hebrew
     >
       <div id="goals">
-        <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} points={rewards.points} />
+        <SelfRewardsSection rows={selfRewards} metrics={metrics} today={todayInIsrael()} points={rewards.points} locale={locale} />
       </div>
     </MemberShell>
   );

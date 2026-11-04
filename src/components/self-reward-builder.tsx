@@ -2,15 +2,18 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createSelfReward, type SelfRewardFormState } from "@/app/actions";
+import { intlTag, type Locale } from "@/lib/i18n";
+import { rewardsText } from "@/lib/i18n/dict/rewards";
 import {
-  KIND_LABELS_HE,
   MAX_REWARD_OPTIONS,
   METRICS,
   METRICS_FOR_KIND,
   SELF_REWARD_KINDS,
-  SELF_REWARD_TEMPLATES,
   describeRule,
+  kindLabels,
+  metricLabel,
   parseSelfRewardForm,
+  templatesFor,
   type SelfRewardKind,
   type SelfRewardMetric,
   type SelfRewardTemplate,
@@ -78,24 +81,27 @@ function fromTemplate(t: SelfRewardTemplate): Draft {
 const needsDays = (k: SelfRewardKind) => k === "days_hit" || k === "streak" || k === "consistency";
 
 /** The draft as the server action will read it: same parser, so the preview can never disagree with the save. */
-function parseDraft(d: Draft) {
+function parseDraft(d: Draft, locale: Locale) {
   return parseSelfRewardForm((k) => {
     if (k === "allowSingleMiss") return d.allowSingleMiss ? "on" : "";
     if (k === "rewards") return d.rewards.join("\n");
     return (d as unknown as Record<string, string | undefined>)[k];
-  });
+  }, locale);
 }
 
-function sentenceOf(d: Draft): string | null {
-  const r = parseDraft(d);
-  return r.ok ? describeRule({ ...r.value.rule, baseline: null }) : null;
+function sentenceOf(d: Draft, locale: Locale): string | null {
+  const r = parseDraft(d, locale);
+  return r.ok ? describeRule({ ...r.value.rule, baseline: null }, locale) : null;
 }
 
 /**
  * Builds a goal and its treat in three short steps: pick a goal (a ready idea or your own), name the prize, and
  * confirm the one-sentence "deal". The detailed rule fields stay folded away unless the member wants them.
  */
-export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
+export function SelfRewardBuilder({ startOpen, locale = "he" }: { startOpen: boolean; locale?: Locale }) {
+  const B = rewardsText(locale).builder;
+  const KIND_LABELS = kindLabels(locale);
+  const TEMPLATES = useMemo(() => templatesFor(locale), [locale]);
   const initial: SelfRewardFormState = { ok: false, error: null, at: 0 };
   const [state, formAction, pending] = useActionState(createSelfReward, initial);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -112,10 +118,10 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
     }
   }, [state.at, state.ok]);
 
-  const ideas = useMemo(() => SELF_REWARD_TEMPLATES.map((t) => ({ t, sentence: sentenceOf(fromTemplate(t)) })), []);
+  const ideas = useMemo(() => TEMPLATES.map((t) => ({ t, sentence: sentenceOf(fromTemplate(t), locale) })), [TEMPLATES, locale]);
 
   const pick = (id: string | "custom") => {
-    const t = SELF_REWARD_TEMPLATES.find((x) => x.id === id);
+    const t = TEMPLATES.find((x) => x.id === id);
     setDraft(t ? fromTemplate(t) : { ...CUSTOM, rewards: [""] });
     setPicked(id);
     setTuning(id === "custom");
@@ -126,7 +132,7 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
   const updateRule = (patch: Partial<Draft>) =>
     setDraft((d) => {
       if (!d) return d;
-      const t = SELF_REWARD_TEMPLATES.find((x) => x.id === picked);
+      const t = TEMPLATES.find((x) => x.id === picked);
       return { ...d, ...(t && d.title === t.title ? { title: "" } : {}), ...patch };
     });
 
@@ -143,16 +149,16 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
 
   const preview = useMemo(() => {
     if (!draft) return null;
-    const r = parseDraft(draft);
+    const r = parseDraft(draft, locale);
     if (!r.ok) return { ok: false as const, error: r.error };
     const options = r.value.rewardOptions;
     return {
       ok: true as const,
-      sentence: describeRule({ ...r.value.rule, baseline: null }),
-      prize: options.length > 1 ? `פרס הפתעה, אחד מתוך: ${options.join(" / ")}` : options[0],
+      sentence: describeRule({ ...r.value.rule, baseline: null }, locale),
+      prize: options.length > 1 ? B.mystery(options.join(" / ")) : options[0],
       budget: r.value.rewardBudget,
     };
-  }, [draft]);
+  }, [draft, locale, B]);
 
   const def = draft ? METRICS[draft.metric] : null;
   const timeInput = draft?.metric === "bedtime" && draft.kind !== "consistency";
@@ -160,12 +166,12 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
   return (
     <details className="rw-builder" ref={detailsRef} open={startOpen}>
       <summary>
-        <span aria-hidden="true">＋</span> יעד חדש
+        <span aria-hidden="true">＋</span> {B.new}
       </summary>
 
       <div className="rw-step">
         <h3>
-          <span className="rw-step-num">1</span> מה היעד?
+          <span className="rw-step-num">1</span> {B.step1}
         </h3>
         <div className={`rw-ideas${picked ? " picked" : ""}`} role="list">
           {ideas
@@ -197,8 +203,8 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
               <span className="rw-idea-emoji" aria-hidden="true">
                 ✏️
               </span>
-              <strong>יעד משלי</strong>
-              <small>בוחרים מדד, יעד ותקופה</small>
+              <strong>{B.own}</strong>
+              <small>{B.ownHint}</small>
             </button>
           )}
         </div>
@@ -212,7 +218,7 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
               setTuning(false);
             }}
           >
-            לבחור יעד אחר
+            {B.other}
           </button>
         )}
       </div>
@@ -235,24 +241,24 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
 
           {!tuning ? (
             <button type="button" className="btn-link rw-tune" onClick={() => setTuning(true)}>
-              לשנות את היעד (מספר, תקופה, שם)
+              {B.tune}
             </button>
           ) : (
             <div className="rw-tuning">
               <label>
-                סוג
+                {B.kind}
                 <select name="kind" value={draft.kind} onChange={(e) => changeKind(e.target.value as SelfRewardKind)}>
                   {SELF_REWARD_KINDS.map((k) => (
                     <option key={k} value={k}>
-                      {KIND_LABELS_HE[k].title}
+                      {KIND_LABELS[k].title}
                     </option>
                   ))}
                 </select>
-                <small className="muted">{KIND_LABELS_HE[draft.kind].hint}</small>
+                <small className="muted">{KIND_LABELS[draft.kind].hint}</small>
               </label>
 
               <label>
-                מדד
+                {B.metric}
                 <select
                   name="metric"
                   value={draft.metric}
@@ -263,7 +269,7 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
                 >
                   {METRICS_FOR_KIND[draft.kind].map((m) => (
                     <option key={m} value={m}>
-                      {METRICS[m].emoji} {METRICS[m].label}
+                      {METRICS[m].emoji} {metricLabel(m, locale, true)}
                     </option>
                   ))}
                 </select>
@@ -271,12 +277,12 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
 
               <label>
                 {draft.kind === "beat_baseline"
-                  ? "כמה אחוז שיפור"
+                  ? B.pct
                   : draft.kind === "consistency"
-                    ? "טווח בדקות"
+                    ? B.minutes
                     : timeInput
-                      ? "להירדם עד"
-                      : `${def.label} ${def.better === "higher" ? "(ומעלה)" : "(ומטה)"}`}
+                      ? B.byTime
+                      : B.threshold(metricLabel(draft.metric, locale, true), def.better === "higher")}
                 {timeInput ? (
                   <input
                     key="t-time"
@@ -303,11 +309,11 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
               </label>
 
               <label>
-                תקופה
+                {B.period}
                 <select name="windowDays" value={draft.windowDays} onChange={(e) => updateRule({ windowDays: e.target.value })}>
                   {WINDOW_CHOICES.map((n) => (
                     <option key={n} value={n}>
-                      {n} ימים
+                      {B.days(n)}
                     </option>
                   ))}
                 </select>
@@ -315,7 +321,7 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
 
               {needsDays(draft.kind) && (
                 <label>
-                  {draft.kind === "streak" ? "אורך הרצף (ימים)" : "בכמה ימים מתוך התקופה"}
+                  {draft.kind === "streak" ? B.streakLen : B.inDays}
                   <input
                     name="requiredDays"
                     type="number"
@@ -337,12 +343,12 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
                     checked={draft.allowSingleMiss}
                     onChange={(e) => updateRule({ allowSingleMiss: e.target.checked })}
                   />
-                  ג׳וקר: יום רע בודד לא שובר את הרצף
+                  {B.joker}
                 </label>
               )}
 
               <label>
-                שם (לא חובה)
+                {B.name}
                 <input name="title" maxLength={60} value={draft.title} onChange={(e) => update({ title: e.target.value })} />
               </label>
             </div>
@@ -350,15 +356,15 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
 
           <div className="rw-step">
             <h3>
-              <span className="rw-step-num">2</span> מה הפרס?
+              <span className="rw-step-num">2</span> {B.step2}
             </h3>
             <div className="rw-prizes">
               {draft.rewards.map((value, i) => (
                 <div className="rw-prize-row" key={i}>
                   <input
-                    aria-label={draft.rewards.length > 1 ? `אפשרות ${i + 1}` : "הפרס"}
+                    aria-label={draft.rewards.length > 1 ? B.option(i + 1) : B.prize}
                     maxLength={80}
-                    placeholder={i === 0 ? "למשל: מסאז׳ של שעה" : "עוד אפשרות להגרלה"}
+                    placeholder={i === 0 ? B.prizePlaceholder : B.morePlaceholder}
                     value={value}
                     onChange={(e) => update({ rewards: draft.rewards.map((r, j) => (j === i ? e.target.value : r)) })}
                   />
@@ -366,7 +372,7 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
                     <button
                       type="button"
                       className="btn-link"
-                      aria-label={`הסר את אפשרות ${i + 1}`}
+                      aria-label={B.removeOption(i + 1)}
                       onClick={() => update({ rewards: draft.rewards.filter((_, j) => j !== i) })}
                     >
                       ✕
@@ -376,12 +382,12 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
               ))}
               {draft.rewards.length < MAX_REWARD_OPTIONS && (
                 <button type="button" className="btn-link" onClick={() => update({ rewards: [...draft.rewards, ""] })}>
-                  ＋ עוד אפשרות (פרס הפתעה בהגרלה)
+                  {B.addOption}
                 </button>
               )}
             </div>
             <label className="rw-budget">
-              כמה זה שווה? (לא חובה)
+              {B.worth}
               <span className="rw-budget-field">
                 <input
                   name="budget"
@@ -400,17 +406,17 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
 
           <div className="rw-step">
             <h3>
-              <span className="rw-step-num">3</span> סוגרים
+              <span className="rw-step-num">3</span> {B.step3}
             </h3>
             <div className="rw-deal" aria-live="polite">
               {preview?.ok ? (
                 <>
                   <p>
-                    אם <strong>{preview.sentence}</strong>,
+                    {B.if} <strong>{preview.sentence}</strong>,
                   </p>
                   <p>
-                    אני מקבל <strong>{preview.prize}</strong>
-                    {preview.budget ? ` (${preview.budget.toLocaleString("he-IL")} ₪)` : ""}.
+                    {B.iGet} <strong>{preview.prize}</strong>
+                    {preview.budget ? ` (${preview.budget.toLocaleString(intlTag(locale))} ₪)` : ""}.
                   </p>
                 </>
               ) : (
@@ -423,7 +429,7 @@ export function SelfRewardBuilder({ startOpen }: { startOpen: boolean }) {
               </p>
             )}
             <button className="btn rw-commit" type="submit" disabled={pending || !preview?.ok}>
-              {pending ? "שומר..." : "🤝 סגרנו, מתחילים היום"}
+              {pending ? B.saving : B.commit}
             </button>
           </div>
         </form>

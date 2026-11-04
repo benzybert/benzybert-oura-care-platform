@@ -1,16 +1,11 @@
 import { claimSelfReward, deleteSelfReward, restartSelfReward } from "@/app/actions";
 import { SelfRewardBuilder } from "@/components/self-reward-builder";
 import { addDays } from "@/lib/dates";
-import { fmtDay } from "@/lib/format";
+import { formatDay } from "@/lib/format-locale";
+import { intlTag, type Locale } from "@/lib/i18n";
+import { rewardsText } from "@/lib/i18n/dict/rewards";
 import type { SelfRewardRow } from "@/lib/queries";
-import {
-  KIND_LABELS_HE,
-  METRICS,
-  daysHe,
-  describeRule,
-  evaluateSelfReward,
-  type SelfRewardEvaluation,
-} from "@/lib/self-rewards";
+import { METRICS, daysIn, describeRule, evaluateSelfReward, kindLabels, type SelfRewardEvaluation } from "@/lib/self-rewards";
 import type { DayMetric } from "@/lib/types";
 import "./self-rewards.css";
 
@@ -20,36 +15,37 @@ type Item = { row: SelfRewardRow; ev: SelfRewardEvaluation };
 const SHOW_WON_DAYS = 14;
 const SHOW_MISSED_DAYS = 7;
 
-const shekels = (n: number) => `${n.toLocaleString("he-IL")} ₪`;
-const emojiOf = (row: SelfRewardRow) => row.emoji || METRICS[row.metric].emoji;
-const titleOf = (row: SelfRewardRow) => row.title || KIND_LABELS_HE[row.kind].title;
+type Ctx = { locale: Locale; T: ReturnType<typeof rewardsText>["page"] };
 
-function prizeOf(row: SelfRewardRow) {
-  if (row.rewardOptions.length > 1) return `פרס הפתעה מתוך ${row.rewardOptions.length}`;
+const shekels = (n: number, locale: Locale) => `${n.toLocaleString(intlTag(locale))} ₪`;
+const emojiOf = (row: SelfRewardRow) => row.emoji || METRICS[row.metric].emoji;
+const titleOf = (row: SelfRewardRow, locale: Locale) => row.title || kindLabels(locale)[row.kind].title;
+
+function prizeOf(row: SelfRewardRow, { T }: Ctx) {
+  if (row.rewardOptions.length > 1) return T.mystery(row.rewardOptions.length);
   return row.rewardOptions[0] ?? "";
 }
 
-/** Where the member stands, in a few words ("3 מתוך 5 ימים", "ממוצע 82, היעד 80"). */
-function progressLine({ row, ev }: Item): string {
+/** Where the member stands, in a few words ("3 of 5 days", "average 82, goal 80"). */
+function progressLine({ row, ev }: Item, { T }: Ctx): string {
   const def = METRICS[row.metric];
-  const unit = row.metric === "bedtime" ? "לילות" : "ימים";
   switch (row.kind) {
     case "average":
     case "beat_baseline":
-      return ev.current === null ? "עוד אין נתונים" : `ממוצע ${def.format(ev.current)}, היעד ${def.format(ev.goal)}`;
+      return ev.current === null ? T.noData : T.avgGoal(def.format(ev.current), def.format(ev.goal));
     case "days_hit":
-      return `${ev.current ?? 0} מתוך ${ev.goal} ${unit}`;
+      return T.ofDays(ev.current ?? 0, ev.goal, row.metric === "bedtime");
     case "streak":
-      return `רצף של ${ev.current ?? 0} מתוך ${ev.goal}`;
+      return T.streakOf(ev.current ?? 0, ev.goal);
     case "consistency":
-      return `${ev.current ?? 0} מתוך ${ev.goal} לילות עקביים`;
+      return T.consistentOf(ev.current ?? 0, ev.goal);
   }
 }
 
-const timeLeft = (ev: SelfRewardEvaluation) => (ev.daysLeft > 0 ? `נשארו ${daysHe(ev.daysLeft)}` : "מחכה ליום האחרון");
+const timeLeft = (ev: SelfRewardEvaluation, { T, locale }: Ctx) => (ev.daysLeft > 0 ? T.left(daysIn(ev.daysLeft, locale)) : T.lastDay);
 
 /** Progress ring with the goal's emoji in the middle. Colour says whether the goal is on track. */
-function Ring({ ev, emoji }: { ev: SelfRewardEvaluation; emoji: string }) {
+function Ring({ ev, emoji, ctx }: { ev: SelfRewardEvaluation; emoji: string; ctx: Ctx }) {
   const pct = Math.max(0, Math.min(1, ev.progress));
   const r = 26;
   const c = 2 * Math.PI * r;
@@ -61,7 +57,7 @@ function Ring({ ev, emoji }: { ev: SelfRewardEvaluation; emoji: string }) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(pct * 100)}
-      aria-label={ev.progressKind === "time" ? "כמה מהתקופה עבר" : "התקדמות ליעד"}
+      aria-label={ev.progressKind === "time" ? ctx.T.timeAria : ctx.T.goalAria}
     >
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <circle className="rw-ring-track" cx="32" cy="32" r={r} />
@@ -100,36 +96,38 @@ function IdButton({
   );
 }
 
-function GoalCard(item: Item) {
+function GoalCard({ ctx, ...item }: Item & { ctx: Ctx }) {
   const { row, ev } = item;
+  const { T, locale } = ctx;
   return (
     <article className="rw-goal">
-      <Ring ev={ev} emoji={emojiOf(row)} />
+      <Ring ev={ev} emoji={emojiOf(row)} ctx={ctx} />
       <div className="rw-goal-body">
-        <strong className="rw-goal-title">{titleOf(row)}</strong>
-        <p className="rw-goal-progress">{progressLine(item)}</p>
+        <strong className="rw-goal-title">{titleOf(row, locale)}</strong>
+        <p className="rw-goal-progress">{progressLine(item, ctx)}</p>
         <p className="rw-goal-status">
-          {ev.onTrack === true && <span className="rw-dot ok">בדרך הנכונה · </span>}
-          {ev.onTrack === false && <span className="rw-dot warn">צריך דחיפה · </span>}
-          {timeLeft(ev)}
+          {ev.onTrack === true && <span className="rw-dot ok">{T.onTrack}</span>}
+          {ev.onTrack === false && <span className="rw-dot warn">{T.push}</span>}
+          {timeLeft(ev, ctx)}
         </p>
         <p className="rw-goal-prize">
-          <span aria-hidden="true">🎁</span> {prizeOf(row)}
+          <span aria-hidden="true">🎁</span> {prizeOf(row, ctx)}
         </p>
       </div>
       <details className="rw-menu">
-        <summary aria-label="פרטים ואפשרויות">⋯</summary>
+        <summary aria-label={T.menu}>⋯</summary>
         <div className="rw-menu-body">
-          <p className="muted">{describeRule(row)}</p>
-          {row.rewardOptions.length > 1 && <p className="muted">אפשרויות: {row.rewardOptions.join(" / ")}</p>}
-          <IdButton action={deleteSelfReward} id={row.id} label="מחק את היעד" className="btn-link danger" />
+          <p className="muted">{describeRule(row, locale)}</p>
+          {row.rewardOptions.length > 1 && <p className="muted">{T.options(row.rewardOptions.join(" / "))}</p>}
+          <IdButton action={deleteSelfReward} id={row.id} label={T.delete} className="btn-link danger" />
         </div>
       </details>
     </article>
   );
 }
 
-function ReadyCard({ row, ev }: Item) {
+function ReadyCard({ row, ev, ctx }: Item & { ctx: Ctx }) {
+  const { T, locale } = ctx;
   const mystery = row.rewardOptions.length > 1;
   return (
     <article className="rw-ready">
@@ -137,44 +135,47 @@ function ReadyCard({ row, ev }: Item) {
         🎉
       </span>
       <div>
-        <strong>עשית את זה: {titleOf(row)}</strong>
+        <strong>{T.done(titleOf(row, locale))}</strong>
         <p className="muted">
-          {ev.achievedDay ? `הושג ב-${fmtDay(ev.achievedDay)}. ` : ""}
-          {mystery ? "ההגרלה מחכה לך." : `מגיע לך: ${prizeOf(row)}`}
+          {ev.achievedDay ? T.achieved(formatDay(ev.achievedDay, locale)) : ""}
+          {mystery ? T.drawWaits : T.earned(prizeOf(row, ctx))}
         </p>
       </div>
-      <IdButton action={claimSelfReward} id={row.id} label={mystery ? "🎲 הגרל את הפרס" : "🎁 קבל את הפרס"} className="btn" />
+      <IdButton action={claimSelfReward} id={row.id} label={mystery ? T.draw : T.claim} className="btn" />
     </article>
   );
 }
 
-function WonCard({ row }: Item) {
+function WonCard({ row, ctx }: Item & { ctx: Ctx }) {
+  const { T, locale } = ctx;
   return (
     <article className="rw-won">
       <span aria-hidden="true">🏆</span>
       <div>
         <strong>{row.claimedReward}</strong>
         <p className="muted">
-          על {titleOf(row)}
-          {row.rewardBudget ? ` · ${shekels(row.rewardBudget)}` : ""}. תהנה, הרווחת את זה.
+          {T.for(titleOf(row, locale))}
+          {row.rewardBudget ? ` · ${shekels(row.rewardBudget, locale)}` : ""}
+          {T.enjoy}
         </p>
       </div>
-      <IdButton action={restartSelfReward} id={row.id} label="עוד סיבוב" className="btn-link" />
+      <IdButton action={restartSelfReward} id={row.id} label={T.again} className="btn-link" />
     </article>
   );
 }
 
-function MissedRow({ row, ev }: Item) {
+function MissedRow({ row, ev, ctx }: Item & { ctx: Ctx }) {
+  const { T, locale } = ctx;
   return (
     <div className="rw-missed">
       <span aria-hidden="true">{emojiOf(row)}</span>
       <div>
-        <strong>{titleOf(row)}</strong>
-        <p className="muted">לא הפעם{ev.reason ? `: ${ev.reason}` : ""}. יעד קצת יותר קל הוא גם ניצחון.</p>
+        <strong>{titleOf(row, locale)}</strong>
+        <p className="muted">{T.notThisTime(ev.reason)}</p>
       </div>
       <div className="rw-row-actions">
-        <IdButton action={restartSelfReward} id={row.id} label="עוד סיבוב" className="btn-link" />
-        <IdButton action={deleteSelfReward} id={row.id} label="מחק" className="btn-link danger" />
+        <IdButton action={restartSelfReward} id={row.id} label={T.again} className="btn-link" />
+        <IdButton action={deleteSelfReward} id={row.id} label={T.remove} className="btn-link danger" />
       </div>
     </div>
   );
@@ -190,13 +191,17 @@ export function SelfRewardsSection({
   metrics,
   today,
   points,
+  locale = "he",
 }: {
   rows: SelfRewardRow[];
   metrics: DayMetric[];
   today: string;
   points: number;
+  locale?: Locale;
 }) {
-  const items: Item[] = rows.map((row) => ({ row, ev: evaluateSelfReward(row, metrics, today) }));
+  const T = rewardsText(locale).page;
+  const ctx: Ctx = { locale, T };
+  const items: Item[] = rows.map((row) => ({ row, ev: evaluateSelfReward(row, metrics, today, locale) }));
 
   const ready = items.filter((i) => i.row.claimedAt === null && i.ev.status === "earned");
   const active = items.filter((i) => i.row.claimedAt === null && i.ev.status === "active");
@@ -212,14 +217,14 @@ export function SelfRewardsSection({
 
   const treatShekels = [...won, ...ready].reduce((sum, i) => sum + (i.row.rewardBudget ?? 0), 0);
   const pills = [
-    { icon: "🎯", value: String(active.length + ready.length), label: "פעילים" },
-    { icon: "🏆", value: String(won.length + ready.length), label: "הושגו" },
-    ...(treatShekels > 0 ? [{ icon: "💰", value: shekels(treatShekels), label: "בקופת הפינוקים" }] : []),
-    ...(points > 0 ? [{ icon: "⭐", value: String(points), label: "נקודות שינה" }] : []),
+    { icon: "🎯", value: String(active.length + ready.length), label: T.pills.active },
+    { icon: "🏆", value: String(won.length + ready.length), label: T.pills.won },
+    ...(treatShekels > 0 ? [{ icon: "💰", value: shekels(treatShekels, locale), label: T.pills.jar }] : []),
+    ...(points > 0 ? [{ icon: "⭐", value: String(points), label: T.pills.points }] : []),
   ];
 
   return (
-    <section className="rw" aria-label="התגמולים שלי">
+    <section className="rw" aria-label={T.label}>
       {items.length > 0 && (
         <ul className="rw-pills">
           {pills.map((p) => (
@@ -231,41 +236,41 @@ export function SelfRewardsSection({
       )}
 
       {ready.map((i) => (
-        <ReadyCard key={i.row.id} {...i} />
+        <ReadyCard key={i.row.id} {...i} ctx={ctx} />
       ))}
 
       {active.length > 0 && (
         <div className="rw-list">
           {active.map((i) => (
-            <GoalCard key={i.row.id} {...i} />
+            <GoalCard key={i.row.id} {...i} ctx={ctx} />
           ))}
         </div>
       )}
 
       {wonRecent.map((i) => (
-        <WonCard key={i.row.id} {...i} />
+        <WonCard key={i.row.id} {...i} ctx={ctx} />
       ))}
       {missedRecent.map((i) => (
-        <MissedRow key={i.row.id} {...i} />
+        <MissedRow key={i.row.id} {...i} ctx={ctx} />
       ))}
 
-      <SelfRewardBuilder startOpen={active.length + ready.length === 0} />
+      <SelfRewardBuilder startOpen={active.length + ready.length === 0} locale={locale} />
 
       {history.length > 0 && (
         <details className="rw-history">
-          <summary>יעדים קודמים ({history.length})</summary>
+          <summary>{T.history(history.length)}</summary>
           {history.map(({ row, ev }) => (
             <div className="rw-history-row" key={row.id}>
               <span>
-                <span aria-hidden="true">{emojiOf(row)}</span> {titleOf(row)}
+                <span aria-hidden="true">{emojiOf(row)}</span> {titleOf(row, locale)}
                 <span className="muted">
                   {" "}
-                  · {row.claimedAt ? `קיבלת: ${row.claimedReward}` : "לא הפעם"} · {fmtDay(row.startDay)}–{fmtDay(ev.endDay)}
+                  · {row.claimedAt ? T.got(row.claimedReward ?? "") : T.notThis} · {formatDay(row.startDay, locale)}–{formatDay(ev.endDay, locale)}
                 </span>
               </span>
               <span className="rw-row-actions">
-                <IdButton action={restartSelfReward} id={row.id} label="עוד סיבוב" className="btn-link" />
-                <IdButton action={deleteSelfReward} id={row.id} label="מחק" className="btn-link danger" />
+                <IdButton action={restartSelfReward} id={row.id} label={T.again} className="btn-link" />
+                <IdButton action={deleteSelfReward} id={row.id} label={T.remove} className="btn-link danger" />
               </span>
             </div>
           ))}
@@ -273,7 +278,7 @@ export function SelfRewardsSection({
       )}
 
       <p className="muted rw-private">
-        <span aria-hidden="true">🔒</span> רק אתה רואה את היעדים והפרסים. לא הצוות הרפואי ולא הארגון.
+        <span aria-hidden="true">🔒</span> {T.private}
       </p>
     </section>
   );

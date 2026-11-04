@@ -6,6 +6,7 @@ import { defineDict } from "../index";
  */
 export const member = defineDict(
   {
+    rewardsLead: "A goal on your ring data, and a treat for reaching it.",
     actions: {
       title: "Today's actions",
       none: "No suggested actions. Last night was fine.",
@@ -93,6 +94,7 @@ export const member = defineDict(
     },
   },
   {
+    rewardsLead: "יעד על נתוני הטבעת, ופינוק כשמגיעים אליו.",
     actions: {
       title: "פעולות להיום",
       none: "אין פעולות מומלצות. הלילה האחרון היה בסדר.",

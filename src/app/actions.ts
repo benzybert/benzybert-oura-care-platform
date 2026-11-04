@@ -496,10 +496,11 @@ export async function createSelfReward(
   const fail = (error: string): SelfRewardFormState => ({ ok: false, error, at: Date.now() });
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
-  const E = (await getT()).t.member.errors;
+  const { locale, t } = await getT();
+  const E = t.member.errors;
   if (!member) return fail(E.noMember);
 
-  const parsed = parseSelfRewardForm(formValue(formData));
+  const parsed = parseSelfRewardForm(formValue(formData), locale);
   if (!parsed.ok) return fail(parsed.error);
   const { rule, title, emoji, rewardOptions, rewardBudget } = parsed.value;
 

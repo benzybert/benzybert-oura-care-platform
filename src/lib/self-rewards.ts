@@ -2,6 +2,8 @@ import { z } from "zod";
 import { mean } from "./alerts";
 import { addDays } from "./dates";
 import { median, shiftBedtime, unshiftBedtime } from "./rewards";
+import type { Locale } from "./i18n";
+import { REWARDS_EN as EN } from "./i18n/dict/rewards";
 import type { DayMetric } from "./types";
 
 /**
@@ -208,8 +210,17 @@ export function computeSelfBaseline(days: DayMetric[], metric: SelfRewardMetric,
   return values.length >= BASELINE_MIN_DAYS ? mean(values) : null;
 }
 
-export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], today: string): SelfRewardEvaluation {
+export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], today: string, locale: Locale = "he"): SelfRewardEvaluation {
   const def = METRICS[rule.metric];
+  const en = locale === "en";
+  const REASON = {
+    notEnoughData: en ? EN.reasons.notEnoughData : "לא היו מספיק ימים עם נתונים מהטבעת",
+    belowGoal: en ? EN.reasons.belowGoal : "הממוצע נשאר מתחת ליעד",
+    notEnoughDaysLeft: en ? EN.reasons.notEnoughDaysLeft : "כבר לא נשארו מספיק ימים להגיע ליעד",
+    streakBroken: en ? EN.reasons.streakBroken : "הרצף נשבר ולא נשאר מספיק זמן לבנות אותו מחדש",
+    notEnoughNights: en ? EN.reasons.notEnoughNights : "לא היו מספיק לילות עם נתונים",
+    bedtimeMoved: en ? EN.reasons.bedtimeMoved : "שעת ההירדמות זזה יותר מדי",
+  };
   const endDay = windowEnd(rule);
   const windowDays = Array.from({ length: rule.windowDays }, (_, i) => addDays(rule.startDay, i));
   const byDay = new Map(days.map((d) => [d.day, d]));
@@ -250,7 +261,7 @@ export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], toda
         onTrack: current === null ? null : hitting,
       };
       if (coverageImpossible) {
-        return { ...shared, status: "missed", reason: "לא היו מספיק ימים עם נתונים מהטבעת" };
+        return { ...shared, status: "missed", reason: REASON.notEnoughData };
       }
       if (!settled) return { ...shared, status: "active" };
       if (values.length >= minDataDays && hitting) {
@@ -259,7 +270,7 @@ export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], toda
       return {
         ...shared,
         status: "missed",
-        reason: values.length < minDataDays ? "לא היו מספיק ימים עם נתונים מהטבעת" : "הממוצע נשאר מתחת ליעד",
+        reason: values.length < minDataDays ? REASON.notEnoughData : REASON.belowGoal,
       };
     }
 
@@ -291,7 +302,7 @@ export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], toda
       };
       if (achievedDay) return { ...shared, status: "earned", achievedDay };
       if (hits + pending < required || settled) {
-        return { ...shared, status: "missed", reason: "כבר לא נשארו מספיק ימים להגיע ליעד" };
+        return { ...shared, status: "missed", reason: REASON.notEnoughDaysLeft };
       }
       return { ...shared, status: "active" };
     }
@@ -335,7 +346,7 @@ export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], toda
       };
       if (achievedDay) return { ...shared, status: "earned", achievedDay };
       if (run + pending < required || settled) {
-        return { ...shared, status: "missed", reason: "הרצף נשבר ולא נשאר מספיק זמן לבנות אותו מחדש" };
+        return { ...shared, status: "missed", reason: REASON.streakBroken };
       }
       return { ...shared, status: "active" };
     }
@@ -356,11 +367,11 @@ export function evaluateSelfReward(rule: SelfRewardRule, days: DayMetric[], toda
         onTrack: null,
       };
       if (rule.windowDays - lost < required) {
-        return { ...shared, status: "missed", reason: "לא היו מספיק לילות עם נתונים" };
+        return { ...shared, status: "missed", reason: REASON.notEnoughNights };
       }
       if (!settled) return { ...shared, status: "active" };
       if (consistent >= required) return { ...shared, status: "earned", achievedDay: endDay };
-      return { ...shared, status: "missed", reason: "שעת ההירדמות זזה יותר מדי" };
+      return { ...shared, status: "missed", reason: REASON.bedtimeMoved };
     }
   }
 }
@@ -377,7 +388,43 @@ export function thresholdHe(metric: SelfRewardMetric, scaled: number): string {
   return `${def.format(scaled)} ${def.better === "higher" ? "ומעלה" : "ומטה"}`;
 }
 
-export function describeRule(rule: Omit<SelfRewardRule, "startDay">): string {
+/** A metric's name in the page's language (lower-case in English, for use inside a sentence). */
+export function metricLabel(metric: SelfRewardMetric, locale: Locale = "he", title = false): string {
+  if (locale === "en") return (title ? EN.metricTitles : EN.metrics)[metric] ?? metric;
+  return METRICS[metric].label;
+}
+
+export function kindLabels(locale: Locale = "he"): Record<SelfRewardKind, { title: string; hint: string }> {
+  return locale === "en" ? (EN.kinds as Record<SelfRewardKind, { title: string; hint: string }>) : KIND_LABELS_HE;
+}
+
+/** "N days" in the page's language. */
+export const daysIn = (n: number, locale: Locale = "he") => (locale === "en" ? EN.days(n) : daysHe(n));
+
+function describeRuleEn(rule: Omit<SelfRewardRule, "startDay">): string {
+  const def = METRICS[rule.metric];
+  const label = EN.metrics[rule.metric] ?? rule.metric;
+  const required = rule.requiredDays ?? rule.windowDays;
+  const unit = rule.metric === "bedtime" ? EN.nights : EN.days;
+  const threshold = (scaled: number) =>
+    rule.metric === "bedtime" ? EN.byTime(def.format(scaled)) : def.better === "higher" ? EN.atLeast(def.format(scaled)) : EN.atMost(def.format(scaled));
+  const what = () => (rule.metric === "steps" ? EN.rule.stepsWhat(def.format(rule.target)) : `${label} ${threshold(def.toScale(rule.target))}`);
+  switch (rule.kind) {
+    case "average":
+      return EN.rule.average(label, threshold(def.toScale(rule.target)), EN.days(rule.windowDays));
+    case "days_hit":
+      return EN.rule.daysHit(what(), required, unit(rule.windowDays));
+    case "streak":
+      return EN.rule.streak(unit(required), what(), rule.allowSingleMiss, EN.days(rule.windowDays));
+    case "beat_baseline":
+      return EN.rule.beat(label, def.better === "higher", rule.target, rule.baseline === null ? null : def.format(rule.baseline), EN.days(rule.windowDays));
+    case "consistency":
+      return EN.rule.consistency(rule.target, required, EN.nights(rule.windowDays));
+  }
+}
+
+export function describeRule(rule: Omit<SelfRewardRule, "startDay">, locale: Locale = "he"): string {
+  if (locale === "en") return describeRuleEn(rule);
   const def = METRICS[rule.metric];
   const required = rule.requiredDays ?? rule.windowDays;
   const unit = rule.metric === "bedtime" ? nightsHe : daysHe;
@@ -413,22 +460,25 @@ const timeToMinute = (s: string) => {
 
 export const MAX_REWARD_OPTIONS = 6;
 
-const rawSchema = z.object({
-  title: z.string().trim().max(60).optional().default(""),
-  emoji: z.string().trim().max(8).optional().default(""),
-  kind: z.enum(SELF_REWARD_KINDS, { error: "סוג יעד לא מוכר" }),
-  metric: z.enum(SELF_REWARD_METRICS, { error: "מדד לא מוכר" }),
-  target: z.string().trim().min(1, "חסר יעד"),
-  requiredDays: z.string().trim().optional().default(""),
-  windowDays: z.coerce
-    .number({ error: "משך התקופה בימים" })
-    .int("משך התקופה בימים שלמים")
-    .min(3, "תקופה של 3 ימים לפחות")
-    .max(90, "עד 90 ימים"),
-  rewards: z.string().max(MAX_REWARD_OPTIONS * 90),
-  budget: z.string().trim().optional().default(""),
-  allowSingleMiss: z.string().optional(),
-});
+function rawSchema(locale: Locale) {
+  const E = locale === "en" ? EN.errors : null;
+  return z.object({
+    title: z.string().trim().max(60).optional().default(""),
+    emoji: z.string().trim().max(8).optional().default(""),
+    kind: z.enum(SELF_REWARD_KINDS, { error: E?.kind ?? "סוג יעד לא מוכר" }),
+    metric: z.enum(SELF_REWARD_METRICS, { error: E?.metric ?? "מדד לא מוכר" }),
+    target: z.string().trim().min(1, E?.target ?? "חסר יעד"),
+    requiredDays: z.string().trim().optional().default(""),
+    windowDays: z.coerce
+      .number({ error: E?.window ?? "משך התקופה בימים" })
+      .int(E?.windowInt ?? "משך התקופה בימים שלמים")
+      .min(3, E?.windowMin ?? "תקופה של 3 ימים לפחות")
+      .max(90, E?.windowMax ?? "עד 90 ימים"),
+    rewards: z.string().max(MAX_REWARD_OPTIONS * 90),
+    budget: z.string().trim().optional().default(""),
+    allowSingleMiss: z.string().optional(),
+  });
+}
 
 export type SelfRewardInput = {
   title: string | null;
@@ -441,8 +491,9 @@ export type SelfRewardInput = {
 export type ParseResult = { ok: true; value: SelfRewardInput } | { ok: false; error: string };
 
 /** Validates the builder form. Error messages are Hebrew and shown to the member as-is. */
-export function parseSelfRewardForm(get: (key: string) => string | null | undefined): ParseResult {
-  const raw = rawSchema.safeParse({
+export function parseSelfRewardForm(get: (key: string) => string | null | undefined, locale: Locale = "he"): ParseResult {
+  const E = locale === "en" ? EN.errors : null;
+  const raw = rawSchema(locale).safeParse({
     title: get("title") ?? undefined,
     emoji: get("emoji") ?? undefined,
     kind: get("kind"),
@@ -454,36 +505,36 @@ export function parseSelfRewardForm(get: (key: string) => string | null | undefi
     budget: get("budget") ?? undefined,
     allowSingleMiss: get("allowSingleMiss") ?? undefined,
   });
-  if (!raw.success) return { ok: false, error: raw.error.issues[0]?.message ?? "הטופס לא תקין" };
+  if (!raw.success) return { ok: false, error: raw.error.issues[0]?.message ?? E?.form ?? "הטופס לא תקין" };
   const r = raw.data;
 
   if (!METRICS_FOR_KIND[r.kind].includes(r.metric)) {
-    return { ok: false, error: "המדד הזה לא מתאים לסוג היעד שבחרת" };
+    return { ok: false, error: E?.mismatch ?? "המדד הזה לא מתאים לסוג היעד שבחרת" };
   }
 
   let target: number | null;
   if (r.kind === "beat_baseline") {
     target = Number(r.target);
-    if (!Number.isFinite(target) || target < 1 || target > 50) return { ok: false, error: "שיפור של 1 עד 50 אחוז" };
+    if (!Number.isFinite(target) || target < 1 || target > 50) return { ok: false, error: E?.pct ?? "שיפור של 1 עד 50 אחוז" };
   } else if (r.kind === "consistency") {
     target = Number(r.target);
-    if (!Number.isFinite(target) || target < 15 || target > 120) return { ok: false, error: "טווח של 15 עד 120 דקות" };
+    if (!Number.isFinite(target) || target < 15 || target > 120) return { ok: false, error: E?.minutes ?? "טווח של 15 עד 120 דקות" };
   } else if (r.metric === "bedtime") {
     target = timeToMinute(r.target);
-    if (target === null) return { ok: false, error: "שעה בפורמט 23:30" };
+    if (target === null) return { ok: false, error: E?.time ?? "שעה בפורמט 23:30" };
   } else {
     target = Number(r.target);
     const { min, max } = METRICS[r.metric].range;
     if (!Number.isFinite(target) || target < min || target > max) {
-      return { ok: false, error: `יעד ל${METRICS[r.metric].label} בין ${min} ל-${max}` };
+      return { ok: false, error: E ? E.range(EN.metrics[r.metric] ?? r.metric, min, max) : `יעד ל${METRICS[r.metric].label} בין ${min} ל-${max}` };
     }
   }
 
   let requiredDays: number | null = null;
   if (r.kind === "days_hit" || r.kind === "streak" || r.kind === "consistency") {
     requiredDays = Number(r.requiredDays);
-    if (!Number.isInteger(requiredDays) || requiredDays < 1) return { ok: false, error: "כמה ימים צריך? לפחות יום אחד" };
-    if (requiredDays > r.windowDays) return { ok: false, error: "מספר הימים הנדרש גדול מהתקופה" };
+    if (!Number.isInteger(requiredDays) || requiredDays < 1) return { ok: false, error: E?.days ?? "כמה ימים צריך? לפחות יום אחד" };
+    if (requiredDays > r.windowDays) return { ok: false, error: E?.daysOver ?? "מספר הימים הנדרש גדול מהתקופה" };
   }
 
   const rewardOptions = [
@@ -494,15 +545,15 @@ export function parseSelfRewardForm(get: (key: string) => string | null | undefi
         .filter(Boolean),
     ),
   ];
-  if (rewardOptions.length === 0) return { ok: false, error: "מה הפרס? כתוב לפחות אחד" };
-  if (rewardOptions.length > MAX_REWARD_OPTIONS) return { ok: false, error: `עד ${MAX_REWARD_OPTIONS} אפשרויות פרס` };
-  if (rewardOptions.some((o) => o.length > 80)) return { ok: false, error: "כל פרס עד 80 תווים" };
+  if (rewardOptions.length === 0) return { ok: false, error: E?.prize ?? "מה הפרס? כתוב לפחות אחד" };
+  if (rewardOptions.length > MAX_REWARD_OPTIONS) return { ok: false, error: E ? E.prizes(MAX_REWARD_OPTIONS) : `עד ${MAX_REWARD_OPTIONS} אפשרויות פרס` };
+  if (rewardOptions.some((o) => o.length > 80)) return { ok: false, error: E?.prizeLen ?? "כל פרס עד 80 תווים" };
 
   let rewardBudget: number | null = null;
   if (r.budget) {
     rewardBudget = Number(r.budget);
     if (!Number.isInteger(rewardBudget) || rewardBudget < 0 || rewardBudget > 100000) {
-      return { ok: false, error: "תקציב בשקלים שלמים, עד 100,000" };
+      return { ok: false, error: E?.budget ?? "תקציב בשקלים שלמים, עד 100,000" };
     }
   }
 
@@ -645,3 +696,12 @@ export const SELF_REWARD_TEMPLATES: SelfRewardTemplate[] = [
     why: "יעד ארוך שמשקף כושר אמיתי, ביחס לבסיס שלך.",
   },
 ];
+
+/** The goal ideas in the page's language (same ids and rules; English titles, prizes and reasons). */
+export function templatesFor(locale: Locale = "he"): SelfRewardTemplate[] {
+  if (locale !== "en") return SELF_REWARD_TEMPLATES;
+  return SELF_REWARD_TEMPLATES.map((t) => {
+    const en = EN.templates[t.id];
+    return en ? { ...t, title: en.title, rewards: [...en.rewards], why: en.why } : t;
+  });
+}

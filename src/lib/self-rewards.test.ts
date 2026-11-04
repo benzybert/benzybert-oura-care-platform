@@ -290,3 +290,19 @@ describe("describeRule", () => {
     );
   });
 });
+
+describe("self-rewards in English", () => {
+  it("describes rules in English and keeps Hebrew as the default", async () => {
+    const { describeRule, templatesFor, parseSelfRewardForm, SELF_REWARD_TEMPLATES } = await import("./self-rewards");
+    const rule = { kind: "days_hit" as const, metric: "steps" as const, target: 10000, requiredDays: 5, windowDays: 7, allowSingleMiss: true, baseline: null };
+    expect(describeRule(rule, "en")).toBe("10,000 steps or more on 5 of 7 days");
+    expect(describeRule(rule)).toMatch(/[֐-׿]/);
+    const streak = { ...rule, kind: "streak" as const, requiredDays: 14, windowDays: 21 };
+    expect(describeRule(streak, "en")).toBe("a streak of 14 days: 10,000 steps or more, with a joker for one bad day, within 21 days");
+    const en = templatesFor("en");
+    expect(en.map((t) => t.id)).toEqual(SELF_REWARD_TEMPLATES.map((t) => t.id));
+    for (const t of en) expect(`${t.title} ${t.rewards.join(" ")} ${t.why}`).not.toMatch(/[֐-׿]/);
+    const bad = parseSelfRewardForm((k) => ({ kind: "average", metric: "sleep_score", target: "80", windowDays: "14", rewards: "" })[k], "en");
+    expect(bad).toEqual({ ok: false, error: "What is the prize? Write at least one" });
+  });
+});
