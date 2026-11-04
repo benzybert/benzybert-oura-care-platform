@@ -388,3 +388,70 @@
 .md-days span.is-none {
   background: var(--c-line);
 }
+
+/* ---------- HRV in depth, sleep structure (hrv-insights.tsx, sleep-structure.tsx) ---------- */
+.md .md-sub {
+  margin: 18px 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.md-hrv-chart {
+  margin-top: 12px;
+}
+.md-hrv-svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+.md-hrv-band {
+  fill: var(--viz-band);
+}
+.md-hrv-dot {
+  fill: var(--viz-neutral);
+  opacity: 0.55;
+}
+.md-hrv-line {
+  fill: none;
+  stroke: var(--viz-data);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.md-matrix-card {
+  margin-top: 14px;
+}
+.md-matrix-wrap {
+  overflow-x: auto;
+}
+.md-matrix {
+  border-collapse: separate;
+  border-spacing: 3px;
+  min-width: 320px;
+  font-variant-numeric: tabular-nums;
+}
+.md-matrix th {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--c-ink-2);
+  text-align: start;
+  padding: 4px 8px;
+}
+.md-matrix td {
+  text-align: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  /* opacity of the data colour follows the probability (--p, 0-1); text stays readable on both ends */
+  background: color-mix(in srgb, var(--viz-data) calc(var(--p, 0) * 45%), var(--c-surface));
+  color: var(--c-ink);
+}
+.md-matrix td.is-diag {
+  outline: 1px solid var(--c-line);
+}
+@media (max-width: 520px) {
+  .md-matrix td {
+    padding: 6px;
+    font-size: 0.82rem;
+  }
+}

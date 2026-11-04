@@ -67,10 +67,12 @@ export const circle = defineDict(
       devicesLead:
         "A siren, flashing lights or a smart speaker can go off too, through a webhook (Home Assistant, IFTTT, or any service that accepts a web request). Only the level and the name you chose are sent: no health numbers.",
       devicesHelp: "In Home Assistant: create an automation with a Webhook trigger and paste its https address here.",
+      ntfyHelp:
+        "ntfy: install the free ntfy app, subscribe to a topic name nobody can guess, and paste https://ntfy.sh/<that-topic> here (or your own ntfy server). Anyone who knows the topic can read it, which is why only the level and the name go out.",
       noDevices: "No alarms yet.",
       deviceName: "Name (for example “Living room siren”)",
       deviceKind: "Type",
-      kinds: { home_assistant: "Home Assistant", ifttt: "IFTTT", webhook: "Other webhook" },
+      kinds: { home_assistant: "Home Assistant", ifttt: "IFTTT", ntfy: "ntfy (phone push)", webhook: "Other webhook" },
       deviceUrl: "Webhook address (https)",
       deviceUrlHint: "It is stored encrypted and never shown again.",
       deviceMin: "Goes off from",
@@ -237,10 +239,12 @@ export const circle = defineDict(
       devicesLead:
         "גם צופר, אורות מהבהבים או רמקול חכם יכולים להידלק, דרך webhook (Home Assistant, IFTTT או כל שירות שמקבל בקשת רשת). נשלחים רק הרמה והשם שבחרתם: בלי מספרי בריאות.",
       devicesHelp: "ב-Home Assistant: יוצרים אוטומציה עם טריגר Webhook ומדביקים כאן את כתובת ה-https שלו.",
+      ntfyHelp:
+        "ntfy: מתקינים את אפליקציית ntfy החינמית, נרשמים לנושא (topic) בשם שאי אפשר לנחש, ומדביקים כאן https://ntfy.sh/<שם-הנושא> (או שרת ntfy משלכם). מי שיודע את שם הנושא יכול לקרוא אותו, ולכן נשלחים רק הרמה והשם.",
       noDevices: "עדיין אין אזעקות.",
       deviceName: "שם (למשל ״צופר בסלון״)",
       deviceKind: "סוג",
-      kinds: { home_assistant: "Home Assistant", ifttt: "IFTTT", webhook: "Webhook אחר" },
+      kinds: { home_assistant: "Home Assistant", ifttt: "IFTTT", ntfy: "ntfy (התראה לטלפון)", webhook: "Webhook אחר" },
       deviceUrl: "כתובת ה-webhook (https)",
       deviceUrlHint: "היא נשמרת מוצפנת ולא תוצג שוב.",
       deviceMin: "נדלק מרמה",

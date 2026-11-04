@@ -66,6 +66,9 @@ export type DashboardMeta = {
   generatedAt: Date;
   /** Where the PDF version of this dashboard is downloaded from. */
   pdfHref?: string | null;
+  /** member mode: the FHIR (JSON) export of the same window, and its button label from the dictionary */
+  fhirHref?: string | null;
+  fhirLabel?: string;
   /** member mode: the window choices (30/60/90 days) as plain links */
   windowLinks?: Array<{ days: number; href: string; active: boolean }>;
   /** member mode: where "share with a doctor" leads */
@@ -537,6 +540,12 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
               <a className="dash-btn" href={meta.pdfHref} download>
                 <IconDownload size={18} />
                 הורדת PDF
+              </a>
+            )}
+            {isMember && meta.fhirHref && (
+              <a className="dash-btn" href={meta.fhirHref} download title="FHIR R4 (JSON)">
+                <IconDownload size={18} />
+                {meta.fhirLabel ?? "FHIR"}
               </a>
             )}
             {isMember && meta.shareHref ? (

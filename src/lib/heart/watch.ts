@@ -113,7 +113,7 @@ export async function notifyAlert(
     attempted++;
     let ok = false;
     try {
-      const result = await sendWebhook(decrypt(device.urlEnc), device.kind, webhookPayload({ level, person: ctx.person || "family", test: false, now }));
+      const result = await sendWebhook(decrypt(device.urlEnc), device.kind, webhookPayload({ level, person: ctx.person || "family", test: false, now }), ctx.selfLocale);
       ok = result.ok;
     } catch {
       ok = false;
@@ -397,7 +397,9 @@ export async function sendTestToDevice(db: Db, device: typeof alertDevices.$infe
   let ok = false;
   try {
     if (isWebhookKind(device.kind)) {
-      ok = (await sendWebhook(decrypt(device.urlEnc), device.kind, webhookPayload({ level: "test", person: prefs?.circleName || "family", test: true, now }))).ok;
+      ok = (
+        await sendWebhook(decrypt(device.urlEnc), device.kind, webhookPayload({ level: "test", person: prefs?.circleName || "family", test: true, now }), localeOf(prefs?.locale))
+      ).ok;
     }
   } catch {
     ok = false;

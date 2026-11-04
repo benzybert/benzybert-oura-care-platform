@@ -36,3 +36,29 @@ export async function syncOnVisit(memberId: string): Promise<boolean> {
   after(() => syncMember(db, memberId, now, VISIT_WINDOW_DAYS).then(() => undefined, () => undefined));
   return true;
 }
+
+/**
+ * Oura's webhook said a night or a score changed for this Oura account (src/lib/oura/webhook.ts). Same atomic claim as a
+ * visit, with a short gap instead of the half hour: Oura sends several events within seconds each morning and they
+ * should start one sync. Matched by the hash of the Oura account id only, never the raw id. Returns true when this call
+ * started a sync; an unknown account or a revoked connection is simply ignored.
+ */
+export async function syncOnWebhook(ouraAccountHashValue: string, gapMs: number): Promise<boolean> {
+  const now = new Date();
+  const db = getDb();
+  const claimed = await db
+    .update(ouraConnections)
+    .set({ lastSyncAt: now })
+    .where(
+      and(
+        eq(ouraConnections.ouraAccountHash, ouraAccountHashValue),
+        isNull(ouraConnections.revokedAt),
+        or(isNull(ouraConnections.lastSyncAt), lt(ouraConnections.lastSyncAt, new Date(now.getTime() - gapMs))),
+      ),
+    )
+    .returning({ memberId: ouraConnections.memberId });
+  const memberId = claimed[0]?.memberId;
+  if (!memberId) return false;
+  after(() => syncMember(db, memberId, now, VISIT_WINDOW_DAYS).then(() => undefined, () => undefined));
+  return true;
+}

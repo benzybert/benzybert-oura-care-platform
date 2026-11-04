@@ -209,6 +209,7 @@ export default async function MemberCirclePage({ searchParams }: { searchParams:
         <h2>{p.devicesTitle}</h2>
         <p className="muted">{p.devicesLead}</p>
         <p className="muted small">{p.devicesHelp}</p>
+        <p className="muted small">{p.ntfyHelp}</p>
         {devices.length === 0 ? (
           <p className="muted">{p.noDevices}</p>
         ) : (

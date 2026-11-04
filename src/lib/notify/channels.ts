@@ -1,6 +1,8 @@
 import { lookup } from "node:dns/promises";
 import { NOTIFY_CONFIG } from "../../config/notify";
-import { isPrivateAddress, checkWebhookUrl, type WebhookKind } from "./webhook-url";
+import type { Locale } from "../i18n";
+import { ntfyMessage } from "./text";
+import { isPrivateAddress, checkWebhookUrl, ntfyTarget, type WebhookKind } from "./webhook-url";
 
 /**
  * The ways an alert leaves the app besides email (src/lib/mail.ts): a text message, a phone call that reads the
@@ -96,16 +98,39 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   if (addresses.length === 0 || addresses.some((a) => isPrivateAddress(a.address))) throw new Error("blocked");
 }
 
-/** Calls the member's webhook. The kind only decides the payload shape; the URL is re-checked right before the call. */
-export async function sendWebhook(url: string, _kind: WebhookKind, payload: WebhookPayload): Promise<SendResult> {
+/** ntfy priorities: 3 default, 4 high, 5 max (breaks through "do not disturb" on the phone app when allowed). */
+export const NTFY_PRIORITY: Record<string, number> = { test: 3, watch: 3, alert: 4, urgent: 5 };
+
+/** The JSON body for ntfy's publish endpoint. No health numbers: the level and the circle's name for the person only. */
+export function ntfyBody(topic: string, payload: WebhookPayload, locale: Locale) {
+  const m = ntfyMessage({ level: payload.level, person: payload.person, test: payload.event === "test", locale });
+  return {
+    topic,
+    title: m.title,
+    message: m.message,
+    priority: NTFY_PRIORITY[payload.level] ?? 3,
+    tags: payload.event === "test" ? ["bell"] : payload.level === "urgent" ? ["rotating_light"] : ["heart"],
+  };
+}
+
+/** Calls the member's webhook. The kind decides the payload shape; the URL is re-checked right before the call. */
+export async function sendWebhook(url: string, kind: WebhookKind, payload: WebhookPayload, locale: Locale = "en"): Promise<SendResult> {
   const checked = checkWebhookUrl(url);
   if (!checked.ok) return { ok: false, reason: "blocked" };
+  let target = checked.url;
+  let body = JSON.stringify(payload);
+  if (kind === "ntfy") {
+    const ntfy = ntfyTarget(checked.url);
+    if (!ntfy) return { ok: false, reason: "blocked" };
+    target = ntfy.server;
+    body = JSON.stringify(ntfyBody(ntfy.topic, payload, locale));
+  }
   try {
-    await assertPublicHost(new URL(checked.url).hostname);
-    const res = await fetch(checked.url, {
+    await assertPublicHost(new URL(target).hostname);
+    const res = await fetch(target, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body,
       redirect: "manual", // a redirect could lead somewhere the checks above did not cover
       cache: "no-store",
       signal: AbortSignal.timeout(6_000),

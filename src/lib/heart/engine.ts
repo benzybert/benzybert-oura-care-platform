@@ -26,6 +26,7 @@ export function maxLevel(a: Level | null | undefined, b: Level | null | undefine
 export type HeartRule =
   | "resting_hr_high"
   | "resting_hr_low"
+  | "resting_hr_drift"
   | "hrv_low"
   | "breath_high"
   | "temp_high"
@@ -40,6 +41,7 @@ export type HeartRule =
 export const HEART_RULES: readonly HeartRule[] = [
   "resting_hr_high",
   "resting_hr_low",
+  "resting_hr_drift",
   "hrv_low",
   "breath_high",
   "temp_high",
@@ -260,6 +262,12 @@ export function evaluateNights(input: {
     });
   }
 
+  // A slow climb of the resting heart rate over about two weeks (CUSUM, after the Stanford wearables work).
+  if (!stale && !signals.some((s) => s.rule === "resting_hr_high")) {
+    const drift = restingHrDrift(nights, input.today, k);
+    if (drift) signals.push(drift);
+  }
+
   // Skin temperature (no baseline of ours needed).
   const temps = lastN(nights.filter((n) => n.tempDev !== null), RECENT_NIGHTS);
   const lastTemp = temps.at(-1);
@@ -337,4 +345,76 @@ export function withEpisodes(assessment: HeartAssessment, episodes: Signal[]): H
   if (episodes.length === 0) return assessment;
   const signals = [...assessment.signals, ...episodes].sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
   return { ...assessment, signals, status: statusOf(signals, assessment.status === "learning") };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Slow drift of the resting heart rate (CUSUM)
+
+/**
+ * The night-by-night rules above look at the last two nights. A resting heart rate that climbs a little every night for
+ * two weeks can stay under them the whole time. This is the RHR-CUSUM idea from the Stanford smartwatch studies
+ * (Mishra et al. 2020, mwgrassgreen/WearableDetection): standardise each recent night against the person's own usual,
+ * add up how far it sits above that usual beyond a small allowance, and speak up when the running total stays high.
+ *
+ * It is a gentle heads-up only (never more than "watch"), it is about the person's own normal, and it is not a
+ * diagnosis: illness, stress, alcohol, travel, heat, training or a new medicine can all do this.
+ */
+export const DRIFT_WINDOW_NIGHTS = 14;
+/** Nights with a value needed inside the window before the drift is judged. */
+export const DRIFT_MIN_WINDOW = 7;
+/** Usual nights before the window needed for a baseline. */
+export const DRIFT_MIN_BASELINE = 14;
+/** Allowance per night, in spreads: half a spread above the usual adds nothing. */
+export const DRIFT_K = 0.5;
+/** Running total, in spreads, at which it speaks up (scaled by sensitivity). */
+export const DRIFT_H = 5;
+/** Smallest spread trusted for the resting heart rate, in bpm. */
+const DRIFT_FLOOR = 1.5;
+
+export type DriftPoint = { day: string; value: number; z: number; score: number };
+
+/** The CUSUM path over the window (pure, exported for the tests and the heart page). */
+export function cusumPath(values: Array<{ day: string; v: number }>, base: Stat, k = DRIFT_K): DriftPoint[] {
+  let score = 0;
+  return values.map(({ day, v }) => {
+    const z = (v - base.median) / base.spread;
+    score = Math.max(0, score + z - k);
+    return { day, value: v, z, score };
+  });
+}
+
+export function restingHrDrift(nights: NightInput[], today: string, sensitivityFactor = 1): Signal | null {
+  const rows = nights
+    .filter((n): n is NightInput & { restingHr: number } => typeof n.restingHr === "number" && Number.isFinite(n.restingHr))
+    .map((n) => ({ day: n.day, v: n.restingHr }));
+  const windowStart = addDays(today, -DRIFT_WINDOW_NIGHTS);
+  const window = rows.filter((r) => r.day > windowStart && r.day <= today);
+  const base = rows.filter((r) => r.day <= windowStart).slice(-BASELINE_NIGHTS);
+  if (window.length < DRIFT_MIN_WINDOW || base.length < DRIFT_MIN_BASELINE) return null;
+  const last = window.at(-1);
+  if (!last || last.day < addDays(today, -FRESH_DAYS)) return null;
+  const stat = robustStat(base.map((r) => r.v), DRIFT_FLOOR);
+  if (!stat) return null;
+
+  const path = cusumPath(window, stat);
+  const end = path.at(-1) as DriftPoint;
+  if (end.score < DRIFT_H * sensitivityFactor) return null;
+  // The rise started after the last night the total was back at zero.
+  const lastZero = path.map((p) => p.score).lastIndexOf(0);
+  const rising = path.slice(lastZero + 1);
+  if (rising.length < 3) return null; // one or two bad nights are the job of the night rules
+  const mean = rising.reduce((s, p) => s + p.value, 0) / rising.length;
+  return {
+    rule: "resting_hr_drift",
+    level: "watch",
+    day: last.day,
+    data: {
+      value: round(mean, 0),
+      baseline: round(stat.median, 0),
+      delta: round(mean - stat.median, 0),
+      nights: rising.length,
+      since: rising[0]?.day ?? last.day,
+      score: round(end.score, 1),
+    },
+  };
 }

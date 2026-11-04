@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { addDays } from "../dates";
 import {
   NO_LIMITS,
+  cusumPath,
+  restingHrDrift,
   SENSITIVITY_FACTOR,
   daysBetween,
   evaluateNights,
@@ -207,5 +209,63 @@ describe("helpers", () => {
     expect(merged.status).toBe("urgent");
     expect(merged.signals[0]?.rule).toBe("rest_hr_high_episode");
     expect(withEpisodes(base, [])).toBe(base);
+  });
+});
+
+describe("resting heart rate drift (CUSUM)", () => {
+  // 42 nights: 28 steady at 58 (with a little wobble), then 14 nights that climb slowly.
+  const wobble = (i: number) => [0, 1, -1, 0, 1, 0, -1][i % 7] as number;
+  const slowClimb = nights(42, TODAY, (i) => ({ restingHr: i < 28 ? 58 + wobble(i) : 58 + Math.round((i - 27) * 0.45) }));
+
+  it("speaks up gently for a slow climb the two-night rules do not see", () => {
+    const night = evaluateNights({ nights: slowClimb, today: TODAY });
+    expect(night.signals.some((s) => s.rule === "resting_hr_high")).toBe(false);
+    const drift = restingHrDrift(slowClimb, TODAY);
+    expect(drift).not.toBeNull();
+    expect(drift?.level).toBe("watch");
+    expect(drift?.data.baseline).toBe(58);
+    expect(Number(drift?.data.delta)).toBeGreaterThan(0);
+    expect(night.signals.find((s) => s.rule === "resting_hr_drift")?.level).toBe("watch");
+  });
+
+  it("stays quiet on steady nights and on a single bad night", () => {
+    const steady = nights(42, TODAY, (i) => ({ restingHr: 58 + wobble(i) }));
+    expect(restingHrDrift(steady, TODAY)).toBeNull();
+    const oneBad = nights(42, TODAY, (i) => ({ restingHr: i === 41 ? 66 : 58 + wobble(i) }));
+    expect(restingHrDrift(oneBad, TODAY)).toBeNull();
+  });
+
+  it("is never more than a heads-up, and leaves the field to resting_hr_high when that fires", () => {
+    const jump = nights(42, TODAY, (i) => ({ restingHr: i < 28 ? 58 + wobble(i) : 70 }));
+    const a = evaluateNights({ nights: jump, today: TODAY });
+    expect(a.signals.some((s) => s.rule === "resting_hr_high")).toBe(true);
+    expect(a.signals.some((s) => s.rule === "resting_hr_drift")).toBe(false);
+    expect(restingHrDrift(jump, TODAY)?.level).toBe("watch");
+  });
+
+  it("needs a baseline, a fresh night and enough window nights", () => {
+    expect(restingHrDrift(slowClimb.slice(-20), TODAY)).toBeNull();
+    expect(restingHrDrift(slowClimb, addDays(TODAY, 5))).toBeNull();
+  });
+
+  it("never speaks on relaxed sensitivity where standard stays quiet", () => {
+    const mild = nights(42, TODAY, (i) => ({ restingHr: i < 28 ? 58 + wobble(i) : 58 + (i >= 34 ? 2 : 1) }));
+    const standard = restingHrDrift(mild, TODAY, SENSITIVITY_FACTOR.standard);
+    const relaxed = restingHrDrift(mild, TODAY, SENSITIVITY_FACTOR.relaxed);
+    expect(Boolean(relaxed) && !standard).toBe(false);
+  });
+
+  it("cusumPath adds only what is above the allowance", () => {
+    const base = robustStat([58, 58, 58, 58], 1.5)!;
+    const path = cusumPath(
+      [
+        { day: "a", v: 58 },
+        { day: "b", v: 61 },
+        { day: "c", v: 61 },
+        { day: "d", v: 52 },
+      ],
+      base,
+    );
+    expect(path.map((p) => p.score)).toEqual([0, 1.5, 3, 0]);
   });
 });

@@ -30,6 +30,11 @@ export const heart = defineDict(
         title: "Resting heart rate is low",
         text: (d: D) => `The night's lowest heart rate averaged ${d.value} bpm over the last ${d.nights === 1 ? "night" : `${d.nights} nights`}, ${abs(d.delta)} below the usual ${d.baseline}.`,
       },
+      resting_hr_drift: {
+        title: "Resting heart rate is creeping up",
+        text: (d: D) =>
+          `Over the last ${d.nights} nights the night's lowest heart rate averaged ${d.value} bpm, ${abs(d.delta)} above your usual ${d.baseline}, a slow climb rather than one bad night. Illness, stress, alcohol, heat, travel, hard training or a new medicine can all do this. It is a heads-up, not a diagnosis.`,
+      },
       hrv_low: {
         title: "HRV is down",
         text: (d: D) => `HRV averaged ${d.value} ms, ${abs(d.pct)}% below the usual ${d.baseline} ms. Low HRV can come with illness, stress or poor sleep.`,
@@ -109,6 +114,10 @@ export const heart = defineDict(
       selfSubject: (level: string, title: string) => `${level}: ${title}`,
       selfIntro: "Your heart watch noticed something:",
       selfOutro: "If you feel unwell, do not wait: call your local emergency number.",
+      ntfyTitle: (level: string, person: string) => `${level}: ${person}`,
+      ntfyBody: "The heart watch noticed something. Open the status page or the email for details.",
+      ntfyTestTitle: (person: string) => `Test: alarm for ${person}`,
+      ntfyTestBody: "This is a test of the Oura Care alarm. Nothing is wrong.",
     },
     page: {
       title: "Heart",
@@ -214,6 +223,11 @@ export const heart = defineDict(
         title: "דופק המנוחה נמוך",
         text: (d) => `הדופק הנמוך בלילה היה בממוצע ${d.value} פעימות לדקה ב${d.nights === 1 ? "לילה האחרון" : `${d.nights} הלילות האחרונים`}, ${abs(d.delta)} מתחת לרגיל (${d.baseline}).`,
       },
+      resting_hr_drift: {
+        title: "דופק המנוחה מטפס לאט",
+        text: (d) =>
+          `ב-${d.nights} הלילות האחרונים הדופק הנמוך בלילה היה בממוצע ${d.value} פעימות לדקה, ${abs(d.delta)} מעל הרגיל שלך (${d.baseline}): עלייה איטית ולא לילה רע אחד. מחלה, לחץ, אלכוהול, חום, נסיעה, אימון קשה או תרופה חדשה יכולים לגרום לזה. זו תשומת לב, לא אבחנה.`,
+      },
       hrv_low: {
         title: "ה-HRV ירד",
         text: (d) => `ה-HRV היה בממוצע ${d.value} מילישניות, ${abs(d.pct)} אחוז מתחת לרגיל (${d.baseline}). HRV נמוך יכול להתלוות למחלה, ללחץ או לשינה גרועה.`,
@@ -292,6 +306,10 @@ export const heart = defineDict(
       selfSubject: (level, title) => `${level}: ${title}`,
       selfIntro: "מעקב הלב שלך שם לב למשהו:",
       selfOutro: "אם אתה לא מרגיש טוב, אל תחכה: התקשר למספר החירום המקומי.",
+      ntfyTitle: (level, person) => `${level}: ${person}`,
+      ntfyBody: "שומר הלב שם לב למשהו. הפרטים בדף הסטטוס או במייל.",
+      ntfyTestTitle: (person) => `בדיקה: אזעקה עבור ${person}`,
+      ntfyTestBody: "זו בדיקה של האזעקה של Oura Care. הכול בסדר.",
     },
     page: {
       title: "הלב",

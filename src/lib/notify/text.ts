@@ -86,3 +86,15 @@ export function buildOkText(locale: Locale, person: string): { subject: string; 
   const h = messagesFor(locale).heart.notify;
   return { subject: h.okSubject(person), body: h.okBody(person) };
 }
+
+/**
+ * A push through ntfy (an alarm device of kind "ntfy"). Like the other alarm webhooks it carries no health numbers:
+ * the level, the name the family circle uses, where to look, and the not-an-emergency-service line.
+ */
+export function ntfyMessage(input: { level: string; person: string; test: boolean; locale: Locale }): { title: string; message: string } {
+  const h = messagesFor(input.locale).heart;
+  const person = input.person.trim() || h.notify.someone;
+  if (input.test) return { title: h.notify.ntfyTestTitle(person), message: h.notify.ntfyTestBody };
+  const level = input.level === "watch" || input.level === "alert" || input.level === "urgent" ? h.levels[input.level] : input.level;
+  return { title: h.notify.ntfyTitle(level, person), message: [h.notify.ntfyBody, h.notify.delay, h.notify.emergency].join(" ") };
+}

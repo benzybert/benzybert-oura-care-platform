@@ -3,9 +3,11 @@ import { DataViewTabs } from "@/components/data-view-tabs";
 import { ActivityView } from "@/components/member-data/activity-view";
 import { EventsView } from "@/components/member-data/events-view";
 import { HeartView } from "@/components/member-data/heart-view";
+import { HrvInsights } from "@/components/member-data/hrv-insights";
 import { RecoveryExtras } from "@/components/member-data/recovery-extras";
 import { RingView } from "@/components/member-data/ring-view";
 import { SleepExtras } from "@/components/member-data/sleep-extras";
+import { SleepStructureView } from "@/components/member-data/sleep-structure";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { getT } from "@/lib/i18n/server";
@@ -33,7 +35,7 @@ const NEEDS_PROFILE: DataView[] = ["sleep", "recovery", "activity", "heart", "ev
  */
 export default async function MemberDataPage({ searchParams }: { searchParams: Promise<MemberSearchParams & { view?: string }> }) {
   const { member } = await loadMember();
-  const { t } = await getT();
+  const { t, locale } = await getT();
   const params = await searchParams;
   const view = resolveView(params.view);
   const asked = Number(params.days);
@@ -65,6 +67,8 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
           expiresAt: null,
           generatedAt: new Date(),
           pdfHref: `/member/share/preview/pdf?days=${windowDays}`,
+          fhirHref: `/member/data/fhir?days=${windowDays}`,
+          fhirLabel: t.insights.fhir.button,
           shareHref: "/member/sharing#doctors",
           windowLinks: SHARE_WINDOW_OPTIONS.map((d) => ({ days: d, href: dataHref({ view, days: d }), active: d === windowDays })),
           sections,
@@ -83,6 +87,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
         {view === "sleep" && dashboard && (
           <>
             {dash(["night", "architecture", "rhythm", "drivers"], ["sleep"])}
+            <SleepStructureView slots={dashboard.slots} coverage={coverage} t={t.insights} locale={locale} />
             <SleepExtras slots={dashboard.slots} extras={extras} coverage={coverage} />
           </>
         )}
@@ -96,7 +101,12 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
         {view === "activity" && dashboard && <ActivityView slots={dashboard.slots} extras={extras} coverage={coverage} />}
 
-        {view === "heart" && dashboard && <HeartView slots={dashboard.slots} extras={extras} coverage={coverage} profile={profile} />}
+        {view === "heart" && dashboard && (
+          <>
+            <HeartView slots={dashboard.slots} extras={extras} coverage={coverage} profile={profile} />
+            <HrvInsights slots={dashboard.slots} coverage={coverage} t={t.insights} locale={locale} />
+          </>
+        )}
 
         {view === "events" && <EventsView events={events} coverage={coverage} />}
 

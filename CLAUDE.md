@@ -185,6 +185,17 @@ Public marketing page, designed in v0 and rebuilt here in plain CSS (no Tailwind
 - Wearables: only Oura is connected. The other devices and the "wear more than one" timeline are marked **planned**; do not change a device to "connected" until a real connector exists.
 - Signed-in visitors get "My area" instead of sign-up buttons; demo links appear only with `DEMO_AUTH`.
 
+## Feature: open-source enrichments (Nov 2026)
+
+Built from a review of GitHub projects; details in `docs/ARCHITECTURE.md` (Oura sync, Deeper analysis on the data tab, Heart watch, Family circle).
+
+- **Oura webhooks** (`/api/oura/webhook`, `src/lib/oura/webhook.ts`): signed with the Oura client secret (upper-case HMAC of timestamp + body), handshake token derived from the secret, lookup by `ouraAccountHash` only, 60-second claim (`syncOnWebhook`), 3-day sync in `after()`, always 204, nothing logged. The daily cron creates and renews the subscriptions (fail-soft). Webhooks make data arrive sooner; the watch is still not live and the wording stays.
+- **HRV in depth** (`src/lib/hrv.ts`, NeuroKit2 definitions) and **sleep structure** (`src/lib/sleep-structure.ts`, YASA statistics on Oura's 5-minute stages): pure, tested, computed on read, member data tab only. No LF/HF or Poincaré (Oura sends no beat intervals); never call it a sleep-lab result.
+- **Resting heart rate drift** (`resting_hr_drift`, CUSUM): `watch` only, quiet when `resting_hr_high` fires, not in "several signals".
+- **ntfy alarms**: alarm kind `ntfy`, JSON publish to the topic's server, level and name only, member's language.
+- **FHIR export** (`/member/data/fhir`, `src/lib/fhir.ts`, `@medplum/fhirtypes` types only): member's own download, Patient without identity, LOINC where it fits. Do not add names or contact details to it.
+- New text for these is in `src/lib/i18n/dict/insights.ts` (English and Hebrew); the cards on the Hebrew data island follow the visitor's language.
+
 ## Oura sync schedule
 
 Functions run in `fra1` (`vercel.json`) next to the database (Supabase eu-central-1): keep them together, a region mismatch made every query a transatlantic round trip. Page visits never wait for Oura: `syncOnVisit` atomically claims a stale connection (stamps `last_sync_at`), syncs 3 days in `after()`, and `SyncRefresher` re-renders the page once.

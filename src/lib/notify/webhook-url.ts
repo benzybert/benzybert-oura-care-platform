@@ -7,11 +7,30 @@ import { isIP } from "node:net";
  * `assertPublicHost` (below) repeats the address check on what the name resolves to, right before each call.
  */
 
-export type WebhookKind = "home_assistant" | "ifttt" | "webhook";
-export const WEBHOOK_KINDS: readonly WebhookKind[] = ["home_assistant", "ifttt", "webhook"];
+/** `ntfy` is a push to a phone through ntfy (binwiederhier/ntfy, ntfy.sh or a self-hosted server): the URL is the topic. */
+export type WebhookKind = "home_assistant" | "ifttt" | "ntfy" | "webhook";
+export const WEBHOOK_KINDS: readonly WebhookKind[] = ["home_assistant", "ifttt", "ntfy", "webhook"];
 
 export function isWebhookKind(v: unknown): v is WebhookKind {
-  return v === "home_assistant" || v === "ifttt" || v === "webhook";
+  return v === "home_assistant" || v === "ifttt" || v === "ntfy" || v === "webhook";
+}
+
+/**
+ * Splits an ntfy topic URL ("https://ntfy.sh/my-topic") into the server and the topic, for ntfy's JSON publish (which
+ * keeps Hebrew titles intact, unlike HTTP headers). Null when the last path part is not a valid ntfy topic.
+ */
+export function ntfyTarget(url: string): { server: string; topic: string } | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const parts = u.pathname.split("/").filter(Boolean);
+  const topic = parts.pop();
+  if (!topic || !/^[A-Za-z0-9_-]{1,64}$/.test(topic) || u.search || u.hash) return null;
+  const base = parts.length ? `/${parts.join("/")}/` : "/";
+  return { server: `${u.protocol}//${u.host}${base}`, topic };
 }
 
 export type UrlCheck = { ok: true; url: string } | { ok: false; reason: "invalid" | "not_https" | "credentials" | "private_host" };
