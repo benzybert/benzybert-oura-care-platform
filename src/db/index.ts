@@ -10,7 +10,8 @@ export function createDb(url: string) {
   //   Safe behind the Supabase transaction pooler, which multiplexes these onto few server connections.
   // prepare: false -> works behind transaction poolers (Neon / Supabase / pgbouncer).
   // idle_timeout -> release idle connections of a warm instance instead of holding pooler slots.
-  const client = postgres(url, { max: 5, prepare: false, idle_timeout: 20 });
+  // onnotice -> server NOTICEs ("truncate cascades to ...", "already exists, skipping") are not errors; keep logs quiet.
+  const client = postgres(url, { max: 5, prepare: false, idle_timeout: 20, onnotice: () => {} });
   return drizzle(client, { schema });
 }
 
