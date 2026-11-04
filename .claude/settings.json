@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Agent",
+      "TaskCreate",
+      "TaskUpdate",
+      "mcp__Vercel",
+      "mcp__Railway",
+      "mcp__Supabase",
+      "mcp__Shopify",
+      "mcp__Netlify",
+      "mcp__Lovable",
+      "mcp__v0",
+      "mcp__Zapier",
+      "mcp__Firecrawl",
+      "mcp__Gmail",
+      "mcp__Google_Calendar",
+      "mcp__Google_Drive",
+      "mcp__Resend",
+      "mcp__Kit",
+      "mcp__MailerLite",
+      "mcp__claude-in-chrome"
+    ]
+  }
+}
