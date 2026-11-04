@@ -2491,3 +2491,37 @@ td {
   margin: 0;
   max-width: 90ch;
 }
+
+/* Data tab: sub-views wrap on wide screens (they scroll sideways on a phone); the window is a segmented control */
+@media (min-width: 900px) {
+  .subtabs ul {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+.subtabs-row {
+  align-items: flex-start;
+}
+.subtabs a[aria-current="page"] {
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+.win-switch {
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.win-switch a {
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.win-switch a[aria-current="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}

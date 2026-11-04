@@ -2,7 +2,8 @@
 
 import { useId, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { areaPath, linePath, longDay, niceTicks, shortDay } from "./chart-utils";
-import { weekdayLetter } from "./format";
+import type { Locale } from "@/lib/i18n";
+import { dash } from "@/lib/i18n/dict/dash";
 import { useWidth } from "./use-width";
 
 /**
@@ -30,7 +31,9 @@ const clock = (m: number) => {
   return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
-export function HeartDayChart({ days }: { days: HeartDay[] }) {
+export function HeartDayChart({ days, locale = "he" }: { days: HeartDay[]; locale?: Locale }) {
+  const C = dash[locale].charts;
+  const weekdayLetter = (day: string) => C.weekdayShort[new Date(`${day}T00:00:00Z`).getUTCDay()] as string;
   const [sel, setSel] = useState(days.length - 1);
   const [active, setActive] = useState<number | null>(null);
   const [wrapRef, width] = useWidth<HTMLDivElement>();
@@ -81,7 +84,7 @@ export function HeartDayChart({ days }: { days: HeartDay[] }) {
 
   return (
     <div className="ne">
-      <div className="ne-chips" role="group" aria-label="בחירת יום" dir="ltr">
+      <div className="ne-chips" role="group" aria-label={C.pickDay} dir="ltr">
         {days.map((x, i) => (
           <button
             key={x.day}
@@ -94,32 +97,32 @@ export function HeartDayChart({ days }: { days: HeartDay[] }) {
             }}
           >
             <span className="ne-chip-wd">{weekdayLetter(x.day)}</span>
-            <span className="ne-chip-d">{shortDay(x.day)}</span>
+            <span className="ne-chip-d">{shortDay(x.day, locale)}</span>
           </button>
         ))}
       </div>
 
       <div className="ne-head">
-        <h3>{longDay(d.day)}</h3>
+        <h3>{longDay(d.day, locale)}</h3>
       </div>
 
       <dl className="ne-stats">
         <div>
-          <dt>נמוך</dt>
+          <dt>{C.low}</dt>
           <dd>
             {d.min}
             <span>bpm</span>
           </dd>
         </div>
         <div>
-          <dt>ממוצע</dt>
+          <dt>{C.avg}</dt>
           <dd>
             {d.avg}
             <span>bpm</span>
           </dd>
         </div>
         <div>
-          <dt>גבוה</dt>
+          <dt>{C.high}</dt>
           <dd>
             {d.max}
             <span>bpm</span>
@@ -132,8 +135,8 @@ export function HeartDayChart({ days }: { days: HeartDay[] }) {
         ref={wrapRef}
         tabIndex={0}
         role="group"
-        aria-roledescription="תרשים"
-        aria-label={`הדופק לאורך היום של ${longDay(d.day)}. נמוך ${d.min}, ממוצע ${d.avg}, גבוה ${d.max} פעימות לדקה.`}
+        aria-roledescription={C.chart}
+        aria-label={C.dayAria(longDay(d.day, locale), d.min, d.avg, d.max)}
         onKeyDown={onKey}
         onFocus={() => setActive((i) => i ?? 0)}
         onBlur={() => setActive(null)}
@@ -189,14 +192,14 @@ export function HeartDayChart({ days }: { days: HeartDay[] }) {
               <bdi dir="ltr">{clock(a * BUCKET_MIN)}</bdi>
             </span>
             <span className="tc-tip-row">
-              <strong>{activeValue === null ? "אין מדידה" : `${activeValue} bpm`}</strong>
+              <strong>{activeValue === null ? C.noReading : `${activeValue} bpm`}</strong>
             </span>
           </div>
         )}
       </div>
       {d.bands.length > 0 && (
         <p className="ne-note">
-          <span className="sw sw-fill" style={{ background: "var(--viz-deep)", opacity: 0.35 }} /> האזור המוצלל הוא השינה של אותו לילה.
+          <span className="sw sw-fill" style={{ background: "var(--viz-deep)", opacity: 0.35 }} /> {C.sleepShade}
         </p>
       )}
     </div>

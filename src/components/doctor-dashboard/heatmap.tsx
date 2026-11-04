@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { weekdayLetter } from "./format";
+import type { Locale } from "@/lib/i18n";
+import { dash } from "@/lib/i18n/dict/dash";
+import { shortDay } from "./chart-utils";
 
 /**
  * A calendar of one metric, one cell per day, a week per row (Sunday on the right), shaded on one
@@ -24,10 +26,10 @@ function dayOfWeek(day: string): number {
   return new Date(`${day}T00:00:00Z`).getUTCDay();
 }
 
-const short = (day: string) =>
-  new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", { timeZone: "UTC", day: "numeric", month: "numeric" });
-
-export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric[] }) {
+export function Heatmap({ days, metrics, locale = "he" }: { days: string[]; metrics: HeatMetric[]; locale?: Locale }) {
+  const C = dash[locale].charts;
+  const short = (day: string) => shortDay(day, locale);
+  const weekdayLetter = (day: string) => C.weekdayShort[new Date(`${day}T00:00:00Z`).getUTCDay()] as string;
   const [k, setK] = useState(metrics[0]?.key ?? "");
   const [hover, setHover] = useState<number | null>(null);
   const metric = metrics.find((m) => m.key === k) ?? (metrics[0] as HeatMetric);
@@ -42,7 +44,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
   const hi = real.length ? Math.max(...real.map((x) => x.v)) : 1;
   const t = (v: number) => (hi === lo ? 0.6 : (v - lo) / (hi - lo));
   const fmt = (v: number | null) =>
-    v === null ? "אין נתון" : v.toLocaleString("he-IL", { minimumFractionDigits: metric.digits, maximumFractionDigits: metric.digits });
+    v === null ? C.noValue : v.toLocaleString(locale === "en" ? "en-GB" : "he-IL", { minimumFractionDigits: metric.digits, maximumFractionDigits: metric.digits });
 
   const avg = real.length ? real.reduce((a, x) => a + x.v, 0) / real.length : null;
   const best = real.reduce<{ v: number; i: number } | null>((m, x) => (m === null || x.v > m.v ? x : m), null);
@@ -69,7 +71,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
 
   return (
     <div className="hm">
-      <div className="hm-tabs" role="tablist" aria-label="בחירת מדד">
+      <div className="hm-tabs" role="tablist" aria-label={C.pickMetric}>
         {metrics.map((m) => (
           <button
             key={m.key}
@@ -88,8 +90,8 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
         <div className="hm-cal">
           <div className="hm-grid" style={{ gridTemplateColumns: `3.4em repeat(7, minmax(0, 1fr))` }}>
             <span />
-            {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map((d) => (
-              <span key={d} className="hm-wd">
+            {C.weekdays.map((d, i) => (
+              <span key={i} className="hm-wd">
                 {d}
               </span>
             ))}
@@ -133,7 +135,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
           </div>
           <div className="hm-foot">
             <p className="hm-readout" role="status" aria-live="polite">
-              {readout ?? <span className="muted">עברו על יום לראות את הערך</span>}
+              {readout ?? <span className="muted">{C.hover}</span>}
             </p>
             <div className="hm-scale" aria-hidden="true">
               <bdi>{fmt(lo)}</bdi>
@@ -146,21 +148,21 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
         <div className="hm-side">
         <dl className="hm-sum">
           <div>
-            <dt>ממוצע</dt>
+            <dt>{C.mean}</dt>
             <dd>
               {fmt(avg)}
               <span>{metric.unit}</span>
             </dd>
           </div>
           <div>
-            <dt>היום הגבוה ביותר</dt>
+            <dt>{C.highest}</dt>
             <dd>
               {fmt(best?.v ?? null)}
               <span>{best ? short(days[best.i] as string) : ""}</span>
             </dd>
           </div>
           <div>
-            <dt>היום הנמוך ביותר</dt>
+            <dt>{C.lowestDay}</dt>
             <dd>
               {fmt(worst?.v ?? null)}
               <span>{worst ? short(days[worst.i] as string) : ""}</span>
@@ -168,18 +170,18 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
           </div>
           {below !== null && (
             <div className={below > 0 ? "is-flag" : undefined}>
-              <dt>מתחת לסף ({metric.flagBelow})</dt>
+              <dt>{C.belowLimit(metric.flagBelow ?? 0)}</dt>
               <dd>
                 {below}
-                <span>ימים</span>
+                <span>{C.days}</span>
               </dd>
             </div>
           )}
         </dl>
         {byWeekday && (
           <figure className="hm-wk">
-            <figcaption>ממוצע לפי יום בשבוע</figcaption>
-            <div className="hm-wk-cols" dir="rtl">
+            <figcaption>{C.byWeekday}</figcaption>
+            <div className="hm-wk-cols" dir={locale === "en" ? "ltr" : "rtl"}>
               {byWeekday.map((c, i) => (
                 <div key={i} className="hm-wk-col">
                   <span className="hm-wk-val">{c.avg === null ? "–" : fmt(c.avg)}</span>
@@ -187,7 +189,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
                     {c.avg !== null && <span className="hm-wk-dot" style={{ bottom: `${c.pos}%` }} />}
                     {c.avg !== null && <span className="hm-wk-stem" style={{ height: `${c.pos}%` }} />}
                   </span>
-                  <span className="hm-wk-d">{["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"][i]}</span>
+                  <span className="hm-wk-d">{C.weekdays[i]}</span>
                 </div>
               ))}
             </div>

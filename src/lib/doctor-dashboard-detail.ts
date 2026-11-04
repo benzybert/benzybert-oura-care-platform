@@ -1,3 +1,5 @@
+import type { Locale } from "./i18n";
+import { dashFindings } from "./i18n/dict/dash-findings";
 import { mean } from "./alerts";
 import { dayOfWeek } from "./dates";
 import type { DaySlot, Finding } from "./doctor-dashboard";
@@ -286,7 +288,9 @@ export function buildDetailFindings(
   detail: Record<DetailKey, DetailStat>,
   shares: { period: StageShares | null },
   patterns: Patterns,
+  locale: Locale = "he",
 ): Finding[] {
+  const F = dashFindings[locale];
   const out: Finding[] = [];
 
   const eff = detail.sleepEfficiency;
@@ -295,8 +299,8 @@ export function buildDetailFindings(
     out.push({
       id: "efficiency",
       status: low ? "attention" : "ok",
-      title: low ? "יעילות שינה נמוכה" : "יעילות שינה טובה",
-      detail: `בממוצע ${whole(eff.period)} אחוז מהזמן במיטה הוא שינה בפועל (ערך מקובל: ${EFFICIENCY_LOW} אחוז ומעלה).`,
+      title: low ? F.efficiency.low : F.efficiency.good,
+      detail: F.efficiency.detail(whole(eff.period), EFFICIENCY_LOW),
     });
   }
 
@@ -306,8 +310,8 @@ export function buildDetailFindings(
     out.push({
       id: "latency",
       status: long ? "attention" : "ok",
-      title: long ? "הירדמות איטית" : "זמן הירדמות תקין",
-      detail: `בממוצע ${whole(lat.period)} דקות מהשכיבה ועד ההירדמות (ערך מקובל: עד ${LATENCY_LONG_MIN} דקות).`,
+      title: long ? F.latency.long : F.latency.ok,
+      detail: F.latency.detail(whole(lat.period), LATENCY_LONG_MIN),
     });
   }
 
@@ -317,8 +321,8 @@ export function buildDetailFindings(
     out.push({
       id: "stages",
       status: unusual ? "info" : "ok",
-      title: unusual ? "הרכב שלבי השינה חריג" : "הרכב שלבי שינה סביר",
-      detail: `שינה עמוקה ${whole(deep)} אחוז ו-REM ${whole(rem)} אחוז מזמן השינה (אצל מבוגרים בדרך כלל כ-13 עד 23 וכ-20 עד 25). טבעת צרכנית מעריכה שלבים בקירוב.`,
+      title: unusual ? F.stages.unusual : F.stages.ok,
+      detail: F.stages.detail(whole(deep), whole(rem)),
     });
   }
 
@@ -328,15 +332,15 @@ export function buildDetailFindings(
       out.push({
         id: "breathing",
         status: "info",
-        title: "שינוי בקצב הנשימה בשינה",
-        detail: `ב-7 הימים האחרונים ${one(breath.recent)} נשימות לדקה, לעומת ${one(breath.reference)} בתחילת התקופה.`,
+        title: F.breath.change,
+        detail: F.breath.changeDetail(one(breath.recent), one(breath.reference)),
       });
     } else {
       out.push({
         id: "breathing",
         status: "ok",
-        title: "קצב נשימה יציב",
-        detail: `ממוצע ${one(breath.period)} נשימות לדקה בשינה.`,
+        title: F.breath.stable,
+        detail: F.breath.stableDetail(one(breath.period)),
       });
     }
   }
@@ -347,15 +351,15 @@ export function buildDetailFindings(
       out.push({
         id: "temperature",
         status: "info",
-        title: "סטייה בטמפרטורת העור",
-        detail: `ב-7 הימים האחרונים הטמפרטורה בלילה ${temp.recent > 0 ? "גבוהה" : "נמוכה"} ב-${Math.abs(temp.recent).toFixed(1)} מעלות מהקו האישי.`,
+        title: F.temp.dev,
+        detail: F.temp.devDetail(temp.recent > 0, Math.abs(temp.recent).toFixed(1)),
       });
     } else {
       out.push({
         id: "temperature",
         status: "ok",
-        title: "טמפרטורת עור יציבה",
-        detail: "הטמפרטורה בלילה קרובה לקו האישי.",
+        title: F.temp.stable,
+        detail: F.temp.stableDetail,
       });
     }
   }
@@ -366,8 +370,8 @@ export function buildDetailFindings(
     out.push({
       id: "stress",
       status: heavy ? "info" : "ok",
-      title: heavy ? "ימי עומס רבים" : "עומס יומי נמוך",
-      detail: `${stress.stressful} מתוך ${stress.days} ימים סווגו על ידי Oura כימים מלחיצים, ${stress.restored} כימי התאוששות.`,
+      title: heavy ? F.stress.heavy : F.stress.light,
+      detail: F.stress.detail(stress.stressful, stress.days, stress.restored),
     });
   }
 

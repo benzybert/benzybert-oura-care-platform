@@ -1,4 +1,6 @@
 import { addDays } from "./dates";
+import type { Locale } from "./i18n";
+import { OURA_LABELS_EN as EN } from "./i18n/dict/oura-labels";
 import type { CollectionCoverage, DayExtras } from "./types";
 
 /**
@@ -16,6 +18,17 @@ export function prettyCode(code: string | null | undefined): string {
 const pick = (map: Record<string, string>, code: string | null | undefined) =>
   code ? (map[code] ?? prettyCode(code)) : "–";
 
+/** Hebrew map, or the English one with the code itself as the fallback (Oura's codes are English already). */
+const pickL = (he: Record<string, string>, en: Record<string, string>, code: string | null | undefined, locale: Locale) =>
+  pick(locale === "en" ? en : he, code);
+
+/** The contributor / label map for a locale: the Hebrew one, or English. */
+export function labelMap(he: Record<string, string>, en: Record<string, string>, locale: Locale): Record<string, string> {
+  return locale === "en" ? en : he;
+}
+export const RESILIENCE_CONTRIBUTORS_EN: Record<string, string> = EN.resilienceContributors;
+export const ACTIVITY_CONTRIBUTORS_EN: Record<string, string> = EN.activityContributors;
+
 export const RESILIENCE_ORDER = ["limited", "adequate", "solid", "strong", "exceptional"] as const;
 export const RESILIENCE_LABEL_HE: Record<string, string> = {
   limited: "מוגבל",
@@ -24,7 +37,7 @@ export const RESILIENCE_LABEL_HE: Record<string, string> = {
   strong: "חזק",
   exceptional: "יוצא דופן",
 };
-export const resilienceLabel = (level: string | null | undefined) => pick(RESILIENCE_LABEL_HE, level);
+export const resilienceLabel = (level: string | null | undefined, locale: Locale = "he") => pickL(RESILIENCE_LABEL_HE, EN.resilience, level, locale);
 /** 1 (limited) .. 5 (exceptional), or null for an unknown level. */
 export const resilienceRank = (level: string | null | undefined): number | null => {
   const i = RESILIENCE_ORDER.indexOf(level as (typeof RESILIENCE_ORDER)[number]);
@@ -54,7 +67,8 @@ export const BEDTIME_RECOMMENDATION_HE: Record<string, string> = {
   later_wake_up_time: "אפשר לקום מאוחר יותר",
   follow_optimal_bedtime: "להישאר בחלון השינה האופטימלי",
 };
-export const bedtimeRecommendationLabel = (code: string | null | undefined) => pick(BEDTIME_RECOMMENDATION_HE, code);
+export const bedtimeRecommendationLabel = (code: string | null | undefined, locale: Locale = "he") =>
+  pickL(BEDTIME_RECOMMENDATION_HE, EN.bedtimeRecommendation, code, locale);
 
 export const BEDTIME_STATUS_HE: Record<string, string> = {
   not_enough_nights: "אין עדיין מספיק לילות כדי להמליץ",
@@ -63,7 +77,7 @@ export const BEDTIME_STATUS_HE: Record<string, string> = {
   only_recommended_found: "נמצא חלון מומלץ (לא אופטימלי)",
   optimal_found: "נמצא חלון שינה אופטימלי",
 };
-export const bedtimeStatusLabel = (code: string | null | undefined) => pick(BEDTIME_STATUS_HE, code);
+export const bedtimeStatusLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(BEDTIME_STATUS_HE, EN.bedtimeStatus, code, locale);
 
 const WORKOUT_HE: Record<string, string> = {
   walking: "הליכה",
@@ -94,10 +108,10 @@ const WORKOUT_HE: Record<string, string> = {
   cooldown: "הרגעה",
   warmup: "חימום",
 };
-export const workoutName = (activity: string | null | undefined) => pick(WORKOUT_HE, activity);
+export const workoutName = (activity: string | null | undefined, locale: Locale = "he") => pickL(WORKOUT_HE, EN.workout, activity, locale);
 
 export const INTENSITY_HE: Record<string, string> = { easy: "קלה", moderate: "בינונית", hard: "קשה" };
-export const intensityLabel = (code: string | null | undefined) => pick(INTENSITY_HE, code);
+export const intensityLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(INTENSITY_HE, EN.intensity, code, locale);
 
 export const SESSION_TYPE_HE: Record<string, string> = {
   breathing: "נשימות",
@@ -107,10 +121,10 @@ export const SESSION_TYPE_HE: Record<string, string> = {
   rest: "מנוחה",
   body_status: "מצב הגוף",
 };
-export const sessionTypeLabel = (code: string | null | undefined) => pick(SESSION_TYPE_HE, code);
+export const sessionTypeLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(SESSION_TYPE_HE, EN.sessionType, code, locale);
 
 export const MOOD_HE: Record<string, string> = { bad: "רע", worse: "גרוע יותר", same: "בלי שינוי", good: "טוב", great: "מצוין" };
-export const moodLabel = (code: string | null | undefined) => pick(MOOD_HE, code);
+export const moodLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(MOOD_HE, EN.mood, code, locale);
 
 const TAG_HE: Record<string, string> = {
   alcohol: "אלכוהול",
@@ -127,10 +141,11 @@ const TAG_HE: Record<string, string> = {
   medication: "תרופה",
   supplements: "תוספי תזונה",
 };
-export function tagName(label: string | null | undefined): string {
-  if (!label) return "תגית";
+export function tagName(label: string | null | undefined, locale: Locale = "he"): string {
+  if (!label) return locale === "en" ? EN.tagFallback : "תגית";
   const bare = label.replace(/^tag_generic_/, "").replace(/^tag_/, "");
-  return TAG_HE[bare] ?? (label.startsWith("tag_") ? prettyCode(label) : label);
+  const known = locale === "en" ? (EN.tag as Record<string, string>)[bare] : TAG_HE[bare];
+  return known ?? (label.startsWith("tag_") ? prettyCode(label) : label);
 }
 
 export const RING_COLOR_HE: Record<string, string> = {
@@ -150,7 +165,7 @@ export const RING_COLOR_HE: Record<string, string> = {
   midnight: "חצות",
   tide: "גאות",
 };
-export const ringColorLabel = (code: string | null | undefined) => pick(RING_COLOR_HE, code);
+export const ringColorLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(RING_COLOR_HE, EN.ringColor, code, locale);
 
 export const RING_DESIGN_HE: Record<string, string> = {
   heritage: "Heritage",
@@ -168,10 +183,10 @@ export const RING_HARDWARE_HE: Record<string, string> = {
   gen3: "דור 3",
   gen4: "דור 4",
 };
-export const ringHardwareLabel = (code: string | null | undefined) => pick(RING_HARDWARE_HE, code);
+export const ringHardwareLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(RING_HARDWARE_HE, EN.ringHardware, code, locale);
 
 export const SEX_HE: Record<string, string> = { male: "זכר", female: "נקבה" };
-export const sexLabel = (code: string | null | undefined) => pick(SEX_HE, code);
+export const sexLabel = (code: string | null | undefined, locale: Locale = "he") => pickL(SEX_HE, EN.sex, code, locale);
 
 export const HR_SOURCE_HE: Record<string, string> = {
   awake: "ערות",
@@ -182,7 +197,7 @@ export const HR_SOURCE_HE: Record<string, string> = {
   live: "מדידה חיה",
   other: "אחר",
 };
-export const hrSourceLabel = (code: string) => pick(HR_SOURCE_HE, code);
+export const hrSourceLabel = (code: string, locale: Locale = "he") => pickL(HR_SOURCE_HE, EN.hrSource, code, locale);
 
 /** Run-length decode of a code string such as an activity or movement strip: "0011" -> [{ch:"0",len:2},{ch:"1",len:2}] */
 export function runs(s: string | null | undefined): Array<{ ch: string; len: number }> {
@@ -209,20 +224,23 @@ export function bedtimeWindowLabel(start: number | null | undefined, end: number
 }
 
 /** "1:25" for minutes, for workout and session lengths. */
-export function durationLabel(minutes: number | null | undefined): string {
+export function durationLabel(minutes: number | null | undefined, locale: Locale = "he"): string {
   if (minutes == null || !Number.isFinite(minutes)) return "–";
   const m = Math.round(minutes);
-  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")} שעות` : `${m} דקות`;
+  const [h, mins] = locale === "en" ? [EN.hours, EN.minutes] : ["שעות", "דקות"];
+  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")} ${h}` : `${m} ${mins}`;
 }
 
 /** Share of the day (in minutes) per activity intensity, for the stacked bar. */
-export function activityBreakdown(d: DayExtras): Array<{ key: string; label: string; minutes: number }> {
+export function activityBreakdown(d: DayExtras, locale: Locale = "he"): Array<{ key: string; label: string; minutes: number }> {
+  const A = EN.activity;
+  const en = locale === "en";
   const parts: Array<[string, string, number | null]> = [
-    ["high", "עצימה", d.highActivityMinutes],
-    ["medium", "בינונית", d.mediumActivityMinutes],
-    ["low", "קלה", d.lowActivityMinutes],
-    ["rest", "מנוחה", d.restingMinutes],
-    ["nonwear", "ללא הטבעת", d.nonWearMinutes],
+    ["high", en ? A.high : "עצימה", d.highActivityMinutes],
+    ["medium", en ? A.medium : "בינונית", d.mediumActivityMinutes],
+    ["low", en ? A.low : "קלה", d.lowActivityMinutes],
+    ["rest", en ? A.rest : "מנוחה", d.restingMinutes],
+    ["nonwear", en ? A.nonwear : "ללא הטבעת", d.nonWearMinutes],
   ];
   return parts.filter((p): p is [string, string, number] => p[2] !== null && p[2] > 0).map(([key, label, minutes]) => ({ key, label, minutes }));
 }
@@ -279,6 +297,20 @@ export const FAMILY_STATE_HE: Record<FamilyState, string> = {
   error: "לא התקבל בסנכרון האחרון",
   unknown: "עוד לא נבדק",
 };
+
+/** The data families with their English or Hebrew names. */
+export function coverageFamilies(locale: Locale): Array<{ id: string; label: string; what: string }> {
+  return locale === "en"
+    ? COVERAGE_FAMILIES.map((f) => {
+        const en = EN.families[f.id];
+        return en ? { id: f.id, label: en[0], what: en[1] } : f;
+      })
+    : COVERAGE_FAMILIES;
+}
+
+export function familyStateLabel(state: FamilyState, locale: Locale): string {
+  return locale === "en" ? EN.familyState[state] : FAMILY_STATE_HE[state];
+}
 
 /** Window days that actually have a value for `pick`, aligned to `days` (null where the day has no row). */
 export function alignExtras<T>(days: string[], extras: DayExtras[], pick: (d: DayExtras) => T | null | undefined): Array<T | null> {

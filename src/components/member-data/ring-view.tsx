@@ -1,11 +1,13 @@
 import { Section, fmtDate } from "@/components/doctor-dashboard/dashboard";
 import { IconInfo, IconShield, IconZap } from "@/components/doctor-dashboard/icons";
 import { RingCard } from "@/components/ring-card";
-import { fmtDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format-locale";
+import type { Locale } from "@/lib/i18n";
+import { memberViews } from "@/lib/i18n/dict/member-views";
 import {
-  COVERAGE_FAMILIES,
-  FAMILY_STATE_HE,
+  coverageFamilies,
   familyState,
+  familyStateLabel,
   ringColorLabel,
   ringDesignLabel,
   ringHardwareLabel,
@@ -18,11 +20,14 @@ export function RingView({
   oura,
   profile,
   askMore,
+  locale = "he",
 }: {
   oura: { lastSyncAt: Date | null } | null;
   profile: OuraProfileData | null;
   askMore: boolean;
+  locale?: Locale;
 }) {
+  const R = memberViews[locale].ring;
   const coverage = profile?.coverage ?? null;
   const hasDevice = profile && (profile.ringHardware || profile.ringColor || profile.ringDesign || profile.ringFirmware);
   const hasPerson = profile && (profile.age != null || profile.weightKg != null || profile.heightM != null || profile.biologicalSex);
@@ -30,39 +35,39 @@ export function RingView({
 
   return (
     <Shell>
-      <RingCard oura={oura} askMore={askMore} back="ring" locale="he" />
+      <RingCard oura={oura} askMore={askMore} back="ring" locale={locale} />
 
-      <Section id="ring-device" icon={<IconZap size={20} />} title="הטבעת שלך" lead="פרטים ש-Oura מדווחת על הטבעת עצמה.">
+      <Section id="ring-device" icon={<IconZap size={20} />} title={R.title} lead={R.lead}>
         {hasDevice ? (
           <div className="panel">
             <dl className="md-kv">
               {profile.ringHardware && (
                 <div>
-                  <dt>דור</dt>
-                  <dd>{ringHardwareLabel(profile.ringHardware)}</dd>
+                  <dt>{R.gen}</dt>
+                  <dd>{ringHardwareLabel(profile.ringHardware, locale)}</dd>
                 </div>
               )}
               {profile.ringDesign && (
                 <div>
-                  <dt>עיצוב</dt>
+                  <dt>{R.design}</dt>
                   <dd>{ringDesignLabel(profile.ringDesign)}</dd>
                 </div>
               )}
               {profile.ringColor && (
                 <div>
-                  <dt>צבע</dt>
-                  <dd>{ringColorLabel(profile.ringColor)}</dd>
+                  <dt>{R.color}</dt>
+                  <dd>{ringColorLabel(profile.ringColor, locale)}</dd>
                 </div>
               )}
               {profile.ringSize != null && (
                 <div>
-                  <dt>מידה</dt>
+                  <dt>{R.size}</dt>
                   <dd>{profile.ringSize}</dd>
                 </div>
               )}
               {profile.ringFirmware && (
                 <div>
-                  <dt>קושחה</dt>
+                  <dt>{R.firmware}</dt>
                   <dd>
                     <bdi dir="ltr">{profile.ringFirmware}</bdi>
                   </dd>
@@ -70,56 +75,60 @@ export function RingView({
               )}
               {profile.ringSetUpAt && (
                 <div>
-                  <dt>הוגדרה</dt>
-                  <dd>{fmtDate(profile.ringSetUpAt.toISOString().slice(0, 10))}</dd>
+                  <dt>{R.setUp}</dt>
+                  <dd>{fmtDate(profile.ringSetUpAt.toISOString().slice(0, 10), locale)}</dd>
                 </div>
               )}
               {battery !== null && (
                 <div>
-                  <dt>סוללה</dt>
+                  <dt>{R.battery}</dt>
                   <dd>
                     {battery}%
                     <span className={battery < 20 ? "md-bat is-low" : "md-bat"} aria-hidden="true">
                       <span style={{ width: `${battery}%` }} />
                     </span>
-                    {profile.batteryCharging ? " · בטעינה" : ""}
-                    {profile.batteryAt ? <span className="muted"> · {fmtDateTime(profile.batteryAt)}</span> : null}
+                    {profile.batteryCharging ? R.charging : ""}
+                    {profile.batteryAt ? <span className="muted"> · {formatDateTime(profile.batteryAt, locale)}</span> : null}
                   </dd>
                 </div>
               )}
             </dl>
           </div>
         ) : (
-          <p className="dash-empty">פרטי הטבעת עוד לא התקבלו. הם מגיעים אחרי הסנכרון הבא, ודורשים את ההרשאה לפרטים אישיים.</p>
+          <p className="dash-empty">{R.noDevice}</p>
         )}
       </Section>
 
       {hasPerson && (
-        <Section id="ring-person" icon={<IconShield size={20} />} title="הפרטים שלך ב-Oura" lead="מה ש-Oura יודעת עליך, והיא משתמשת בזה לחישוב הציונים. מוצג רק לך.">
+        <Section id="ring-person" icon={<IconShield size={20} />} title={R.person} lead={R.personLead}>
           <div className="panel">
             <dl className="md-kv">
               {profile.age != null && (
                 <div>
-                  <dt>גיל</dt>
+                  <dt>{R.age}</dt>
                   <dd>{profile.age}</dd>
                 </div>
               )}
               {profile.heightM != null && (
                 <div>
-                  <dt>גובה</dt>
-                  <dd>{Math.round(profile.heightM * 100)} ס״מ</dd>
+                  <dt>{R.height}</dt>
+                  <dd>
+                    {Math.round(profile.heightM * 100)} {R.cm}
+                  </dd>
                 </div>
               )}
               {profile.weightKg != null && (
                 <div>
-                  <dt>משקל</dt>
-                  <dd>{profile.weightKg} ק״ג</dd>
+                  <dt>{R.weight}</dt>
+                  <dd>
+                    {profile.weightKg} {R.kg}
+                  </dd>
                 </div>
               )}
               {profile.biologicalSex && (
                 <div>
-                  <dt>מין ביולוגי</dt>
-                  <dd>{sexLabel(profile.biologicalSex)}</dd>
+                  <dt>{R.sex}</dt>
+                  <dd>{sexLabel(profile.biologicalSex, locale)}</dd>
                 </div>
               )}
             </dl>
@@ -130,22 +139,23 @@ export function RingView({
       <Section
         id="ring-coverage"
         icon={<IconInfo size={20} />}
-        title="אילו נתונים מגיעים"
-        lead="כל סוג נתונים ש-Oura מאפשרת לקבל, ומה קרה איתו בסנכרון האחרון."
+        title={R.coverage}
+        lead={R.coverageLead}
       >
         <div className="table-card">
-          <div className="table-scroll" tabIndex={0} role="region" aria-label="סוגי נתונים מ-Oura">
+          <div className="table-scroll" tabIndex={0} role="region" aria-label={R.coverageAria}>
             <table className="dash-table">
               <thead>
                 <tr>
-                  <th scope="col">נתון</th>
-                  <th scope="col">מה כלול</th>
-                  <th scope="col">מצב</th>
-                  <th scope="col">רשומות</th>
+                  {R.cols.map((c) => (
+                    <th scope="col" key={c}>
+                      {c}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {COVERAGE_FAMILIES.map((f) => {
+                {coverageFamilies(locale).map((f) => {
                   const c = coverage?.[f.id];
                   const state = familyState(c);
                   return (
@@ -153,7 +163,7 @@ export function RingView({
                       <th scope="row">{f.label}</th>
                       <td>{f.what}</td>
                       <td>
-                        <span className={`md-state is-${state === "ok" ? "ok" : state}`}>{FAMILY_STATE_HE[state]}</span>
+                        <span className={`md-state is-${state === "ok" ? "ok" : state}`}>{familyStateLabel(state, locale)}</span>
                       </td>
                       <td>{c && c.status === "ok" ? c.rows : "–"}</td>
                     </tr>
@@ -164,20 +174,16 @@ export function RingView({
           </div>
         </div>
         <p className="md-note">
-          &quot;דורש אישור הרשאה&quot; אומר ש-Oura לא העניקה לנו את הסוג הזה.{" "}
-          {askMore
-            ? "לוחצים על ״אישור הרשאות נוספות״ למעלה ומאשרים ב-Oura (פעם אחת)."
-            : "ביקשנו הכול כבר בחיבור הנוכחי, אז או שסימון התיבה הוסר במסך האישור של Oura, או שהסוג הזה לא קיים בדגם הטבעת או בחבר המנוי. אפשר לבדוק באפליקציית Oura בהגדרות האפליקציות המחוברות."}{" "}
-          ״אין נתונים בתקופה״ אומר שההרשאה קיימת, אבל לא נמדד כלום (תלוי בדגם הטבעת ובשימוש באפליקציה).
+          {R.noteForbidden} {askMore ? R.noteAsk : R.noteAsked} {R.noteEmpty}
         </p>
       </Section>
 
-      <Section id="ring-privacy" icon={<IconShield size={20} />} title="מה נשמר ומי רואה" lead="הכול כאן שלך.">
+      <Section id="ring-privacy" icon={<IconShield size={20} />} title={R.privacy} lead={R.privacyLead}>
         <div className="panel">
           <ul className="md-notes">
-            <li>הנתונים שבלשוניות האלה נראים רק לך. הצוות הרפואי, הארגון וקישורי הרופא אינם קוראים אותם, אלא אם בחרת בעצמך לשלוח סיכום (ה-PDF והדאשבורד לרופא כוללים רק שינה והתאוששות).</li>
-            <li>מהדופק לאורך היום נשמר ממוצע לכל חמש דקות, לא כל מדידה. דופק בין פעימות (IBI) ועקומת ה-MET הדקתית לא נמשכים בכלל.</li>
-            <li>תגיות והערות חופשיות שכתבת באפליקציה נשמרות כפי שכתבת.</li>
+            {R.privacyNotes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
           </ul>
         </div>
       </Section>

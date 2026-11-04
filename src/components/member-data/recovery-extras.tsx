@@ -1,11 +1,14 @@
 import { ContributorList, Section, Trend, fmtNum, fmtShort, signed } from "@/components/doctor-dashboard/dashboard";
 import { IconZap } from "@/components/doctor-dashboard/icons";
 import type { ContributorRow, DaySlot } from "@/lib/doctor-dashboard";
+import type { Locale } from "@/lib/i18n";
+import { memberViews } from "@/lib/i18n/dict/member-views";
 import {
+  RESILIENCE_CONTRIBUTORS_EN,
   RESILIENCE_CONTRIBUTORS_HE,
-  RESILIENCE_LABEL_HE,
   RESILIENCE_ORDER,
   alignExtras,
+  labelMap,
   latestOf,
   meanOf,
   resilienceLabel,
@@ -16,18 +19,34 @@ import type { DayExtras } from "@/lib/types";
 import { ChartGrid, EmptyHint, Shell, type Coverage } from "./shared";
 
 /** Resilience, the long-term temperature trend, and how each night moved readiness. */
-export function RecoveryExtras({ slots, extras, coverage }: { slots: DaySlot[]; extras: DayExtras[]; coverage: Coverage }) {
+export function RecoveryExtras({
+  slots,
+  extras,
+  coverage,
+  locale = "he",
+}: {
+  slots: DaySlot[];
+  extras: DayExtras[];
+  coverage: Coverage;
+  locale?: Locale;
+}) {
+  const V = memberViews[locale];
+  const R = V.recovery;
+  const C = V.common;
+  const short = (d: string) => fmtShort(d, locale);
+  const num = (v: number | null, digits = 0) => fmtNum(v, digits, locale);
   const days = slots.map((s) => s.day);
   const recentDays = new Set(days.slice(-7));
 
   const level = latestOf(extras, (e) => e.resilienceLevel);
   const rank = level ? resilienceRank(level.value) : null;
   const ranks = alignExtras(days, extras, (e) => resilienceRank(e.resilienceLevel));
-  const rows: ContributorRow[] = Object.entries(RESILIENCE_CONTRIBUTORS_HE)
+  // Rows carry their key; ContributorList shows the label given here, in the page's language.
+  const rows: ContributorRow[] = Object.entries(labelMap(RESILIENCE_CONTRIBUTORS_HE, RESILIENCE_CONTRIBUTORS_EN, locale))
     .map(([key, label]) => {
       const get = (e: DayExtras) => e.resilienceContributors?.[key] ?? null;
       return {
-        key,
+        key: `res:${key}`,
         label,
         recent: meanOf(extras.filter((e) => recentDays.has(e.day)).map(get)),
         period: meanOf(extras.map(get)),
@@ -44,39 +63,34 @@ export function RecoveryExtras({ slots, extras, coverage }: { slots: DaySlot[]; 
 
   return (
     <Shell>
-      <Section
-        id="recovery-extras"
-        icon={<IconZap size={20} />}
-        title="חוסן וטרנד טמפרטורה"
-        lead="החוסן של Oura מסכם כמה טוב הגוף שלך מתאושש מלחץ לאורך זמן. הטרנד מראה סטייה ארוכת טווח בטמפרטורת העור."
-      >
-        {!hasAny && <EmptyHint families={["daily_resilience", "daily_readiness"]} coverage={coverage} what="נתוני החוסן והטרנד" />}
+      <Section id="recovery-extras" icon={<IconZap size={20} />} title={R.title} lead={R.lead}>
+        {!hasAny && <EmptyHint families={["daily_resilience", "daily_readiness"]} coverage={coverage} what={R.what} locale={locale} />}
 
         {level && (
           <div className="drivers-grid">
             <div className="drivers-card">
-              <h3>רמת חוסן</h3>
-              <p className="md-big">{resilienceLabel(level.value)}</p>
-              <ol className="md-scale" aria-label="סולם החוסן">
+              <h3>{R.level}</h3>
+              <p className="md-big">{resilienceLabel(level.value, locale)}</p>
+              <ol className="md-scale" aria-label={R.scale}>
                 {RESILIENCE_ORDER.map((l, i) => (
                   <li key={l} className={`${rank !== null && i + 1 <= rank ? "is-on" : ""} ${i + 1 === rank ? "is-cur" : ""}`.trim()}>
-                    {RESILIENCE_LABEL_HE[l]}
+                    {resilienceLabel(l, locale)}
                   </li>
                 ))}
               </ol>
-              <p className="md-note">מהיום האחרון עם נתון. זו הערכה של Oura, לא אבחנה.</p>
+              <p className="md-note">{R.levelNote}</p>
             </div>
-            {rows.length > 0 && <ContributorList title="מה מרכיב את החוסן" rows={rows} />}
+            {rows.length > 0 && <ContributorList title={R.makesUp} rows={rows} locale={locale} />}
           </div>
         )}
 
         {ranks.some((v) => v !== null) && (
           <div className="panel" style={{ marginTop: 16 }}>
-            <h3>חוסן לאורך זמן</h3>
+            <h3>{R.overTime}</h3>
             <p className="md-note" style={{ marginTop: 0 }}>
-              יום אחד בכל משבצת, מהישן (משמאל) לחדש (מימין). ככל שהצבע כהה יותר, החוסן גבוה יותר.
+              {R.overTimeNote}
             </p>
-            <div className="md-days" role="img" aria-label={`רמת החוסן בכל יום. האחרונה: ${level ? resilienceLabel(level.value) : "לא ידועה"}.`} dir="ltr">
+            <div className="md-days" role="img" aria-label={R.overTimeAria(level ? resilienceLabel(level.value, locale) : R.unknown)} dir="ltr">
               {days.map((day, i) => {
                 const r = ranks[i] ?? null;
                 return (
@@ -84,14 +98,14 @@ export function RecoveryExtras({ slots, extras, coverage }: { slots: DaySlot[]; 
                     key={day}
                     className={r === null ? "is-none" : undefined}
                     style={r === null ? undefined : { opacity: 0.25 + 0.75 * ((r - 1) / 4) }}
-                    title={`${fmtShort(day)}: ${r === null ? "אין נתון" : RESILIENCE_LABEL_HE[RESILIENCE_ORDER[r - 1] as string]}`}
+                    title={`${short(day)}: ${r === null ? C.noValue : resilienceLabel(RESILIENCE_ORDER[r - 1] as string, locale)}`}
                   />
                 );
               })}
             </div>
             <p className="md-legend" style={{ justifyContent: "space-between" }} dir="ltr">
-              <span>{fmtShort(days[0] as string)}</span>
-              <span>{fmtShort(days[days.length - 1] as string)}</span>
+              <span>{short(days[0] as string)}</span>
+              <span>{short(days[days.length - 1] as string)}</span>
             </p>
           </div>
         )}
@@ -104,25 +118,26 @@ export function RecoveryExtras({ slots, extras, coverage }: { slots: DaySlot[]; 
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="טרנד טמפרטורת העור"
-                  caption="הסטייה ארוכת הטווח מהקו האישי, במעלות. עלייה מתמשכת יכולה ללוות מחלה."
+                  title={R.trend}
+                  caption={R.trendCaption}
                   stat={
                     <>
-                      <strong>{lastTrend === null ? "–" : <bdi dir="ltr">{signed(lastTrend, 2)}</bdi>}</strong> לאחרונה
+                      <strong>{lastTrend === null ? "–" : <bdi dir="ltr">{signed(lastTrend, 2)}</bdi>}</strong> {C.recently}
                     </>
                   }
                   chart={{
+                    locale,
                     days,
                     values: trend,
                     avg: rollingMean(trend),
                     kind: "dots",
-                    valueLabel: "טרנד טמפרטורה",
-                    unit: "מעלות",
+                    valueLabel: R.trendLabel,
+                    unit: C.degrees,
                     digits: 2,
                     domain: [Math.min(-1, Math.floor(Math.min(...tempReal))), Math.max(1, Math.ceil(Math.max(...tempReal)))],
-                    band: { from: -0.5, to: 0.5, label: "טווח רגיל: עד חצי מעלה" },
-                    reference: { value: 0, label: "הקו האישי" },
-                    summary: `טרנד ממוצע ${fmtNum(meanOf(trend), 2)} מעלות.`,
+                    band: { from: -0.5, to: 0.5, label: C.normalTemp },
+                    reference: { value: 0, label: C.baseline },
+                    summary: R.trendSummary(num(meanOf(trend), 2)),
                   }}
                 />
               ),
@@ -132,22 +147,23 @@ export function RecoveryExtras({ slots, extras, coverage }: { slots: DaySlot[]; 
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="השפעת הלילה על ציון המוכנות"
-                  caption="כמה נקודות הלילה הוסיף או הוריד למוכנות."
+                  title={R.impact}
+                  caption={R.impactCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(delta), 1)}</strong> בממוצע
+                      <strong>{num(meanOf(delta), 1)}</strong> {C.onAvg}
                     </>
                   }
                   chart={{
+                    locale,
                     days,
                     values: delta,
                     avg: rollingMean(delta),
                     kind: "dots",
-                    valueLabel: "השפעה על המוכנות",
-                    unit: "נקודות",
-                    reference: { value: 0, label: "ללא שינוי" },
-                    summary: `השפעה ממוצעת של ${fmtNum(meanOf(delta), 1)} נקודות.`,
+                    valueLabel: R.impactLabel,
+                    unit: C.points,
+                    reference: { value: 0, label: C.noChange },
+                    summary: C.avgImpact(num(meanOf(delta), 1)),
                   }}
                 />
               ),

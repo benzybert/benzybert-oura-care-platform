@@ -1,6 +1,8 @@
 import { Fragment, type ReactNode } from "react";
 import { IconInfo } from "@/components/doctor-dashboard/icons";
 import { familyState } from "@/lib/member-data";
+import type { Locale } from "@/lib/i18n";
+import { memberViews } from "@/lib/i18n/dict/member-views";
 import type { CollectionCoverage } from "@/lib/types";
 import { runs } from "@/lib/member-data";
 import "./member-data.css";
@@ -17,7 +19,18 @@ export function Shell({ children }: { children: ReactNode }) {
  * Tells the member why a block is empty. If Oura refused the endpoint, that is a missing permission and the fix is
  * to approve more data in Oura; otherwise the data is simply not there (yet, or not for this ring).
  */
-export function EmptyHint({ families, coverage, what }: { families: string[]; coverage: Coverage; what: string }) {
+export function EmptyHint({
+  families,
+  coverage,
+  what,
+  locale = "he",
+}: {
+  families: string[];
+  coverage: Coverage;
+  what: string;
+  locale?: Locale;
+}) {
+  const H = memberViews[locale].hint;
   const states = families.map((f) => familyState(coverage?.families[f]));
   const forbidden = states.includes("forbidden");
   return (
@@ -25,30 +38,28 @@ export function EmptyHint({ families, coverage, what }: { families: string[]; co
       <IconInfo size={18} />
       <div>
         {forbidden ? (
-          <>
-            {coverage?.askMore ? (
-              <>
-                <p>
-                  <strong>{what}</strong> עוד לא מגיע, כי Oura לא אישרה לנו את ההרשאה הזאת. אחרי אישור וסנכרון הנתון יופיע כאן.
-                </p>
-                <a className="dash-btn md-btn" href="/api/oura/connect">
-                  אישור הרשאות ב-Oura
-                </a>
-              </>
-            ) : (
+          coverage?.askMore ? (
+            <>
               <p>
-                <strong>{what}</strong> לא מגיע: Oura לא העניקה את ההרשאה הזאת בחיבור הנוכחי (ביקשנו הכול כבר). אפשר לבדוק באפליקציית Oura אם סימנת
-                אותה, או שהנתון לא קיים בדגם הטבעת.
+                <strong>{what}</strong> {H.notYet}
               </p>
-            )}
-          </>
+              <a className="dash-btn md-btn" href="/api/oura/connect">
+                {H.approve}
+              </a>
+            </>
+          ) : (
+            <p>
+              <strong>{what}</strong> {H.refused}
+            </p>
+          )
         ) : states.includes("error") ? (
           <p>
-            <strong>{what}</strong> לא התקבל בסנכרון האחרון. נסו לסנכרן שוב בעוד כמה דקות.
+            <strong>{what}</strong> {H.error}
           </p>
         ) : (
           <p>
-            <strong>{what}</strong>: אין נתונים בתקופה הזאת. זה יכול להיות תלוי בדגם הטבעת, בשימוש באפליקציה או בסנכרון שעוד לא קרה.
+            <strong>{what}</strong>
+            {H.empty}
           </p>
         )}
       </div>

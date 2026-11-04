@@ -22,17 +22,20 @@ export function niceTicks(min: number, max: number, count: number, clock: boolea
   return ticks;
 }
 
-export function shortDay(day: string): string {
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Axis label: "4.11" in Hebrew (day.month), "4 Nov" in English (no ambiguous numeric order). */
+export function shortDay(day: string, locale: "he" | "en" = "he"): string {
   const [, m, d] = day.split("-");
-  return `${Number(d)}.${Number(m)}`;
+  return locale === "en" ? `${Number(d)} ${MONTHS_EN[Number(m) - 1]}` : `${Number(d)}.${Number(m)}`;
 }
 
-export function longDay(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", {
+export function longDay(day: string, locale: "he" | "en" = "he"): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString(locale === "en" ? "en-GB" : "he-IL", {
     timeZone: "UTC",
     weekday: "long",
     day: "numeric",
-    month: "numeric",
+    month: locale === "en" ? "short" : "numeric",
   });
 }
 

@@ -1,6 +1,8 @@
 import { Section, fmtNum, fmtShort } from "@/components/doctor-dashboard/dashboard";
 import { IconActivity, IconCalendar, IconClock, IconHeartPulse, IconMoon } from "@/components/doctor-dashboard/icons";
-import { weekdayLetter } from "@/components/doctor-dashboard/format";
+import { intlTag, type Locale } from "@/lib/i18n";
+import { dash } from "@/lib/i18n/dict/dash";
+import { memberViews } from "@/lib/i18n/dict/member-views";
 import { durationLabel, intensityLabel, moodLabel, sessionTypeLabel, tagName, workoutName } from "@/lib/member-data";
 import type { OuraEvent } from "@/lib/types";
 import { EmptyHint, Shell, type Coverage } from "./shared";
@@ -8,17 +10,17 @@ import { EmptyHint, Shell, type Coverage } from "./shared";
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
 
-const timeOf = (d: Date | null) =>
-  d ? d.toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
-
 const minutesBetween = (a: Date | null, b: Date | null) => (a && b ? Math.max(0, Math.round((b.getTime() - a.getTime()) / 60_000)) : null);
 
-function When({ e }: { e: OuraEvent }) {
-  const t = timeOf(e.startAt);
+function When({ e, locale }: { e: OuraEvent; locale: Locale }) {
+  const t = e.startAt
+    ? e.startAt.toLocaleTimeString(intlTag(locale), { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false })
+    : null;
+  const wd = dash[locale].charts.weekdayShort[new Date(`${e.day}T00:00:00Z`).getUTCDay()];
   return (
     <span className="md-when">
       <bdi>
-        {weekdayLetter(e.day)} {fmtShort(e.day)}
+        {wd} {fmtShort(e.day, locale)}
       </bdi>
       {t ? (
         <>
@@ -30,7 +32,11 @@ function When({ e }: { e: OuraEvent }) {
   );
 }
 
-export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage: Coverage }) {
+export function EventsView({ events, coverage, locale = "he" }: { events: OuraEvent[]; coverage: Coverage; locale?: Locale }) {
+  const E = memberViews[locale].events;
+  const short = (d: string) => fmtShort(d, locale);
+  const n0 = (v: number | null) => fmtNum(v, 0, locale);
+  const dur = (m: number | null) => durationLabel(m, locale);
   const of = (kind: OuraEvent["kind"]) => events.filter((e) => e.kind === kind);
   const workouts = of("workout");
   const sessions = of("session");
@@ -44,28 +50,30 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
 
   return (
     <Shell>
-      <Section id="ev-workouts" icon={<IconActivity size={20} />} title="אימונים" lead="אימונים שהטבעת זיהתה או שהוספת באפליקציה, מהחדש לישן.">
+      <Section id="ev-workouts" icon={<IconActivity size={20} />} title={E.workouts} lead={E.workoutsLead}>
         {workouts.length === 0 ? (
-          <EmptyHint families={["workout"]} coverage={coverage} what="האימונים" />
+          <EmptyHint families={["workout"]} coverage={coverage} what={E.whatWorkouts} locale={locale} />
         ) : (
           <>
             <dl className="md-sums">
               <div>
-                <dt>אימונים</dt>
+                <dt>{E.count}</dt>
                 <dd>{workouts.length}</dd>
               </div>
               <div>
-                <dt>זמן כולל</dt>
-                <dd>{durationLabel(minutes)}</dd>
+                <dt>{E.totalTime}</dt>
+                <dd>{dur(minutes)}</dd>
               </div>
               <div>
-                <dt>קלוריות</dt>
-                <dd>{fmtNum(kcal)}</dd>
+                <dt>{E.calories}</dt>
+                <dd>{n0(kcal)}</dd>
               </div>
               {km > 0 && (
                 <div>
-                  <dt>מרחק</dt>
-                  <dd>{km.toFixed(1)} ק״מ</dd>
+                  <dt>{E.distance}</dt>
+                  <dd>
+                    {km.toFixed(1)} {E.km}
+                  </dd>
                 </div>
               )}
             </dl>
@@ -74,21 +82,21 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
                 const mins = minutesBetween(w.startAt, w.endAt);
                 const intensity = str(w.data.intensity);
                 const parts = [
-                  num(w.data.calories) !== null ? `${fmtNum(num(w.data.calories))} קק״ל` : null,
-                  num(w.data.distanceM) ? `${((num(w.data.distanceM) as number) / 1000).toFixed(2)} ק״מ` : null,
+                  num(w.data.calories) !== null ? `${n0(num(w.data.calories))} ${E.kcal}` : null,
+                  num(w.data.distanceM) ? `${((num(w.data.distanceM) as number) / 1000).toFixed(2)} ${E.km}` : null,
                   str(w.data.name),
                 ].filter(Boolean);
                 return (
                   <li key={w.id} className="md-row">
-                    <When e={w} />
+                    <When e={w} locale={locale} />
                     <div>
                       <p className="md-what">
-                        {workoutName(w.label)}
-                        {intensity && <span className={intensity === "hard" ? "md-tag is-hard" : "md-tag"}>{intensityLabel(intensity)}</span>}
+                        {workoutName(w.label, locale)}
+                        {intensity && <span className={intensity === "hard" ? "md-tag is-hard" : "md-tag"}>{intensityLabel(intensity, locale)}</span>}
                       </p>
                       {parts.length > 0 && <p className="md-sub">{parts.join(" · ")}</p>}
                     </div>
-                    <span className="md-num">{mins === null ? "–" : durationLabel(mins)}</span>
+                    <span className="md-num">{mins === null ? "–" : dur(mins)}</span>
                   </li>
                 );
               })}
@@ -97,27 +105,30 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
         )}
       </Section>
 
-      <Section id="ev-sessions" icon={<IconHeartPulse size={20} />} title="סשנים" lead="נשימות, מדיטציה והרפיה שעשית באפליקציה, עם הדופק וה-HRV בזמן הסשן.">
+      <Section id="ev-sessions" icon={<IconHeartPulse size={20} />} title={E.sessions} lead={E.sessionsLead}>
         {sessions.length === 0 ? (
-          <EmptyHint families={["session"]} coverage={coverage} what="הסשנים" />
+          <EmptyHint families={["session"]} coverage={coverage} what={E.whatSessions} locale={locale} />
         ) : (
           <ul className="md-list panel">
             {sessions.map((s) => {
               const mood = str(s.data.mood);
+              const hrAvg = num(s.data.hrAvg);
+              const hrMin = num(s.data.hrMin);
+              const hrvAvg = num(s.data.hrvAvg);
               const parts = [
-                num(s.data.hrAvg) !== null ? `דופק ממוצע ${num(s.data.hrAvg)}` : null,
-                num(s.data.hrMin) !== null ? `נמוך ${num(s.data.hrMin)}` : null,
-                num(s.data.hrvAvg) !== null ? `HRV ${num(s.data.hrvAvg)}` : null,
-                mood ? `מצב רוח אחרי: ${moodLabel(mood)}` : null,
+                hrAvg !== null ? E.hrAvg(hrAvg) : null,
+                hrMin !== null ? E.hrMin(hrMin) : null,
+                hrvAvg !== null ? `HRV ${hrvAvg}` : null,
+                mood ? E.moodAfter(moodLabel(mood, locale)) : null,
               ].filter(Boolean);
               return (
                 <li key={s.id} className="md-row">
-                  <When e={s} />
+                  <When e={s} locale={locale} />
                   <div>
-                    <p className="md-what">{sessionTypeLabel(s.label)}</p>
+                    <p className="md-what">{sessionTypeLabel(s.label, locale)}</p>
                     {parts.length > 0 && <p className="md-sub">{parts.join(" · ")}</p>}
                   </div>
-                  <span className="md-num">{num(s.data.durationMin) === null ? "–" : durationLabel(num(s.data.durationMin))}</span>
+                  <span className="md-num">{num(s.data.durationMin) === null ? "–" : dur(num(s.data.durationMin))}</span>
                 </li>
               );
             })}
@@ -125,16 +136,16 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
         )}
       </Section>
 
-      <Section id="ev-tags" icon={<IconCalendar size={20} />} title="תגיות והערות" lead="מה שסימנת באפליקציה של Oura (אלכוהול, קפאין, מחלה ועוד), כדי לקשר אותו לנתונים. הטקסט הוא שלך בלבד.">
+      <Section id="ev-tags" icon={<IconCalendar size={20} />} title={E.tags} lead={E.tagsLead}>
         {tags.length === 0 ? (
-          <EmptyHint families={["enhanced_tag"]} coverage={coverage} what="התגיות" />
+          <EmptyHint families={["enhanced_tag"]} coverage={coverage} what={E.whatTags} locale={locale} />
         ) : (
           <ul className="md-list panel">
             {tags.map((t) => (
               <li key={t.id} className="md-row">
-                <When e={t} />
+                <When e={t} locale={locale} />
                 <div>
-                  <p className="md-what">{tagName(t.label)}</p>
+                  <p className="md-what">{tagName(t.label, locale)}</p>
                   {str(t.data.comment) && (
                     <p className="md-sub" dir="auto">
                       {str(t.data.comment)}
@@ -148,28 +159,28 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
         )}
       </Section>
 
-      <Section id="ev-rest" icon={<IconClock size={20} />} title="מצב מנוחה" lead="תקופות שהפעלת בהן מצב מנוחה (מחלה, חופשה או התאוששות). בהן הציונים לא נמדדים כרגיל.">
+      <Section id="ev-rest" icon={<IconClock size={20} />} title={E.rest} lead={E.restLead}>
         {rest.length === 0 ? (
-          <EmptyHint families={["rest_mode_period"]} coverage={coverage} what="מצב המנוחה" />
+          <EmptyHint families={["rest_mode_period"]} coverage={coverage} what={E.whatRest} locale={locale} />
         ) : (
           <ul className="md-list panel">
             {rest.map((r) => {
               const end = str(r.data.endDay);
               const episodes = Array.isArray(r.data.episodes) ? (r.data.episodes as Array<{ tags?: string[] }>) : [];
-              const tagList = [...new Set(episodes.flatMap((x) => x.tags ?? []))].map(tagName);
+              const tagList = [...new Set(episodes.flatMap((x) => x.tags ?? []))].map((tag) => tagName(tag, locale));
               return (
                 <li key={r.id} className="md-row">
-                  <When e={r} />
+                  <When e={r} locale={locale} />
                   <div>
                     <p className="md-what">
-                      <bdi>{fmtShort(r.day)}</bdi>
+                      <bdi>{short(r.day)}</bdi>
                       {end ? (
                         <>
                           {" "}
-                          – <bdi>{fmtShort(end)}</bdi>
+                          – <bdi>{short(end)}</bdi>
                         </>
                       ) : (
-                        " – עד היום"
+                        E.untilToday
                       )}
                     </p>
                     {tagList.length > 0 && <p className="md-sub">{tagList.join(" · ")}</p>}
@@ -183,16 +194,16 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
       </Section>
 
       {naps.length > 0 && (
-        <Section id="ev-naps" icon={<IconMoon size={20} />} title="תנומות" lead="שינה קצרה שאישרת, מחוץ ללילה הראשי.">
+        <Section id="ev-naps" icon={<IconMoon size={20} />} title={E.naps} lead={E.napsLead}>
           <ul className="md-list panel">
             {naps.map((n) => (
               <li key={n.id} className="md-row">
-                <When e={n} />
+                <When e={n} locale={locale} />
                 <div>
-                  <p className="md-what">{n.label === "late_nap" ? "תנומת ערב" : "תנומה"}</p>
+                  <p className="md-what">{n.label === "late_nap" ? E.eveningNap : E.nap}</p>
                   {num(n.data.avgHrv) !== null && <p className="md-sub">HRV {num(n.data.avgHrv)}</p>}
                 </div>
-                <span className="md-num">{num(n.data.minutes) === null ? "–" : durationLabel(num(n.data.minutes))}</span>
+                <span className="md-num">{num(n.data.minutes) === null ? "–" : dur(num(n.data.minutes))}</span>
               </li>
             ))}
           </ul>

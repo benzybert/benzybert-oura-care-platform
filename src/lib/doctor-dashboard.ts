@@ -1,3 +1,5 @@
+import type { Locale } from "./i18n";
+import { dashFindings } from "./i18n/dict/dash-findings";
 import { mean, sortByDay } from "./alerts";
 import { addDays, dayOfWeek } from "./dates";
 import {
@@ -207,7 +209,8 @@ function round(n: number | null, digits: number): number | null {
   return Math.round(n * f) / f;
 }
 
-function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: BedtimeStats): Finding[] {
+function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: BedtimeStats, locale: Locale): Finding[] {
+  const F = dashFindings[locale];
   const n = slots.length;
   const withData = slots.filter((s) => s.hasData).length;
   const findings: Finding[] = [];
@@ -216,15 +219,15 @@ function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: 
   const coverage = n ? withData / n : 0;
   findings.push(
     withData === 0
-      ? { id: "coverage", status: "info", title: "אין נתונים בתקופה", detail: `לא התקבלו נתונים מהטבעת ב-${n} הימים האחרונים.` }
+      ? { id: "coverage", status: "info", title: F.coverage.none.title, detail: F.coverage.none.detail(n) }
       : coverage < LOW_COVERAGE
         ? {
             id: "coverage",
             status: "info",
-            title: "כיסוי נתונים חלקי",
-            detail: `יש נתונים ל-${withData} מתוך ${n} ימים. ממוצעים מבוססים על הימים הקיימים בלבד.`,
+            title: F.coverage.partial.title,
+            detail: F.coverage.partial.detail(withData, n),
           }
-        : { id: "coverage", status: "ok", title: "כיסוי נתונים טוב", detail: `יש נתונים ל-${withData} מתוך ${n} ימים.` },
+        : { id: "coverage", status: "ok", title: F.coverage.good.title, detail: F.coverage.good.detail(withData, n) },
   );
   if (withData === 0) return findings;
 
@@ -236,27 +239,28 @@ function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: 
   const shortStreak = last.every((s) => s.totalSleepHours !== null && s.totalSleepHours < SHORT_SLEEP_HOURS);
   const avgSleep = kpis.totalSleepHours.period;
   if (nights.length > 0) {
-    const avgText = avgSleep === null ? "" : `ממוצע ${avgSleep.toFixed(1)} שעות ללילה. `;
+    const avgText = avgSleep === null ? "" : F.sleep.avg(avgSleep.toFixed(1));
+    const sleepDetail = F.sleep.detail(avgText, shortNights, nights.length, SHORT_SLEEP_HOURS);
     findings.push(
       shortStreak
         ? {
             id: "sleep",
             status: "attention",
-            title: `שינה קצרה ${STREAK_DAYS} לילות ברצף`,
-            detail: `${avgText}${shortNights} מתוך ${nights.length} לילות היו קצרים מ-${SHORT_SLEEP_HOURS} שעות.`,
+            title: F.sleep.streak(STREAK_DAYS),
+            detail: sleepDetail,
           }
         : shortNights / nights.length > 0.3
           ? {
               id: "sleep",
               status: "attention",
-              title: "לילות קצרים רבים",
-              detail: `${avgText}${shortNights} מתוך ${nights.length} לילות היו קצרים מ-${SHORT_SLEEP_HOURS} שעות.`,
+              title: F.sleep.many,
+              detail: sleepDetail,
             }
           : {
               id: "sleep",
               status: "ok",
-              title: "משך שינה",
-              detail: `${avgText}${shortNights} מתוך ${nights.length} לילות היו קצרים מ-${SHORT_SLEEP_HOURS} שעות.`,
+              title: F.sleep.ok,
+              detail: sleepDetail,
             },
     );
   }
@@ -266,20 +270,20 @@ function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: 
   const hrvLast = mean(last.map((s) => s.averageHrv));
   if (hrvRef !== null && hrvLast !== null && hrvRef > 0) {
     const pct = (hrvLast / hrvRef - 1) * 100;
-    const pctText = `${Math.abs(Math.round(pct))} אחוז`;
+    const pctText = F.hrv.pct(Math.abs(Math.round(pct)));
     findings.push(
       pct < -HRV_DROP_PCT
         ? {
             id: "hrv",
             status: "attention",
-            title: "ירידה ב-HRV",
-            detail: `ב-${STREAK_DAYS} הימים האחרונים HRV נמוך ב-${pctText} מתחילת התקופה (${hrvLast.toFixed(0)} לעומת ${hrvRef.toFixed(0)} מילישניות).`,
+            title: F.hrv.drop,
+            detail: F.hrv.dropDetail(STREAK_DAYS, pctText, hrvLast.toFixed(0), hrvRef.toFixed(0)),
           }
         : {
             id: "hrv",
             status: "ok",
-            title: pct >= 10 ? "עלייה ב-HRV" : "HRV יציב",
-            detail: `ב-${STREAK_DAYS} הימים האחרונים ${hrvLast.toFixed(0)} מילישניות, ${pct >= 0 ? "גבוה" : "נמוך"} ב-${pctText} מתחילת התקופה.`,
+            title: pct >= 10 ? F.hrv.rise : F.hrv.stable,
+            detail: F.hrv.okDetail(STREAK_DAYS, hrvLast.toFixed(0), pct >= 0, pctText),
           },
     );
   }
@@ -289,20 +293,20 @@ function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: 
   const rhrLast = mean(last.map((s) => s.lowestHeartRate));
   if (rhrRef !== null && rhrLast !== null) {
     const diff = rhrLast - rhrRef;
-    const diffText = `${Math.abs(diff).toFixed(1)} פעימות לדקה`;
+    const diffText = F.rhr.diff(Math.abs(diff).toFixed(1));
     findings.push(
       diff > RHR_RISE_BPM
         ? {
             id: "rhr",
             status: "attention",
-            title: "עלייה בדופק המנוחה",
-            detail: `ב-${STREAK_DAYS} הימים האחרונים הדופק הנמוך בלילה גבוה ב-${diffText} מתחילת התקופה (${rhrLast.toFixed(0)} לעומת ${rhrRef.toFixed(0)}).`,
+            title: F.rhr.rise,
+            detail: F.rhr.riseDetail(STREAK_DAYS, diffText, rhrLast.toFixed(0), rhrRef.toFixed(0)),
           }
         : {
             id: "rhr",
             status: "ok",
-            title: diff < -RHR_RISE_BPM ? "ירידה בדופק המנוחה" : "דופק מנוחה יציב",
-            detail: `ב-${STREAK_DAYS} הימים האחרונים ${rhrLast.toFixed(0)} פעימות לדקה, ${diff >= 0 ? "גבוה" : "נמוך"} ב-${diffText} מתחילת התקופה.`,
+            title: diff < -RHR_RISE_BPM ? F.rhr.drop : F.rhr.stable,
+            detail: F.rhr.okDetail(STREAK_DAYS, rhrLast.toFixed(0), diff >= 0, diffText),
           },
     );
   }
@@ -317,14 +321,14 @@ function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: 
         ? {
             id: "readiness",
             status: "attention",
-            title: `מוכנות נמוכה ${STREAK_DAYS} ימים ברצף`,
-            detail: `${low} מתוך ${readyDays.length} ימים עם ציון מוכנות מתחת ל-${LOW_READINESS}.`,
+            title: F.readiness.streak(STREAK_DAYS),
+            detail: F.readiness.detail(low, readyDays.length, LOW_READINESS),
           }
         : {
             id: "readiness",
             status: low / readyDays.length > 0.3 ? "attention" : "ok",
-            title: "ציון מוכנות",
-            detail: `${low} מתוך ${readyDays.length} ימים עם ציון מוכנות מתחת ל-${LOW_READINESS}.`,
+            title: F.readiness.ok,
+            detail: F.readiness.detail(low, readyDays.length, LOW_READINESS),
           },
     );
   }
@@ -337,14 +341,14 @@ function buildFindings(slots: DaySlot[], kpis: Record<MetricKey, Kpi>, bedtime: 
         ? {
             id: "bedtime",
             status: "attention",
-            title: "שעות הירדמות לא סדירות",
-            detail: `שעת הירדמות ממוצעת ${fmtClock(bedtime.mean)}, עם פיזור של כ-${sd} דקות בין לילות.`,
+            title: F.bedtime.irregular,
+            detail: F.bedtime.detail(fmtClock(bedtime.mean), sd),
           }
         : {
             id: "bedtime",
             status: "ok",
-            title: "שעת הירדמות סדירה",
-            detail: `שעת הירדמות ממוצעת ${fmtClock(bedtime.mean)}, עם פיזור של כ-${sd} דקות בין לילות.`,
+            title: F.bedtime.regular,
+            detail: F.bedtime.detail(fmtClock(bedtime.mean), sd),
           },
     );
   }
@@ -375,7 +379,8 @@ function buildWeeks(slots: DaySlot[]): WeekRow[] {
   }));
 }
 
-export function buildDashboard(days: DayMetric[], endDay: string, windowDays: number): DashboardData {
+/** `locale` picks the language of the findings: Hebrew (default) for doctor links, the preview and the PDF. */
+export function buildDashboard(days: DayMetric[], endDay: string, windowDays: number, locale: Locale = "he"): DashboardData {
   const n = Math.max(1, Math.floor(windowDays));
   const slots = windowSlots(days, endDay, n);
   const recent = slots.slice(-RECENT_DAYS);
@@ -433,7 +438,7 @@ export function buildDashboard(days: DayMetric[], endDay: string, windowDays: nu
     kpis,
     rolling,
     bedtime,
-    findings: [...buildFindings(slots, kpis, bedtime), ...(withData.length ? buildDetailFindings(detail, shares, patterns) : [])],
+    findings: [...buildFindings(slots, kpis, bedtime, locale), ...(withData.length ? buildDetailFindings(detail, shares, patterns, locale) : [])],
     weeks: buildWeeks(slots),
     detail,
     shares,

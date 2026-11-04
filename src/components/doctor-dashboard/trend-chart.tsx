@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { areaPath, barPath, linePath, longDay, niceTicks, shortDay } from "./chart-utils";
+import type { Locale } from "@/lib/i18n";
+import { dash } from "@/lib/i18n/dict/dash";
 import { formatTick, formatValue, type ChartFormat } from "./format";
 
 /**
@@ -12,6 +14,8 @@ import { formatTick, formatValue, type ChartFormat } from "./format";
  */
 
 export type TrendChartProps = {
+  /** labels and day names; Hebrew unless given */
+  locale?: Locale;
   days: string[];
   values: Array<number | null>;
   /** 7-day rolling mean, drawn as the line */
@@ -39,6 +43,8 @@ export type TrendChartProps = {
 const M = { top: 14, right: 46, bottom: 26, left: 42 };
 
 export function TrendChart(props: TrendChartProps) {
+  const locale = props.locale ?? "he";
+  const C = dash[locale].charts;
   const {
     days,
     values,
@@ -152,7 +158,7 @@ export function TrendChart(props: TrendChartProps) {
       ref={wrapRef}
       tabIndex={0}
       role="group"
-      aria-roledescription="תרשים"
+      aria-roledescription={C.chart}
       aria-label={`${valueLabel}: ${summary}`}
       aria-describedby={descId}
       onKeyDown={onKey}
@@ -160,7 +166,7 @@ export function TrendChart(props: TrendChartProps) {
       onBlur={() => setActive(null)}
     >
       <p id={descId} className="sr-only">
-        חיצים ימינה ושמאלה עוברים בין הימים. כל הערכים מופיעים גם בטבלת הנתונים היומיים.
+        {C.keys}
       </p>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} direction="ltr" aria-hidden="true">
         {/* grid + y ticks */}
@@ -192,7 +198,7 @@ export function TrendChart(props: TrendChartProps) {
         {/* x labels */}
         {xLabels.map((i) => (
           <text key={i} className="tc-tick" x={xAt(i)} y={height - 8} textAnchor="middle">
-            {shortDay(days[i] as string)}
+            {shortDay(days[i] as string, locale)}
           </text>
         ))}
         <line className="tc-axis" x1={M.left} x2={M.left + plotW} y1={M.top + plotH} y2={M.top + plotH} />
@@ -273,16 +279,16 @@ export function TrendChart(props: TrendChartProps) {
 
       {a !== null && (
         <div className="tc-tip" style={tipStyle} role="status" aria-live="polite">
-          <span className="tc-tip-day">{longDay(days[a] as string)}</span>
+          <span className="tc-tip-day">{longDay(days[a] as string, locale)}</span>
           <span className="tc-tip-row">
             <span className={isFlagged(values[a] ?? null) ? "tc-key is-flag" : "tc-key"} aria-hidden="true" />
-            <strong>{values[a] === null ? "אין נתון" : formatValue(values[a] as number, format, digits)}</strong>
+            <strong>{values[a] === null ? C.noValue : formatValue(values[a] as number, format, digits)}</strong>
             {values[a] !== null && <span className="tc-tip-unit">{unit}</span>}
           </span>
           {avg && (
             <span className="tc-tip-row tc-tip-muted">
               <span className="tc-key is-line" aria-hidden="true" />
-              ממוצע 7 ימים: {formatValue(avg[a] ?? null, format, digits)}
+              {C.avg7(formatValue(avg[a] ?? null, format, digits))}
             </span>
           )}
         </div>
@@ -291,7 +297,7 @@ export function TrendChart(props: TrendChartProps) {
       <ul className="tc-legend" aria-hidden="true">
         {kind === "dots" && (
           <li>
-            <span className="sw sw-dot" /> ערך יומי
+            <span className="sw sw-dot" /> {C.daily}
           </li>
         )}
         {kind === "bars" && (anyFlag || band) && (
@@ -301,7 +307,7 @@ export function TrendChart(props: TrendChartProps) {
         )}
         {avg && (
           <li>
-            <span className="sw sw-line" /> ממוצע 7 ימים
+            <span className="sw sw-line" /> {C.avg7Legend}
           </li>
         )}
         {flag && anyFlag && (

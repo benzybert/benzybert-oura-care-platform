@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  coverageFamilies,
+  familyStateLabel,
+  intensityLabel,
+  resilienceLabel,
   activityBreakdown,
   alignExtras,
   bedtimeWindowLabel,
@@ -123,5 +127,24 @@ describe("series helpers", () => {
   it("breaks the activity day down by intensity and drops empty parts", () => {
     const d = blank("2026-10-20", { highActivityMinutes: 10, mediumActivityMinutes: 0, lowActivityMinutes: 200, restingMinutes: 480, nonWearMinutes: null });
     expect(activityBreakdown(d).map((p) => p.key)).toEqual(["high", "low", "rest"]);
+  });
+});
+
+describe("labels in English", () => {
+  it("names Oura codes in English and keeps Hebrew as the default", () => {
+    expect(resilienceLabel("solid", "en")).toBe("Solid");
+    expect(resilienceLabel("solid")).toBe("יציב");
+    expect(workoutName("strength_training", "en")).toBe("Strength training");
+    expect(workoutName("cycling", "en")).toBe("Cycling");
+    expect(intensityLabel("hard", "en")).toBe("Hard");
+    expect(tagName("tag_generic_caffeine", "en")).toBe("Caffeine");
+    expect(tagName(null, "en")).toBe("Tag");
+    expect(familyStateLabel("forbidden", "en")).toBe("Needs permission");
+  });
+
+  it("has an English name for every data family", () => {
+    for (const f of coverageFamilies("en")) {
+      expect(`${f.label} ${f.what}`).not.toMatch(/[\u0590-\u05FF]/);
+    }
   });
 });

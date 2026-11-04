@@ -33,7 +33,7 @@ const NEEDS_PROFILE: DataView[] = ["sleep", "recovery", "activity", "heart", "ev
  */
 export default async function MemberDataPage({ searchParams }: { searchParams: Promise<MemberSearchParams & { view?: string }> }) {
   const { member } = await loadMember();
-  const { t } = await getT();
+  const { locale, t } = await getT();
   const params = await searchParams;
   const view = resolveView(params.view);
   const asked = Number(params.days);
@@ -48,7 +48,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
     NEEDS_PROFILE.includes(view) ? ouraStatus(member.id) : Promise.resolve(null),
   ]);
 
-  const dashboard = NEEDS_SLOTS.includes(view) ? buildDashboard(dashboardMetrics, today, windowDays) : null;
+  const dashboard = NEEDS_SLOTS.includes(view) ? buildDashboard(dashboardMetrics, today, windowDays, locale) : null;
   const askMore = oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: profile?.coverage }) : false;
   const coverage = { families: profile?.coverage ?? {}, askMore };
 
@@ -58,6 +58,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
         data={dashboard}
         meta={{
           mode: "member",
+          locale,
           patientName: null,
           recipientLabel: null,
           recipientRole: null,
@@ -74,35 +75,35 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
     );
 
   return (
-    <MemberShell tab="data" title={t.core.tabs.data} params={params} hebrew>
-      <DataViewTabs active={view} windowDays={windowDays} withWindow={WINDOWED.includes(view)} />
+    <MemberShell tab="data" title={t.core.tabs.data} params={params}>
+      <DataViewTabs active={view} windowDays={windowDays} withWindow={WINDOWED.includes(view)} locale={locale} />
 
-      <section id="data" className="data-section" aria-label="הנתונים שלי">
+      <section id="data" className="data-section" aria-label={t.core.tabs.data}>
         {view === "summary" && dash(["hero", "findings", "about"])}
 
         {view === "sleep" && dashboard && (
           <>
             {dash(["night", "architecture", "rhythm", "drivers"], ["sleep"])}
-            <SleepExtras slots={dashboard.slots} extras={extras} coverage={coverage} />
+            <SleepExtras slots={dashboard.slots} extras={extras} coverage={coverage} locale={locale} />
           </>
         )}
 
         {view === "recovery" && dashboard && (
           <>
             {dash(["physiology", "drivers"], ["readiness"])}
-            <RecoveryExtras slots={dashboard.slots} extras={extras} coverage={coverage} />
+            <RecoveryExtras slots={dashboard.slots} extras={extras} coverage={coverage} locale={locale} />
           </>
         )}
 
-        {view === "activity" && dashboard && <ActivityView slots={dashboard.slots} extras={extras} coverage={coverage} />}
+        {view === "activity" && dashboard && <ActivityView slots={dashboard.slots} extras={extras} coverage={coverage} locale={locale} />}
 
-        {view === "heart" && dashboard && <HeartView slots={dashboard.slots} extras={extras} coverage={coverage} profile={profile} />}
+        {view === "heart" && dashboard && <HeartView slots={dashboard.slots} extras={extras} coverage={coverage} profile={profile} locale={locale} />}
 
-        {view === "events" && <EventsView events={events} coverage={coverage} />}
+        {view === "events" && <EventsView events={events} coverage={coverage} locale={locale} />}
 
         {view === "trends" && dash(["trends", "calendar", "weekly", "daily"])}
 
-        {view === "ring" && <RingView oura={oura} profile={profile} askMore={askMore} />}
+        {view === "ring" && <RingView oura={oura} profile={profile} askMore={askMore} locale={locale} />}
       </section>
     </MemberShell>
   );

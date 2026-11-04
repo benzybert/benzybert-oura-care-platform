@@ -155,3 +155,22 @@ describe("buildDashboard", () => {
     expect(fmtClock(data.weeks[1]?.bedtimeMedian ?? null)).toBe("23:00");
   });
 });
+
+describe("buildDashboard language", () => {
+  const days = Array.from({ length: 30 }, (_, i) => day(i, i < 3 ? { averageHrv: 40, totalSleepHours: 5 } : {}));
+
+  it("writes the findings in Hebrew by default (doctor links, preview, PDF)", () => {
+    const d = buildDashboard(days, END, 30);
+    expect(d.findings.find((f) => f.id === "hrv")?.title).toBe("ירידה ב-HRV");
+    expect(d.findings.find((f) => f.id === "coverage")?.title).toBe("כיסוי נתונים טוב");
+  });
+
+  it("writes the same findings in English for the member's own data tab", () => {
+    const he = buildDashboard(days, END, 30);
+    const en = buildDashboard(days, END, 30, "en");
+    expect(en.findings.map((f) => [f.id, f.status])).toEqual(he.findings.map((f) => [f.id, f.status]));
+    expect(en.findings.find((f) => f.id === "hrv")?.title).toBe("HRV drop");
+    expect(en.findings.find((f) => f.id === "sleep")?.title).toBe("Short sleep 3 nights in a row");
+    for (const f of en.findings) expect(`${f.title} ${f.detail}`).not.toMatch(/[֐-׿]/);
+  });
+});

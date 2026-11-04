@@ -3,6 +3,8 @@
 import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import { fmtClock, median } from "@/lib/series-math";
 import { longDay, shortDay } from "./chart-utils";
+import type { Locale } from "@/lib/i18n";
+import { dash } from "@/lib/i18n/dict/dash";
 import { formatHm } from "./format";
 import { useWidth } from "./use-width";
 
@@ -27,11 +29,14 @@ const TO = 36 * 60; // 12:00 the next day
 export function SleepClock({
   nights,
   shortBelow,
+  locale = "he",
 }: {
+  locale?: Locale;
   nights: ClockNight[];
   /** hours below which a night is drawn in the attention colour */
   shortBelow: number;
 }) {
+  const C = dash[locale].charts;
   const [wrapRef, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const rows = [...nights].sort((x, y) => (x.day < y.day ? 1 : -1)); // newest first
@@ -70,21 +75,21 @@ export function SleepClock({
       ref={wrapRef}
       tabIndex={0}
       role="group"
-      aria-roledescription="תרשים"
-      aria-label={`שעות שינה בכל לילה. שעת הירדמות חציונית ${fmtClock(bedMedian)}, שעת קימה חציונית ${fmtClock(wakeMedian)}.`}
+      aria-roledescription={C.chart}
+      aria-label={C.clockAria(fmtClock(bedMedian), fmtClock(wakeMedian))}
       onKeyDown={onKey}
       onFocus={() => setActive((i) => i ?? 0)}
       onBlur={() => setActive(null)}
     >
       <ul className="tc-legend">
         <li>
-          <span className="sw sw-fill" style={{ background: "var(--viz-data)" }} /> לילה
+          <span className="sw sw-fill" style={{ background: "var(--viz-data)" }} /> {C.night}
         </li>
         <li>
-          <span className="sw sw-fill" style={{ background: "var(--viz-attn)" }} /> פחות מ-{shortBelow} שעות
+          <span className="sw sw-fill" style={{ background: "var(--viz-attn)" }} /> {C.shortLegend(shortBelow)}
         </li>
         <li>
-          <span className="sw sw-ref" /> חציון הירדמות וקימה
+          <span className="sw sw-ref" /> {C.medians}
         </li>
       </ul>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} direction="ltr" aria-hidden="true">
@@ -120,7 +125,7 @@ export function SleepClock({
         {rows.map((r, i) =>
           i % Math.max(1, Math.ceil(n / 8)) === 0 ? (
             <text key={r.day} className="tc-tick" x={M.left - 8} y={M.top + i * rowH + rowH / 2} dy="0.34em" textAnchor="end">
-              {shortDay(r.day)}
+              {shortDay(r.day, locale)}
             </text>
           ) : null,
         )}
@@ -142,7 +147,7 @@ export function SleepClock({
           role="status"
           aria-live="polite"
         >
-          <span className="tc-tip-day">{longDay(row.day)}</span>
+          <span className="tc-tip-day">{longDay(row.day, locale)}</span>
           <span className="tc-tip-row">
             <strong>
               <bdi dir="ltr">
@@ -151,7 +156,7 @@ export function SleepClock({
             </strong>
           </span>
           <span className="tc-tip-row tc-tip-muted">
-            שינה בפועל: {row.sleepHours === null ? "–" : <bdi>{formatHm(row.sleepHours * 60)}</bdi>} שעות
+            {C.asleep} {row.sleepHours === null ? "–" : <bdi>{formatHm(row.sleepHours * 60)}</bdi>} {C.hours}
           </span>
         </div>
       )}
