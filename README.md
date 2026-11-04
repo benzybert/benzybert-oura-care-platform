@@ -23,7 +23,7 @@ Next.js (App Router, TypeScript) · Postgres + Drizzle ORM · Oura API v2 (OAuth
 | `main` | Production | stable, real data only |
 | `dev` | Preview (stable branch URL) | integration, demos, `DEMO_AUTH=true` and synthetic data |
 
-Work happens on feature branches, merged into `dev` by pull request, and `dev` is merged into `main` to release. CI (`.github/workflows/ci.yml`) runs typecheck, tests and build on every PR and push to either branch.
+Work happens on feature branches, merged into `dev` by pull request, and `dev` is merged into `main` to release. CI (`.github/workflows/ci.yml`) runs typecheck, tests and build on every PR and push to either branch, and a second job applies every migration to an empty Postgres 16, runs the heart-watch integration test against it and loads the seed.
 
 ## Quick start (local)
 
