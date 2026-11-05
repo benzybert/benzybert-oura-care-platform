@@ -1,12 +1,24 @@
 import { defineDict } from "../index";
 
 /**
- * Text of the deeper-analysis cards on the data tab (HRV in depth, sleep structure) and the FHIR export button.
+ * Text of the data tab's category bar, the deeper-analysis cards (HRV in depth, sleep structure) and the FHIR export button.
  * English first, Hebrew over it. Ranges are written "74 to 81" / "74 עד 81", never with a dash between numbers.
  */
 export const insights = defineDict(
   {
     fhir: { button: "FHIR export", hint: "Your data as FHIR R4 (JSON), for a clinic system or a personal health record." },
+    views: {
+      label: "Data categories",
+      window: "Data window",
+      days: (n: number) => `${n} days`,
+      health: "Health",
+      sleep: "Sleep",
+      heart: "Heart",
+      activity: "Activity",
+      stress: "Stress",
+      oxygen: "Oxygen",
+      advanced: "Advanced",
+    },
     hrv: {
       title: "HRV in depth",
       lead: "Heart rate variability read the way sport scientists read it: the log of RMSSD, a 7-night average and how much it swings, against your own earlier nights.",
@@ -70,6 +82,18 @@ export const insights = defineDict(
   },
   {
     fhir: { button: "ייצוא FHIR", hint: "הנתונים שלך בפורמט FHIR R4 (JSON), למערכת של מרפאה או לתיק בריאות אישי." },
+    views: {
+      label: "קטגוריות הנתונים",
+      window: "טווח הנתונים",
+      days: (n) => `${n} ימים`,
+      health: "בריאות",
+      sleep: "שינה",
+      heart: "לב",
+      activity: "פעילות",
+      stress: "לחץ",
+      oxygen: "חמצן",
+      advanced: "מתקדם",
+    },
     hrv: {
       title: "HRV לעומק",
       lead: "שונות הדופק כפי שקוראים אותה במדעי הספורט: הלוגריתם של RMSSD, ממוצע של 7 לילות וכמה הוא קופץ, מול הלילות הקודמים שלך.",
