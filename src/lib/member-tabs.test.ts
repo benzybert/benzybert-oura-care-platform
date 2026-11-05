@@ -12,20 +12,24 @@ describe("tabOrder", () => {
     expect(tabOrder([])[1]).toBe("data");
   });
 
-  it("shows the Heart tab only to a member who picked heart health", () => {
-    expect(tabOrder(["sleep"])).not.toContain("heart");
-    expect(tabOrder(["general"])).not.toContain("heart");
-    expect(tabOrder(null)).not.toContain("heart");
-    expect(tabOrder(["sleep", "heart"])).toContain("heart");
-    expect(tabOrder(["heart"])).toContain("heart");
+  it("shows the Heart and Family circle tabs only to a member who picked heart health", () => {
+    for (const focus of [["sleep"], ["general"], null]) {
+      expect(tabOrder(focus)).not.toContain("heart");
+      expect(tabOrder(focus)).not.toContain("circle");
+      expect(tabOrder(focus)).toContain("challenges");
+    }
+    for (const focus of [["sleep", "heart"], ["heart"]]) {
+      expect(tabOrder(focus)).toContain("heart");
+      expect(tabOrder(focus)).toContain("circle");
+    }
   });
 
-  it("lists every tab exactly once, the Heart tab only when asked for", () => {
+  it("lists every tab exactly once, the heart tabs only when asked for", () => {
     for (const focus of [["heart"], ["activity", "heart"]]) {
       expect([...tabOrder(focus)].sort()).toEqual([...TAB_IDS].sort());
     }
     for (const focus of [null, ["activity"]]) {
-      expect([...tabOrder(focus)].sort()).toEqual(TAB_IDS.filter((t) => t !== "heart").sort());
+      expect([...tabOrder(focus)].sort()).toEqual(TAB_IDS.filter((t) => t !== "heart" && t !== "circle").sort());
     }
   });
 

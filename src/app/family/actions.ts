@@ -6,7 +6,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { CIRCLE_OPEN_COOKIE, circlePath, circleStatus, findCircleLinkByToken, type CircleLinkRow } from "@/lib/circle/queries";
+import { getMemberPrefs } from "@/lib/heart/data";
 import { acknowledgeAsGuardian } from "@/lib/heart/watch";
+import { wantsHeart } from "@/lib/member-tabs";
 import { normalizePhone } from "@/lib/notify/phone";
 import { logAudit } from "@/lib/queries";
 import { cookieOptions } from "@/lib/session";
@@ -22,6 +24,7 @@ async function activeLink(token: unknown, requireOpen: boolean): Promise<{ token
   if (!isShareToken(token)) redirect("/");
   const link = await findCircleLinkByToken(getDb(), token);
   if (!link || circleStatus(link) === "revoked" || circleStatus(link) === "expired") redirect(circlePath(token));
+  if (!wantsHeart((await getMemberPrefs(getDb(), link.memberId))?.focusAreas)) redirect(circlePath(token));
   if (requireOpen) {
     const proof = (await cookies()).get(CIRCLE_OPEN_COOKIE)?.value;
     if (!verifyOpenProof(proof, link.id)) redirect(circlePath(token));

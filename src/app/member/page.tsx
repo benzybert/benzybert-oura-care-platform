@@ -106,9 +106,11 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
 
   const tiles = [
     ...(showHeart
-      ? [{ href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) }]
+      ? [
+          { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
+          { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
+        ]
       : []),
-    { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
     { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
     { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
     { href: "/member/assistant", title: t.core.tabs.assistant, text: h.tiles.assistant },

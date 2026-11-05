@@ -14,6 +14,7 @@ import { bySeverity, buildTiles } from "@/lib/heart/view";
 import { dirOf, isLocale } from "@/lib/i18n";
 import { messagesFor } from "@/lib/i18n/messages";
 import { getLocaleOr } from "@/lib/i18n/server";
+import { wantsHeart } from "@/lib/member-tabs";
 import { FamilyFooter } from "./footer";
 import { ouraStatus } from "@/lib/queries";
 import { isShareToken, verifyOpenProof } from "@/lib/share-links";
@@ -54,6 +55,8 @@ export default async function FamilyPage({
   const t = messagesFor(locale);
   const f = t.circle.family;
   const prefs = await getMemberPrefs(db, link.memberId);
+  // The member took heart health out of their focus: the circle is off, so the page is gone (same 404 as a removed link).
+  if (!wantsHeart(prefs?.focusAreas)) notFound();
   const name = prefs?.circleName?.trim() || f.someone;
   const opened = verifyOpenProof((await cookies()).get(CIRCLE_OPEN_COOKIE)?.value, link.id);
 
