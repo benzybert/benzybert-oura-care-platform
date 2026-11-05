@@ -38,6 +38,21 @@ describe("aiOutputToDraft", () => {
     expect(draft.rows[0]?.line).toBe("Glucose (B) 90 mg/dL (70 to 100)");
   });
 
+  it("writes Maccabi's units the catalog way", () => {
+    const draft = aiOutputToDraft(
+      {
+        lab: null,
+        results: [
+          row({ catalog_key: "iron", value: 87, unit: "micg/dl" }),
+          row({ catalog_key: "wbc", value: 7, unit: "10*3/micl" }),
+          row({ name: "RBC", value: 4.49, unit: "10*6/micl" }),
+        ],
+      },
+      today,
+    );
+    expect(draft.rows.map((r) => r.unit)).toEqual([null, null, "10^12/L"]);
+  });
+
   it("keeps the report to its most common day and lists results from other days", () => {
     const draft = aiOutputToDraft(
       {
@@ -52,7 +67,7 @@ describe("aiOutputToDraft", () => {
     );
     expect(draft.takenOn).toBe("2026-06-18");
     expect(draft.rows.map((r) => r.biomarker)).toEqual(["ferritin", "b12"]);
-    expect(draft.otherDays).toEqual(["Valproic Acid 86.4 micg/ml (50 to 100) · 2026-07-05"]);
+    expect(draft.otherDays).toEqual(["Valproic Acid 86.4 µg/mL (50 to 100) · 2026-07-05"]);
   });
 
   it("drops what cannot be right: future dates, negative values, duplicates; swaps a reversed range", () => {
