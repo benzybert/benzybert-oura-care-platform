@@ -23,7 +23,7 @@ export const core = defineDict(
       labs: "Lab results",
       integrations: "Integrations",
       sharing: "Sharing & doctors",
-      profile: "Profile & Instinct",
+      profile: "Profile",
     },
     hebrewOnly: "This section is still in Hebrew.",
     ring: {
@@ -60,7 +60,6 @@ export const core = defineDict(
       items: {
         oura: "Connect an Oura ring",
         data: "Data is flowing (at least 3 recent days)",
-        instinct: "Sent an action to Instinct, the personal assistant",
         sharing: "Chose what is shared and with whom",
         doctor: "Added a doctor",
       },
@@ -93,10 +92,6 @@ export const core = defineDict(
         not_configured: "Email sending is not set up on the server, so nothing was sent.",
         failed: "Sending failed and nothing was sent. Please try again.",
         too_many_links: "There are too many active doctor links. Revoke one below and try again.",
-      },
-      integration: {
-        invalid: "That action is not valid. Please try again.",
-        gone: "That action is no longer relevant.",
       },
       note: {
         ok: "Note saved.",
@@ -142,7 +137,7 @@ export const core = defineDict(
       labs: "תוצאות מעבדה",
       integrations: "חיבורים",
       sharing: "שיתוף ורופאים",
-      profile: "פרופיל ו-Instinct",
+      profile: "פרופיל",
     },
     hebrewOnly: "",
     ring: {
@@ -179,7 +174,6 @@ export const core = defineDict(
       items: {
         oura: "חיבור טבעת Oura",
         data: "נתונים זורמים (3 ימים אחרונים לפחות)",
-        instinct: "שלחתי פעולה ל-Instinct, העוזר האישי",
         sharing: "בחרתי מה משותף ועם מי",
         doctor: "הוספתי רופא",
       },
@@ -212,10 +206,6 @@ export const core = defineDict(
         not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
         failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
         too_many_links: "יש יותר מדי קישורים פעילים לרופאים. בטלו אחד למטה ונסו שוב.",
-      },
-      integration: {
-        invalid: "הפעולה לא תקינה. נסו שוב.",
-        gone: "הפעולה כבר לא רלוונטית.",
       },
       note: {
         ok: "ההערה נשמרה.",

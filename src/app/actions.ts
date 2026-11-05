@@ -22,14 +22,11 @@ import {
   parseExperimentText,
   parseNightNote,
 } from "@/lib/experiments";
-import { INSTINCT_TOKEN_DAYS, buildInstinctInstructions, instinctPath } from "@/lib/instinct-brief";
-import { INSTINCT_GENERAL_PROMPT, buildInstinctPrompt, instinctWhatsappNumber, suggestActions, whatsappLink } from "@/lib/actions-engine";
 import { sendMail } from "@/lib/mail";
 import { syncCooldownLeftMs } from "@/lib/oura/cooldown";
 import { syncMember } from "@/lib/oura/sync";
 import {
   assignedMembers,
-  getActiveInstinctAccess,
   countActiveShareLinks,
   findShareLinkByToken,
   findSuggestionBox,
@@ -83,7 +80,7 @@ import {
   shareLinkStatus,
 } from "@/lib/share-links";
 
-const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, actionDeliveries, instinctAccess, suggestionBoxes, experimentSuggestions } = schema;
+const { consents, alerts, ouraConnections, doctorContacts, shareLinks, selfRewards, experiments, coffeeClaims, suggestionBoxes, experimentSuggestions } = schema;
 
 const scopeSchema = z.enum(["care_team", "org_aggregate", "rewards"]);
 const doctorRoleSchema = z.enum(["neurologist", "family_doctor"]);
@@ -784,81 +781,4 @@ export async function claimCoffee(): Promise<void> {
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "coffee_claim" });
   revalidatePath("/member", "layout");
   redirect("/member?coffee=sent");
-}
-
-/**
- * Member taps the WhatsApp button on one suggested action. The form only names the rule: the
- * server recomputes the task from the database, records that it was opened (audit, no content),
- * and redirects to a wa.me chat with the text pre-filled. The member reads and sends it themselves.
- */
-export async function openInstinctWhatsApp(formData: FormData): Promise<void> {
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
-
-  const rule = z.enum(["general", "low_sleep", "low_readiness", "low_hrv"]).safeParse(formData.get("rule"));
-  if (!rule.success) redirect("/member?integration=invalid");
-
-  if (rule.data === "general") {
-    await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
-    redirect(whatsappLink(instinctWhatsappNumber(), INSTINCT_GENERAL_PROMPT));
-  }
-
-  const action = suggestActions(await getMetrics(member.id), todayInIsrael()).find((a) => a.rule === rule.data);
-  if (!action) redirect("/member?integration=gone");
-
-  await getDb()
-    .insert(actionDeliveries)
-    .values({ memberId: member.id, rule: action.rule, day: action.day, provider: "whatsapp" })
-    .onConflictDoNothing();
-  await logAudit({ actorUserId: user.id, memberId: member.id, action: "action_opened", scope: "instinct" });
-  revalidatePath("/member", "layout");
-  redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctPrompt(action)));
-}
-
-/**
- * Member connects Instinct to their data: reuses the active data link or makes a new one, then
- * opens WhatsApp with the link and the standing instructions typed in. The member sends it.
- * The link carries a token, not health data; what it returns is limited in buildInstinctPayload.
- */
-export async function connectInstinctData(): Promise<void> {
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
-
-  let path = (await getActiveInstinctAccess(member.id))?.path ?? null;
-  if (!path) {
-    const token = newShareToken();
-    await getDb().insert(instinctAccess).values({
-      memberId: member.id,
-      tokenHash: hashShareToken(token),
-      tokenEnc: encrypt(token),
-      expiresAt: addDaysTo(new Date(), INSTINCT_TOKEN_DAYS),
-    });
-    path = instinctPath(token);
-    await logAudit({ actorUserId: user.id, memberId: member.id, action: "instinct_access_created", scope: "instinct" });
-  }
-
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const url = host ? `${proto}://${host}${path}` : path;
-
-  revalidatePath("/member", "layout");
-  redirect(whatsappLink(instinctWhatsappNumber(), buildInstinctInstructions(url)));
-}
-
-/** Member cuts Instinct's access at once. */
-export async function revokeInstinctAccess(): Promise<void> {
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
-
-  await getDb()
-    .update(instinctAccess)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(instinctAccess.memberId, member.id), isNull(instinctAccess.revokedAt)));
-  await logAudit({ actorUserId: user.id, memberId: member.id, action: "instinct_access_revoked", scope: "instinct" });
-  revalidatePath("/member", "layout");
-  redirect("/member/profile");
 }

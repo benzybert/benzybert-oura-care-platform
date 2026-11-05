@@ -3,7 +3,7 @@ import { claimCoffee } from "@/app/actions";
 import { pickFeatured } from "@/components/experiments-section";
 import { HebrewIsland } from "@/components/hebrew-island";
 import "@/components/heart/heart.css";
-import { TodayActionsCard } from "@/components/onboarding-card";
+import { TodayActionsCard } from "@/components/today-actions-card";
 import { RingCard } from "@/components/ring-card";
 import { getDb } from "@/db";
 import { suggestActions } from "@/lib/actions-engine";
@@ -24,10 +24,8 @@ import { formatDate } from "@/lib/format-locale";
 import { medicationStatus } from "@/lib/medications";
 import { getLabReports, getLabResults, getMedications } from "@/lib/records-data";
 import {
-  getActiveInstinctAccess,
   getCoffeeClaimDays,
   getConsentRecords,
-  getDeliveredActions,
   getDoctorContacts,
   getExperiments,
   getMetrics,
@@ -59,7 +57,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const today = todayInIsrael();
   const db = getDb();
 
-  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, delivered, instinctAccess, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges, meds, labResults, labReports] =
+  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges, meds, labResults, labReports] =
     await Promise.all([
       getMetrics(member.id),
       getConsentRecords(member.id),
@@ -69,8 +67,6 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       listShareLinks(member.id),
       getSelfRewards(member.id),
       getCoffeeClaimDays(member.id),
-      getDeliveredActions(member.id, "whatsapp"),
-      getActiveInstinctAccess(member.id),
       getExperiments(member.id),
       getOuraProfile(member.id),
       getHeartSettings(db, member.id),
@@ -89,9 +85,8 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
     recentDays: metrics.filter((d) => d.day > addDays(today, -7)).length,
     reviewedSharing: records.length > 0,
     hasDoctor: Object.keys(doctors).length > 0,
-    instinctUsed: delivered.length > 0 || Boolean(instinctAccess),
   });
-  const actions = suggestActions(metrics, today).map((a) => ({ ...a, opened: delivered.includes(`${a.rule}:${a.day}`) }));
+  const actions = suggestActions(metrics, today);
   const featured = pickFeatured(experimentRows, today);
   const sharedScopes = CONSENT_SCOPES.filter((s) => hasActiveConsent(records, s)).length;
   const activeLinks = links.filter((l) => l.status === "active").length;

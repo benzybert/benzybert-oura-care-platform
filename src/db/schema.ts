@@ -522,9 +522,9 @@ export const contextEvents = pgTable("context_events", {
 });
 
 /**
- * Outside services the member connected (Instinct, later Slack and iCal). `target` is where actions
- * go (for Instinct: the member's own Instinct inbox address). It is a contact detail, so it lives
- * here and never in source. Private to the member.
+ * Outside services the member connected. Unused since the Instinct integration was removed; the
+ * table stays in the database (dropping it is destructive). `target` was a contact detail, so it
+ * lived here and never in source. Private to the member.
  */
 export const integrations = pgTable(
   "integrations",
@@ -540,7 +540,10 @@ export const integrations = pgTable(
   (t) => [unique("integrations_member_provider_uq").on(t.memberId, t.provider)],
 );
 
-/** One delivered action per member, rule, day and provider: the unique row is the lock against double sends. */
+/**
+ * One delivered action per member, rule, day and provider. Unused since the Instinct (WhatsApp)
+ * integration was removed; kept in the database, not read or written by the app.
+ */
 export const actionDeliveries = pgTable(
   "action_deliveries",
   {
@@ -614,7 +617,9 @@ export const alertDays = pgTable("alert_days", {
 });
 
 /**
- * Read-only data links the member gives to Instinct (their personal assistant). The token is 256
+ * Removed feature: the Instinct integration and its `/api/instinct/<token>` route are gone, so no
+ * link in this table works any more. The table stays in the database (dropping it is destructive).
+ * Was: read-only data links the member gave to Instinct (their personal assistant). The token is 256
  * random bits; lookup is by SHA-256 hash only, and `token_enc` lets the member copy the link again.
  * It returns the last 7 days of sleep, readiness, HRV and steps plus suggested actions, and nothing
  * else. Separate from consent scopes and from doctor share links.

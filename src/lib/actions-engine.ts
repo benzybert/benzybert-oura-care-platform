@@ -1,4 +1,3 @@
-import { INSTINCT_CONFIG } from "../config/instinct";
 import { addDays } from "./dates";
 import type { DayMetric } from "./types";
 
@@ -10,7 +9,7 @@ export const ACTION_THRESHOLDS = { sleepScore: 70, readiness: 65, hrvRatio: 0.8 
 
 /**
  * Turns the newest night (today or yesterday) into things to do. Pure and deterministic;
- * the member decides whether an action is sent anywhere. Thresholds are for the member's own
+ * Thresholds are for the member's own
  * planning and are separate from care-team alerts.
  */
 export function suggestActions(days: DayMetric[], today: string): SuggestedAction[] {
@@ -49,20 +48,3 @@ export function suggestActions(days: DayMetric[], today: string): SuggestedActio
   }
   return out;
 }
-
-/** The text pre-filled in the WhatsApp chat. No scores, no name: only the task. The member reads it and presses send. */
-export function buildInstinctPrompt(action: Pick<SuggestedAction, "task">): string {
-  return `היי, מ-Oura Care: ${action.task} תעזור לי לתכנן את היום בהתאם?`;
-}
-
-/** wa.me link that opens a chat with the number and the text typed in. */
-export function whatsappLink(number: string, text: string): string {
-  return `https://wa.me/${number.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
-}
-
-export function instinctWhatsappNumber(): string {
-  return process.env.INSTINCT_WHATSAPP || INSTINCT_CONFIG.whatsappNumber;
-}
-
-/** A general opener for when no rule fired: the member can still start a chat with Instinct. */
-export const INSTINCT_GENERAL_PROMPT = "היי, מ-Oura Care: אשמח שתעזור לי לתכנן את היום לפי איך שישנתי.";

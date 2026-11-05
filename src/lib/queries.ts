@@ -3,7 +3,6 @@ import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
 import { addDays, todayInIsrael } from "./dates";
-import { instinctPath } from "./instinct-brief";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
 import type { ConsentScope, DayExtras, DayMetric, DoctorRole, OuraEvent, OuraEventKind, OuraProfileData } from "./types";
 
@@ -22,8 +21,6 @@ const {
   selfRewards,
   experiments,
   coffeeClaims,
-  actionDeliveries,
-  instinctAccess,
   dailyExtras,
   ouraEvents,
   ouraProfile,
@@ -295,7 +292,7 @@ export async function logAudit(entry: {
   memberId?: string | null;
   action: string;
   /** a consent scope, the doctor role for doctor sends and share links, or "share_link" */
-  scope?: ConsentScope | DoctorRole | "share_link" | "instinct" | "circle" | "heart" | "challenge" | null;
+  scope?: ConsentScope | DoctorRole | "share_link" | "circle" | "heart" | "challenge" | null;
 }) {
   await getDb().insert(auditLog).values({
     actorUserId: entry.actorUserId,
@@ -389,53 +386,6 @@ export async function getCoffeeClaimDays(memberId: string): Promise<string[]> {
     .from(coffeeClaims)
     .where(eq(coffeeClaims.memberId, memberId));
   return rows.map((r) => r.day);
-}
-
-/** "rule:day" keys already delivered to a provider. */
-export async function getDeliveredActions(memberId: string, provider: string): Promise<string[]> {
-  const rows = await getDb()
-    .select({ rule: actionDeliveries.rule, day: actionDeliveries.day })
-    .from(actionDeliveries)
-    .where(and(eq(actionDeliveries.memberId, memberId), eq(actionDeliveries.provider, provider)));
-  return rows.map((r) => `${r.rule}:${r.day}`);
-}
-
-export type InstinctAccess = typeof instinctAccess.$inferSelect;
-
-/** The member's newest data link that is neither revoked nor expired, with its path when it can be shown. */
-export async function getActiveInstinctAccess(
-  memberId: string,
-): Promise<{ row: InstinctAccess; path: string | null } | null> {
-  const [row] = await getDb()
-    .select()
-    .from(instinctAccess)
-    .where(and(eq(instinctAccess.memberId, memberId), isNull(instinctAccess.revokedAt), gt(instinctAccess.expiresAt, new Date())))
-    .orderBy(desc(instinctAccess.createdAt))
-    .limit(1);
-  if (!row) return null;
-  let path: string | null = null;
-  try {
-    path = instinctPath(decrypt(row.tokenEnc));
-  } catch {
-    path = null;
-  }
-  return { row, path };
-}
-
-export async function findInstinctAccessByToken(token: string): Promise<InstinctAccess | null> {
-  const [row] = await getDb()
-    .select()
-    .from(instinctAccess)
-    .where(eq(instinctAccess.tokenHash, hashShareToken(token)))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function recordInstinctRead(id: string): Promise<void> {
-  await getDb()
-    .update(instinctAccess)
-    .set({ readCount: sql`${instinctAccess.readCount} + 1`, lastReadAt: new Date() })
-    .where(eq(instinctAccess.id, id));
 }
 
 // ---------------------------------------------------------------------------------------------
