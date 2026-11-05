@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { AlertList } from "@/components/heart/alert-list";
 import { DayCurve, Sparkline } from "@/components/heart/charts";
@@ -10,6 +11,7 @@ import { assessHeart, getHeartSettings, getRecentHeartAlerts, loadHeartInputs } 
 import { sleepWindowsForDay } from "@/lib/heart/episodes";
 import { bySeverity, buildTiles } from "@/lib/heart/view";
 import { dataHref } from "@/lib/member-nav";
+import { wantsHeart } from "@/lib/member-tabs";
 import { getT } from "@/lib/i18n/server";
 import { ouraStatus } from "@/lib/queries";
 import { MemberShell, loadMember } from "../_shell/member-shell";
@@ -26,7 +28,9 @@ const GLYPH = { steady: "✓", learning: "…", watch: "•", alert: "!", urgent
  * curve, and the settings that decide who hears about it. Own data, so no consent scope and no audit entry for viewing.
  */
 export default async function MemberHeartPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember();
+  const { member, prefs } = await loadMember();
+  // Only for members who declared heart health in their focus (profile or onboarding).
+  if (!wantsHeart(prefs?.focusAreas)) redirect("/member/profile?heart=off");
   const { locale, t } = await getT();
   const params = await searchParams;
   const db = getDb();

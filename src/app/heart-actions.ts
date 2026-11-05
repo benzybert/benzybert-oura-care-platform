@@ -1,13 +1,14 @@
 "use server";
 
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { acknowledgeAsSelf } from "@/lib/heart/watch";
 import { parseHeartSettings } from "@/lib/heart/settings-form";
-import { parseFocusAreas } from "@/lib/member-tabs";
+import { parseFocusAreas, wantsHeart } from "@/lib/member-tabs";
+import { getMemberPrefs } from "@/lib/heart/data";
 import { getMemberForUser, logAudit } from "@/lib/queries";
 import { requireRole } from "@/lib/session";
 
@@ -20,7 +21,10 @@ async function currentMember() {
   return { user, member };
 }
 
-/** Onboarding: what matters most. A main focus of "heart" also switches the heart watch on. */
+/**
+ * Onboarding and the profile: what matters most. A main focus of "heart" also switches the heart watch on; leaving
+ * heart health out altogether switches it off, since the Heart tab (and its settings) is then hidden.
+ */
 export async function saveFocus(formData: FormData): Promise<void> {
   const { user, member } = await currentMember();
   const focus = parseFocusAreas([formData.get("primary"), ...formData.getAll("also")]);
@@ -38,6 +42,8 @@ export async function saveFocus(formData: FormData): Promise<void> {
       .insert(heartSettings)
       .values({ memberId: member.id, monitoring: true })
       .onConflictDoUpdate({ target: heartSettings.memberId, set: { monitoring: true, updatedAt: now } });
+  } else if (!wantsHeart(focus)) {
+    await db.update(heartSettings).set({ monitoring: false, updatedAt: now }).where(eq(heartSettings.memberId, member.id));
   }
   await logAudit({ actorUserId: user.id, memberId: member.id, action: "focus_saved", scope: "heart" });
   revalidatePath("/member", "layout");
@@ -62,6 +68,8 @@ export async function skipOnboarding(): Promise<void> {
 /** The heart settings form: switch, sensitivity and the member's own limits. Own data, but audited like any sharing change. */
 export async function saveHeartSettings(formData: FormData): Promise<void> {
   const { user, member } = await currentMember();
+  const prefs = await getMemberPrefs(getDb(), member.id);
+  if (!wantsHeart(prefs?.focusAreas)) redirect("/member/profile?heart=off");
   const parsed = parseHeartSettings(formData);
   if (!parsed.ok) redirect("/member/heart?heart=invalid#settings");
   const { monitoring, sensitivity, limits, escalateAfterMinutes } = parsed.value;

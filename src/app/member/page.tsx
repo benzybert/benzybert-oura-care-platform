@@ -38,6 +38,7 @@ import {
   rewardTotal,
 } from "@/lib/queries";
 import { CONSENT_SCOPES } from "@/lib/types";
+import { wantsHeart } from "@/lib/member-tabs";
 import { MemberShell, loadMember } from "./_shell/member-shell";
 import type { MemberSearchParams } from "./_shell/messages";
 
@@ -97,13 +98,16 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const activeLinks = links.filter((l) => l.status === "active").length;
   const heart = assessHeart(heartInputs, heartSettings, today);
   const heartFirst = prefs.focusAreas?.[0] === "heart";
+  const showHeart = wantsHeart(prefs.focusAreas);
   const people = circle.filter((l) => !l.revokedAt).length;
   const running = challenges.filter((c) => c.endDay >= today).length;
   const markers = biomarkerSeries(labResults);
   const rt = t.records.tiles;
 
   const tiles = [
-    { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
+    ...(showHeart
+      ? [{ href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) }]
+      : []),
     { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
     { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
     { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
@@ -124,7 +128,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
 
   return (
     <MemberShell tab="home" title={h.greeting(member.displayId)} lead={h.lead} params={params}>
-      {(heartFirst || heartSettings.monitoring) && (
+      {showHeart && (heartFirst || heartSettings.monitoring) && (
         <a className={`card hw-status is-${heart.status}`} href="/member/heart" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="hw-dot-big" aria-hidden="true">
             {{ steady: "✓", learning: "…", watch: "•", alert: "!", urgent: "!!", no_data: "?" }[heart.status]}

@@ -5,7 +5,7 @@ import type { Messages } from "@/lib/i18n/messages";
 /** The "what matters most to you?" form: one main focus, and up to two more. Used in onboarding and on the profile tab. */
 export function FocusPicker({ t, current, canSkip = false }: { t: Messages; current: readonly string[] | null; canSkip?: boolean }) {
   const o = t.circle.onboarding;
-  const main = (current?.[0] as FocusArea | undefined) ?? "heart";
+  const main = current?.[0] as FocusArea | undefined;
   const also = new Set(current?.slice(1) ?? []);
   return (
     <>
