@@ -18,6 +18,7 @@ export const landing = defineDict(
       vision: "Why now",
       solutions: "Solutions",
       useCases: "Use cases",
+      clinics: "For clinics",
       how: "How it works",
       wearables: "Wearables",
       privacy: "Privacy",
@@ -231,6 +232,99 @@ export const landing = defineDict(
       ],
       findingsNote: "Observations against the patient's own baseline. Interpretation stays with the clinician.",
     },
+    clinics: {
+      eyebrow: "05 / For medical teams",
+      titleBefore: "Rolled out with your team,",
+      titleEm: "measure by measure.",
+      lead: "We also offer implementation for clinics and care teams: fitting the reports into your workflow, setting up the coded care view, and a training session that explains every measure on the report, so the whole team reads it the same way.",
+      stepsTitle: "How implementation works",
+      steps: [
+        {
+          title: "Fit the workflow",
+          text: "A short meeting to decide who reads the reports, for which patients, and when: before a follow-up, after a medication change, during recovery.",
+        },
+        {
+          title: "Set up the team",
+          text: "Staff accounts and the coded care view: staff see a short code, age band and goal, never names or contact details, and every view is written to the audit log.",
+        },
+        {
+          title: "Train on the measures",
+          text: "A session for physicians, nurses and coordinators: what each measure means, how to read it against the patient's own baseline, and what the ring cannot tell.",
+        },
+        {
+          title: "Follow up",
+          text: "After the first weeks we go over questions from real reports with the team and adjust the workflow.",
+        },
+      ],
+      getsTitle: "What the team gets",
+      gets: [
+        "A guide to every measure on the report, the one below.",
+        "Wording for explaining consent to patients: what they share, with whom, and how to stop.",
+        "Clear limits: what the ring measures well, and where it is only an estimate.",
+      ],
+      guideTitle: "The measure guide",
+      guideLead: "The explanations we go through with medical teams. Every number on the report is read against the same person's own normal.",
+      labels: { what: "What it is", read: "How to read it", mind: "Keep in mind" },
+      metrics: [
+        {
+          name: "Personal baseline",
+          unit: "28 days",
+          what: "The patient's own previous 28 days for each measure: the dashed line and the shaded usual range on the report.",
+          read: "A finding means “different from this person's normal”, not “abnormal”. Several nights in a row matter more than one.",
+          mind: "A new ring, a holiday or an illness inside the window shifts the baseline itself.",
+        },
+        {
+          name: "Resting heart rate",
+          unit: "bpm",
+          what: "Heart rate measured during sleep, so usually lower than a daytime reading in the clinic.",
+          read: "A rise over several nights against the baseline is worth a look. It can come with infection, alcohol, late meals, stress, hard training or poor sleep.",
+          mind: "Not an ECG: it says nothing about heart rhythm.",
+        },
+        {
+          name: "Heart rate variability (HRV)",
+          unit: "ms",
+          what: "The variation between heartbeats during sleep (RMSSD), a sign of recovery and of the nervous system's balance.",
+          read: "Very individual: compare only with the same person, never between people. A drop over several nights together with a higher resting heart rate is the pattern to notice.",
+          mind: "Falls with age and moves with alcohol, illness and medications that act on heart rate.",
+        },
+        {
+          name: "Sleep stages",
+          unit: "deep · light · REM · awake",
+          what: "An estimate of sleep stages from movement, heart rate, HRV and temperature, in five-minute periods.",
+          read: "Useful for trends over weeks: more time awake, less deep sleep, a later bedtime.",
+          mind: "Not a sleep-lab study (polysomnography): not for scoring a single night or diagnosing a sleep disorder.",
+        },
+        {
+          name: "Sleep efficiency and time to fall asleep",
+          unit: "% · min",
+          what: "Efficiency is time asleep out of time in bed. Time to fall asleep is the minutes from lying down to the first sleep.",
+          read: "Watch the direction: efficiency falling and time to fall asleep growing over weeks are a concrete starting point for a conversation.",
+          mind: "Time in bed depends on when the person stops reading or scrolling, not only on sleep.",
+        },
+        {
+          name: "Temperature deviation",
+          unit: "°C from baseline",
+          what: "Skin temperature at night compared with the person's own baseline.",
+          read: "A rise over one or more nights can come before feeling ill. It also follows the menstrual cycle.",
+          mind: "A difference, not a thermometer reading. A warm room, alcohol or a heavy blanket move it too.",
+        },
+        {
+          name: "Breathing rate",
+          unit: "breaths per minute",
+          what: "The average breathing rate during sleep, usually very steady for each person.",
+          read: "Because it is so steady, a rise held over several nights stands out.",
+          mind: "An average for the night: it does not detect pauses in breathing.",
+        },
+        {
+          name: "Blood oxygen (SpO2)",
+          unit: "%",
+          what: "The average blood oxygen during sleep, on ring generations that measure it.",
+          read: "A trend and a reason to ask, not an answer.",
+          mind: "Not a medical pulse oximeter and not a sleep apnea test: low readings call for proper testing, not reassurance.",
+        },
+      ],
+      note: "Implementation is a service for clinics and care teams; patients do not need it to share a report. The measure guide is general information for reading the report, not clinical guidance. Interpretation stays with the clinician.",
+    },
     principles: {
       label: "Principles",
       items: [
@@ -241,7 +335,7 @@ export const landing = defineDict(
       ],
     },
     how: {
-      eyebrow: "05 / How it works",
+      eyebrow: "06 / How it works",
       title: "Three quiet steps.",
       steps: [
         { title: "Your ring records", text: "Sleep, resting heart rate, HRV, breathing, temperature and activity, as it already does." },
@@ -250,7 +344,7 @@ export const landing = defineDict(
       ],
     },
     wearables: {
-      eyebrow: "06 / Wearables",
+      eyebrow: "07 / Wearables",
       titleBefore: "Works with",
       titleEm: "what you wear.",
       lead: "Oura is connected today. More devices are on the way, and so is one timeline for people who wear more than one.",
@@ -281,7 +375,7 @@ export const landing = defineDict(
       note: "Device names are trademarks of their owners. Oura Care is not affiliated with or endorsed by them.",
     },
     privacy: {
-      eyebrow: "07 / Privacy",
+      eyebrow: "08 / Privacy",
       titleBefore: "Private by design,",
       titleEm: "not by setting.",
       body: "Health data is personal. Oura Care is built so that sharing is always a decision you make, for one purpose, and can take back.",
@@ -297,7 +391,7 @@ export const landing = defineDict(
       ],
     },
     faq: {
-      eyebrow: "08 / Questions",
+      eyebrow: "09 / Questions",
       title: "Asked often.",
       items: [
         {
@@ -319,6 +413,10 @@ export const landing = defineDict(
         {
           q: "What can my employer see?",
           a: "Only group averages from people who opted in, and never a group smaller than a minimum size. No individual data, ever.",
+        },
+        {
+          q: "Do you help clinics get started?",
+          a: "Yes. We offer implementation for medical teams: fitting the reports into the workflow, setting up the coded care view, and a training session on every measure. See “For medical teams” above.",
         },
         { q: "What does it cost?", a: "Free while in beta." },
       ],
@@ -346,6 +444,7 @@ export const landing = defineDict(
       vision: "למה עכשיו",
       solutions: "פתרונות",
       useCases: "שימושים",
+      clinics: "לצוותים רפואיים",
       how: "איך זה עובד",
       wearables: "מכשירים",
       privacy: "פרטיות",
@@ -559,6 +658,99 @@ export const landing = defineDict(
       ],
       findingsNote: "תצפיות מול הבסיס האישי של המטופל. הפרשנות נשארת אצל הרופא.",
     },
+    clinics: {
+      eyebrow: "05 / לצוותים רפואיים",
+      titleBefore: "הטמעה יחד עם הצוות,",
+      titleEm: "מדד אחרי מדד.",
+      lead: "אנחנו מציעים גם הטמעה למרפאות ולצוותים רפואיים: התאמת הדוחות לשגרת העבודה, הקמת תצוגת הצוות המקודדת, והדרכה שמסבירה כל מדד בדוח, כדי שכל הצוות יקרא אותו באותה דרך.",
+      stepsTitle: "איך עובדת ההטמעה",
+      steps: [
+        {
+          title: "התאמה לשגרת העבודה",
+          text: "פגישה קצרה שבה מחליטים מי קורא את הדוחות, לאילו מטופלים ומתי: לפני ביקור מעקב, אחרי שינוי בתרופות, בתקופת החלמה.",
+        },
+        {
+          title: "הקמת הצוות",
+          text: "חשבונות לצוות ותצוגה מקודדת: הצוות רואה קוד קצר, טווח גיל ומטרה, אף פעם לא שמות או פרטי קשר, וכל צפייה נרשמת ביומן הביקורת.",
+        },
+        {
+          title: "הדרכה על המדדים",
+          text: "מפגש לרופאים, לאחיות ולרכזים: מה כל מדד אומר, איך קוראים אותו מול הבסיס האישי של המטופל, ומה הטבעת לא יכולה לדעת.",
+        },
+        {
+          title: "מעקב",
+          text: "אחרי השבועות הראשונים עוברים עם הצוות על שאלות מדוחות אמיתיים ומכווננים את שגרת העבודה.",
+        },
+      ],
+      getsTitle: "מה הצוות מקבל",
+      gets: [
+        "מדריך לכל מדד בדוח, זה שמופיע כאן למטה.",
+        "ניסוח להסבר ההסכמה למטופלים: מה הם משתפים, עם מי ואיך מפסיקים.",
+        "גבולות ברורים: מה הטבעת מודדת היטב, ואיפה זו רק הערכה.",
+      ],
+      guideTitle: "מדריך המדדים",
+      guideLead: "ההסברים שאנחנו עוברים עליהם עם צוותים רפואיים. כל מספר בדוח נקרא מול הנורמה של אותו אדם עצמו.",
+      labels: { what: "מה זה", read: "איך לקרוא", mind: "לשים לב" },
+      metrics: [
+        {
+          name: "בסיס אישי",
+          unit: "28 ימים",
+          what: "28 הימים הקודמים של המטופל עצמו בכל מדד: הקו המקווקו והטווח המוצלל בדוח.",
+          read: "ממצא פירושו ״שונה מהרגיל של האדם הזה״, לא ״חריג״. כמה לילות ברצף חשובים יותר מלילה אחד.",
+          mind: "טבעת חדשה, חופשה או מחלה בתוך החלון מזיזות את הבסיס עצמו.",
+        },
+        {
+          name: "דופק מנוחה",
+          unit: "פעימות לדקה",
+          what: "הדופק שנמדד בזמן השינה, ולכן בדרך כלל נמוך יותר ממדידה במרפאה במהלך היום.",
+          read: "עלייה לאורך כמה לילות מול הבסיס שווה בדיקה. היא יכולה להופיע עם זיהום, אלכוהול, ארוחה מאוחרת, לחץ, אימון קשה או שינה גרועה.",
+          mind: "זה לא א.ק.ג: הוא לא אומר דבר על קצב הלב.",
+        },
+        {
+          name: "שונות הדופק (HRV)",
+          unit: "מילישניות",
+          what: "השונות בין פעימות הלב בזמן השינה (RMSSD), סימן להתאוששות ולאיזון מערכת העצבים.",
+          read: "אישי מאוד: משווים רק לאותו אדם, אף פעם בין אנשים. ירידה לאורך כמה לילות יחד עם דופק מנוחה גבוה יותר היא הדפוס ששמים אליו לב.",
+          mind: "יורד עם הגיל ומושפע מאלכוהול, ממחלה ומתרופות שמשפיעות על הדופק.",
+        },
+        {
+          name: "שלבי שינה",
+          unit: "עמוקה · קלה · REM · ער",
+          what: "הערכה של שלבי השינה מתנועה, מדופק, מ-HRV ומטמפרטורה, ביחידות של חמש דקות.",
+          read: "שימושי למגמות לאורך שבועות: יותר זמן ער, פחות שינה עמוקה, שעת שינה מאוחרת יותר.",
+          mind: "זו לא בדיקת מעבדת שינה (פוליסומנוגרפיה): לא לציון של לילה בודד ולא לאבחון הפרעת שינה.",
+        },
+        {
+          name: "יעילות שינה וזמן הירדמות",
+          unit: "% · דקות",
+          what: "יעילות היא זמן השינה מתוך הזמן במיטה. זמן ההירדמות הוא הדקות מהשכיבה ועד השינה הראשונה.",
+          read: "מסתכלים על הכיוון: יעילות שיורדת וזמן הירדמות שמתארך לאורך שבועות הם נקודת פתיחה מוחשית לשיחה.",
+          mind: "הזמן במיטה תלוי גם במתי האדם מפסיק לקרוא או לגלול, לא רק בשינה.",
+        },
+        {
+          name: "סטיית טמפרטורה",
+          unit: "מעלות צלזיוס מהבסיס",
+          what: "טמפרטורת העור בלילה בהשוואה לבסיס האישי של האדם.",
+          read: "עלייה בלילה אחד או יותר יכולה להקדים תחושת מחלה. היא גם משתנה לאורך המחזור החודשי.",
+          mind: "זה הפרש, לא מדידת מדחום. חדר חם, אלכוהול או שמיכה כבדה מזיזים אותה גם הם.",
+        },
+        {
+          name: "קצב נשימה",
+          unit: "נשימות לדקה",
+          what: "קצב הנשימה הממוצע בזמן השינה, בדרך כלל יציב מאוד אצל כל אדם.",
+          read: "בגלל שהוא כל כך יציב, עלייה שנמשכת כמה לילות בולטת.",
+          mind: "ממוצע ללילה: הוא לא מזהה הפסקות נשימה.",
+        },
+        {
+          name: "ריווי חמצן (SpO2)",
+          unit: "%",
+          what: "ריווי החמצן הממוצע בדם בזמן השינה, בדגמי טבעת שמודדים אותו.",
+          read: "מגמה וסיבה לשאול, לא תשובה.",
+          mind: "לא מד סטורציה רפואי ולא בדיקה לדום נשימה בשינה: ערכים נמוכים מצדיקים בדיקה מסודרת, לא הרגעה.",
+        },
+      ],
+      note: "ההטמעה היא שירות למרפאות ולצוותים רפואיים; מטופלים לא צריכים אותה כדי לשתף דוח. מדריך המדדים הוא מידע כללי לקריאת הדוח, לא הנחיה קלינית. הפרשנות נשארת אצל הצוות המטפל.",
+    },
     principles: {
       label: "עקרונות",
       items: [
@@ -569,7 +761,7 @@ export const landing = defineDict(
       ],
     },
     how: {
-      eyebrow: "05 / איך זה עובד",
+      eyebrow: "06 / איך זה עובד",
       title: "שלושה צעדים שקטים.",
       steps: [
         { title: "הטבעת מתעדת", text: "שינה, דופק מנוחה, HRV, נשימה, טמפרטורה ופעילות, כמו שהיא כבר עושה." },
@@ -578,7 +770,7 @@ export const landing = defineDict(
       ],
     },
     wearables: {
-      eyebrow: "06 / מכשירים",
+      eyebrow: "07 / מכשירים",
       titleBefore: "עובד עם",
       titleEm: "מה שאתם עונדים.",
       lead: "Oura מחוברת היום. מכשירים נוספים בדרך, וגם ציר זמן אחד למי שעונד יותר ממכשיר אחד.",
@@ -609,7 +801,7 @@ export const landing = defineDict(
       note: "שמות המכשירים הם סימנים מסחריים של בעליהם. Oura Care אינה קשורה אליהם ואינה מאושרת על ידם.",
     },
     privacy: {
-      eyebrow: "07 / פרטיות",
+      eyebrow: "08 / פרטיות",
       titleBefore: "פרטי מהיסוד,",
       titleEm: "לא בהגדרות.",
       body: "מידע בריאותי הוא אישי. Oura Care בנויה כך ששיתוף הוא תמיד החלטה שלכם, למטרה אחת, ואפשר לחזור ממנה.",
@@ -625,7 +817,7 @@ export const landing = defineDict(
       ],
     },
     faq: {
-      eyebrow: "08 / שאלות",
+      eyebrow: "09 / שאלות",
       title: "שואלים הרבה.",
       items: [
         {
@@ -647,6 +839,10 @@ export const landing = defineDict(
         {
           q: "מה המעסיק שלי רואה?",
           a: "רק ממוצעים קבוצתיים של מי שהצטרפו, ואף פעם לא קבוצה קטנה מגודל מינימלי. אף פעם לא נתונים של אדם יחיד.",
+        },
+        {
+          q: "אתם עוזרים למרפאות להתחיל?",
+          a: "כן. אנחנו מציעים הטמעה לצוותים רפואיים: התאמת הדוחות לשגרת העבודה, הקמת התצוגה המקודדת והדרכה על כל מדד. ראו ״לצוותים רפואיים״ למעלה.",
         },
         { q: "כמה זה עולה?", a: "בחינם בתקופת הבטא." },
       ],
