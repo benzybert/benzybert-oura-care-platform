@@ -6,6 +6,7 @@ import "@fontsource/frank-ruhl-libre/hebrew-400.css";
 import "./landing.css";
 import { GroupBarsVisual, PatientHrvVisual, SleepStackChart, TrendChart } from "@/components/landing/charts";
 import { DayDial } from "@/components/landing/day-dial";
+import { DoctorDemo } from "@/components/landing/doctor-demo";
 import { MinutesCounter } from "@/components/landing/minutes-counter";
 import { ShareDemo } from "@/components/landing/share-demo";
 import { solutionAnchor } from "@/components/landing/solution-ids";
@@ -17,7 +18,7 @@ import { dirOf, intlTag } from "@/lib/i18n";
 import { siteUrl } from "@/config/site";
 import { getT } from "@/lib/i18n/server";
 import { APPOINTMENT_MINUTES, YEAR_MINUTES } from "@/lib/landing/dial";
-import { HRV_BASELINE, RESTING_HR_BASELINE, hrv, restingHr } from "@/lib/landing/sample-data";
+import { FLAGGED_FROM, HRV_BASELINE, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
 import { getSessionUser, type Role } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +65,18 @@ export default async function Home() {
   const startHref = "/api/auth/oura";
   const homeHref = signedInAs ? ROLE_HOME[signedInAs] : null;
   const P = L.solutions.panels;
+  const siteHost = new URL(siteUrl()).host;
+  // The doctor demo's numbers and its one sentence with numbers, filled in here: the client
+  // component gets plain data only
+  const rhr = restingHrStory();
+  const doctorDemoData = { nights: restingHr, flaggedFrom: FLAGGED_FROM, usualLow: rhr.usualLow, usualHigh: rhr.usualHigh, average: rhr.average };
+  const doctorDemoText = {
+    ...P.doctors.demo,
+    findingDetail: P.doctors.demo.findingDetail
+      .replace("{n}", String(rhr.recentNights))
+      .replace("{recent}", String(rhr.recent))
+      .replace("{start}", String(rhr.start)),
+  };
 
   const navLinks = [
     { href: "#vision", label: L.nav.vision },
@@ -323,21 +336,10 @@ export default async function Home() {
                       </div>
                     </div>
                     <div className="lp-visual lp-visual-stack">
-                      <div className="lp-linkcard">
-                        <p className="lp-mono">{P.doctors.linkCard.title}</p>
-                        <p className="lp-linkcard-url" dir="ltr">
-                          oura-care / share / ••••••••
-                        </p>
-                        <p className="lp-linkcard-meta">
-                          <span>{P.doctors.linkCard.window}</span>
-                          <span>{P.doctors.linkCard.expires}</span>
-                          <span>{P.doctors.linkCard.opened}</span>
-                        </p>
-                        <p className="lp-linkcard-actions">
-                          <span>{P.doctors.linkCard.pdf}</span>
-                          <span>{P.doctors.linkCard.revoke}</span>
-                        </p>
-                      </div>
+                      <figure className="lp-demo-figure">
+                        <DoctorDemo text={doctorDemoText} host={siteHost} data={doctorDemoData} dir={dirOf(locale)} />
+                        <figcaption className="lp-mono lp-illustrative">{P.doctors.demo.caption}</figcaption>
+                      </figure>
                       <table className="lp-table">
                         <caption className="lp-mono">{P.doctors.tableLabel}</caption>
                         <thead>
@@ -572,7 +574,7 @@ export default async function Home() {
             ))}
           </ol>
           <figure className="lp-demo">
-            <ShareDemo text={L.how.demo} host={new URL(siteUrl()).host} data={hrv} dir={dirOf(locale)} />
+            <ShareDemo text={L.how.demo} host={siteHost} data={hrv} dir={dirOf(locale)} />
             <figcaption className="lp-mono lp-illustrative">{L.how.demo.caption}</figcaption>
           </figure>
         </div>

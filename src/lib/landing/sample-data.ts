@@ -63,3 +63,23 @@ export function toPolyline(values: number[], width: number, height: number, min:
   const step = values.length > 1 ? width / (values.length - 1) : 0;
   return values.map((v, i) => `${round1(i * step)},${round1(height - ((v - min) / (max - min)) * height)}`).join(" ");
 }
+
+/**
+ * The numbers the doctor demo on the landing page shows, all from `restingHr`: the usual range
+ * (mean ± one sd of the nights before the flagged ones), the start of the period (its first 7
+ * nights) and the flagged nights' mean. Rounded to whole beats, as the dashboard writes them.
+ */
+export function restingHrStory(values: number[] = restingHr, flaggedFrom: number = FLAGGED_FROM) {
+  const before = values.slice(0, flaggedFrom);
+  const m = mean(before);
+  const sd = Math.sqrt(mean(before.map((v) => (v - m) ** 2)));
+  const recentNights = values.length - flaggedFrom;
+  return {
+    usualLow: m - sd,
+    usualHigh: m + sd,
+    average: Math.round(mean(values)),
+    start: Math.round(mean(values.slice(0, 7))),
+    recent: Math.round(mean(values.slice(flaggedFrom))),
+    recentNights,
+  };
+}

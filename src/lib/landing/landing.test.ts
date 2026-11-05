@@ -78,3 +78,26 @@ describe("landing sample data", () => {
     expect(toPolyline([5], 100, 50, 0, 10)).toBe("0,25");
   });
 });
+
+describe("doctor demo numbers", () => {
+  it("reads the flagged nights against the start of the period and the usual range", async () => {
+    const { restingHrStory, restingHr, FLAGGED_FROM, RESTING_HR_BASELINE } = await import("./sample-data");
+    const story = restingHrStory();
+    expect(story.recentNights).toBe(restingHr.length - FLAGGED_FROM);
+    expect(story.recent).toBeGreaterThan(story.start);
+    expect(Math.abs(story.start - RESTING_HR_BASELINE)).toBeLessThanOrEqual(2);
+    expect(story.usualLow).toBeLessThan(RESTING_HR_BASELINE);
+    expect(story.usualHigh).toBeGreaterThan(RESTING_HR_BASELINE);
+    // Every flagged night sits above the usual range: that is what the demo points at
+    for (const v of restingHr.slice(FLAGGED_FROM)) expect(v).toBeGreaterThan(story.usualHigh);
+  });
+
+  it("handles a flat series", async () => {
+    const { restingHrStory } = await import("./sample-data");
+    const s = restingHrStory([60, 60, 60, 60, 60, 60, 60, 60, 60, 62], 9);
+    expect(s.usualLow).toBe(60);
+    expect(s.usualHigh).toBe(60);
+    expect(s.recent).toBe(62);
+    expect(s.recentNights).toBe(1);
+  });
+});

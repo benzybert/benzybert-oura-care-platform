@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Badge, Bar, Button, Chart, Icon, Popover, Row, Stage, Text, Window, type Act } from "@/components/stageshow/kit";
 import "./share-demo.css";
+import { usePrefersDark } from "./use-prefers-dark";
 
 /**
  * The landing page's "send to my doctor" demo, built with the Stageshow kit
@@ -72,19 +72,6 @@ async function script(a: Act<S>) {
   await a.wait(420);
   await a.set({ sent: false });
   await a.wait(800);
-}
-
-/** The landing page follows the system colour scheme; the stage does too. */
-function usePrefersDark(): boolean {
-  const [dark, setDark] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = () => setDark(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-  return dark;
 }
 
 export function ShareDemo({ text: T, host, data, dir }: { text: ShareDemoText; host: string; data: number[]; dir: "ltr" | "rtl" }) {

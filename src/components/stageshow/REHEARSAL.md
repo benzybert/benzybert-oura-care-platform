@@ -26,3 +26,31 @@ kit is vendored in `src/components/stageshow/kit` (MIT, see `kit/LICENSE`).
 
 Vendoring notes: seven kit files carry `// @ts-nocheck` because the kit was written without
 `noUncheckedIndexedAccess`; `.agents` and `.claude` are excluded from `tsconfig.json`.
+
+---
+
+# Rehearsal: landing doctor's-side demo
+
+Component: `src/components/landing/doctor-demo.tsx` (+ `doctor-demo.css`), in the "Doctors & clinics"
+tab of section 03 (above the coded care-team table, replacing the old static link card). Text in
+`landing.solutions.panels.doctors.demo`; numbers from `restingHrStory()` (`src/lib/landing/sample-data.ts`,
+tested), filled into the finding sentence on the server.
+
+- **Gold copied:** `chart-scrub` (the headline readout, one eased stroke along the line, hairline and
+  dot read off the drawn path), with `hero-demo`'s corner-bleed window.
+- **Story (plays once, about 8 s, then holds; Replay button under it):** the link's first screen as the
+  real `ShareGate` has it (no data, no name, read-only, valid 14 days, opening is logged and shown to
+  the patient) → Open summary → the summary crossfades in (chrome stays): "Resting heart rate is up"
+  with its sentence, the line draws, the usual range as a band, the last 4 nights in the attention
+  colour → the pointer runs from mid-month to last night; the readout rolls to 65 bpm in the
+  attention colour. It plays once because a loop would have to play the navigation backwards.
+- **Mounted only once visible:** the tab panel is `hidden` until chosen, so the stage mounts when its
+  frame has a width; otherwise it picked the phone design and measured its labels at zero width.
+- **Sized for the slot:** the tab's visual column is about 406 px on a laptop, so the wide design is
+  420 × 400 (scales to 0.97); phones (below 400) get 358 × 352 with the finding's sentence dropped.
+- **Looks checked:** light and dark, English and Hebrew (the window mirrors by hand, the chart and its
+  axis stay left to right), 1280 and 390.
+- **Gate:** framing, insets, overlaps and clips are clear. Left: `jump` of the Open button's width on
+  press and a `settle snap` in a `Roll` (both inside kit parts), `steps in its box` on the window's URL
+  at 390 (the host page settling as the tab opens), and the kit-override false positive above.
+- **Honesty:** doctor links are Hebrew-only today; the English caption says so.

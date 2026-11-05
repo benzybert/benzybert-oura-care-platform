@@ -1107,33 +1107,6 @@ main:has(> .lp) {
   fill: var(--lp-ink);
   font-weight: 600;
 }
-.lp-linkcard {
-  display: grid;
-  gap: 10px;
-}
-.lp-linkcard p {
-  margin: 0;
-}
-.lp-linkcard-url {
-  font-family: var(--lp-mono-font);
-  font-size: 0.95rem;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--lp-paper-2);
-  color: var(--lp-ink);
-}
-.lp-linkcard-meta,
-.lp-linkcard-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  font-size: 0.88rem;
-  color: var(--lp-ink-2);
-}
-.lp-linkcard-actions span {
-  border-bottom: 1px solid var(--lp-line-strong);
-  color: var(--lp-ink);
-}
 .lp .lp-table {
   font-size: 0.9rem;
 }
@@ -1875,6 +1848,18 @@ main:has(> .lp) {
   gap: 12px;
 }
 .lp-demo .lp-illustrative {
+  justify-self: center;
+  text-align: center;
+  color: var(--lp-ink-2);
+}
+
+/* 03 Solutions, doctors tab: the doctor's side demo (doctor-demo.tsx) above the coded table */
+.lp-demo-figure {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.lp-demo-figure .lp-illustrative {
   justify-self: center;
   text-align: center;
   color: var(--lp-ink-2);

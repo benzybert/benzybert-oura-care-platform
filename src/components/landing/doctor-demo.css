@@ -1,0 +1,411 @@
+/*
+ * The doctor's side of the sharing story (doctor-demo.tsx), on the Stageshow kit. Nested under
+ * .dd so nothing leaks into the page. Sized for its slot (the tab's ~406px column). Corner bleed:
+ * the browser sits one gutter (24) from the top and the start edge and runs off the far side
+ * (about 10%) and the bottom; its content stops a gutter short of the stage's far edge. Inside, two pages share
+ * one body and crossfade as the real /share page does after "open": the gate and the summary.
+ * Hebrew mirrors the window by hand (it keeps dir="ltr" for its macOS chrome); the chart and its
+ * axis keep time left to right in both languages.
+ */
+
+.dd {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  width: 100%;
+}
+
+.dd .dd-frame {
+  width: 100%;
+  max-width: 420px;
+  /* Holds the stage's shape before it mounts (the tab is hidden until chosen) */
+  min-height: 300px;
+}
+
+.dd .ss-stage {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--ss-well);
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif;
+}
+
+.dd .dd-win {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 440px;
+  height: 420px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.dd[dir="rtl"] .dd-win {
+  left: auto;
+  right: 24px;
+}
+
+.dd .dd-body {
+  position: relative;
+  height: 100%;
+  background: var(--ss-surface);
+}
+
+/* A page swap inside one window: the chrome stays, the body crossfades with a small rise */
+.dd .dd-page {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  /* A lasting layer, so the text does not hop as the rise ends */
+  will-change: transform;
+  transition:
+    opacity 0.2s ease,
+    transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.dd .dd-page[data-show] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.25s ease 0.12s,
+    transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) 0.12s;
+}
+
+/* The gate: no health data, no name */
+.dd .dd-gate {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  width: 392px;
+  padding: 26px 20px 0;
+  text-align: center;
+}
+
+.dd .dd-gate-badge {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--ss-accent-soft);
+  color: var(--ss-accent);
+}
+
+.dd .dd-gate-title {
+  color: var(--ss-text-strong);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dd .dd-gate-lead {
+  max-width: 330px;
+  margin: 0;
+  color: var(--ss-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dd .dd-gate-facts {
+  display: grid;
+  gap: 8px;
+  width: 296px;
+  margin: 4px 0 10px;
+  padding: 12px 14px;
+  list-style: none;
+  border-radius: 10px;
+  background: var(--ss-canvas);
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: start;
+}
+
+.dd .dd-gate-facts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dd .dd-gate-facts svg {
+  flex: none;
+  color: var(--ss-text-faint);
+}
+
+/* The summary */
+.dd .dd-dash {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  width: 392px;
+  padding: 16px 20px 0;
+}
+
+.dd .dd-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dd .dd-title {
+  color: var(--ss-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dd .dd-finding {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgb(201 106 18 / 0.09);
+}
+
+.dd .ss-stage[data-theme="dark"] .dd-finding {
+  background: rgb(201 113 31 / 0.18);
+}
+
+.dd .dd-finding-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dd .dd-finding-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c96a12;
+}
+
+.dd .dd-finding-detail {
+  margin: 0;
+  padding-inline-start: 16px;
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dd .dd-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--ss-line);
+}
+
+.dd .dd-readout {
+  display: grid;
+  gap: 2px;
+}
+
+.dd .dd-metric {
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.dd .dd-value {
+  display: flex;
+  align-items: baseline;
+  line-height: 1.2;
+  gap: 6px;
+  color: var(--ss-text-strong);
+  transition: color 0.2s ease;
+}
+
+.dd .dd-value[data-flag] {
+  color: #b05a0c;
+}
+
+.dd .ss-stage[data-theme="dark"] .dd-value[data-flag] {
+  color: #e08a3a;
+}
+
+.dd .dd-num {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dd .dd-unit {
+  color: var(--ss-text);
+  font-size: 12px;
+}
+
+.dd .dd-plot {
+  position: relative;
+  direction: ltr;
+}
+
+/* The patient's usual range: a quiet band behind the line */
+.dd .dd-band {
+  position: absolute;
+  inset-inline: 0;
+  border-radius: 3px;
+  background: var(--ss-ink-2);
+  opacity: 0;
+  transition: opacity 0.4s ease 0.3s;
+}
+
+.dd .dd-band[data-on] {
+  opacity: 1;
+}
+
+/* The flagged nights: the line again, in the attention colour, clipped to start between the
+   last usual night and the first flagged one */
+.dd .dd-flagline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dd .dd-flagline .ss-chart__line {
+  stroke: #c96a12;
+}
+
+.dd .ss-stage[data-theme="dark"] .dd-flagline .ss-chart__line {
+  stroke: #c9711f;
+}
+
+.dd .dd-hair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--ss-line);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.dd .dd-dot {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border: 2px solid var(--ss-surface);
+  border-radius: 50%;
+  background: var(--ss-accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.2s ease;
+}
+
+.dd .dd-dot[data-flag] {
+  background: #c96a12;
+}
+
+.dd .dd-hair[data-on],
+.dd .dd-dot[data-on] {
+  opacity: 1;
+}
+
+.dd .dd-axis {
+  /* Time runs left to right in both languages, like the line above it */
+  direction: ltr;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--ss-text-faint);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.dd .dd-usual {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dd .dd-usual-key {
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--ss-ink-3);
+}
+
+/* Where the cursor waits: empty surface below the gate's button */
+.dd .dd-rest {
+  position: absolute;
+  top: 360px;
+  inset-inline-start: 340px;
+  width: 1px;
+  height: 1px;
+}
+
+/* Compact: the phone column. The same corner bleed; the finding keeps only its title. */
+.dd .ss-stage[data-layout="compact"] .dd-win {
+  top: 24px;
+  left: 24px;
+  width: 380px;
+  height: 360px;
+}
+
+.dd[dir="rtl"] .ss-stage[data-layout="compact"] .dd-win {
+  left: auto;
+  right: 24px;
+}
+
+.dd .ss-stage[data-layout="compact"] .dd-gate {
+  width: 330px;
+  gap: 6px;
+  padding: 18px 20px 0;
+}
+
+.dd .ss-stage[data-layout="compact"] .dd-gate-badge {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+}
+
+.dd .ss-stage[data-layout="compact"] .dd-gate-facts {
+  width: 290px;
+  margin: 2px 0 8px;
+}
+
+.dd .ss-stage[data-layout="compact"] .dd-dash {
+  width: 330px;
+  gap: 8px;
+}
+
+.dd .ss-stage[data-layout="compact"] .dd-rest {
+  top: 320px;
+  inset-inline-start: 290px;
+}
+
+/* Replay: outside the stage, so the press explains the return to the first screen */
+.dd-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--lp-line, rgb(0 0 0 / 0.12));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lp-ink-2, inherit);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dd-replay:hover {
+  border-color: var(--lp-line-strong, rgb(0 0 0 / 0.28));
+}
+
+.dd-replay:focus-visible {
+  outline: 2px solid var(--lp-data, #0b84a5);
+  outline-offset: 2px;
+}
