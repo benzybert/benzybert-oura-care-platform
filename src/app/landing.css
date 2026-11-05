@@ -826,6 +826,139 @@ main:has(> .lp) {
   padding-block-start: 12px;
 }
 
+/* 05 for medical teams: implementation steps and the measure guide */
+.lp-impl {
+  display: grid;
+  gap: 40px;
+  margin-block-end: clamp(56px, 8vw, 96px);
+}
+@media (min-width: 900px) {
+  .lp-impl {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+  }
+}
+.lp-impl-title {
+  font-family: var(--lp-mono-font);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-ink-2);
+  margin: 0 0 20px;
+}
+.lp-impl-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 28px;
+}
+@media (min-width: 640px) {
+  .lp-impl-steps {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px 40px;
+  }
+}
+.lp-impl-steps li {
+  position: relative;
+  padding-inline-start: 52px;
+}
+.lp-impl-steps h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 4px 0 6px;
+}
+.lp-impl-steps p {
+  color: var(--lp-ink-2);
+  line-height: 1.6;
+  margin: 0;
+}
+.lp-impl-gets {
+  background: var(--lp-card);
+  border: 1px solid var(--lp-line);
+  border-radius: 14px;
+  padding: 22px 22px 0;
+}
+.lp-impl-gets .lp-benefits {
+  margin-block-end: 0;
+}
+.lp-impl-gets .lp-benefits li:last-child {
+  border-bottom: 0;
+}
+.lp-guide-head {
+  max-width: 760px;
+  margin-block-end: 28px;
+}
+.lp-guide-title {
+  font-size: clamp(1.8rem, 3.6vw, 2.6rem);
+  margin: 0 0 12px;
+}
+.lp-metrics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .lp-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1100px) {
+  .lp-metrics {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.lp-metrics li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--lp-card);
+  border: 1px solid var(--lp-line);
+  border-radius: 14px;
+  padding: 20px 20px 18px;
+}
+.lp-metrics .lp-mono {
+  color: var(--lp-data);
+}
+.lp-metrics h4 {
+  font-family: var(--lp-serif);
+  font-weight: 400;
+  font-size: 1.35rem;
+  line-height: 1.15;
+  margin: 0 0 4px;
+}
+.lp-metrics dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.lp-metrics dt {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lp-ink);
+  margin-block-start: 8px;
+}
+.lp-metrics dd {
+  margin: 0;
+  color: var(--lp-ink-2);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+[dir="rtl"] .lp-impl-title,
+[dir="rtl"] .lp-metrics dt {
+  letter-spacing: 0;
+}
+.lp-metrics .lp-metric-mind {
+  border-inline-start: 2px solid var(--lp-attention);
+  padding-inline-start: 10px;
+}
+
 /* 03 solutions */
 .lp-solutions {
   position: relative;
@@ -1171,7 +1304,7 @@ main:has(> .lp) {
   font-size: 0.92rem;
 }
 
-/* 05 how it works */
+/* 06 how it works */
 .lp-steps {
   position: relative;
   list-style: none;
@@ -1236,7 +1369,7 @@ main:has(> .lp) {
   }
 }
 
-/* 06 wearables */
+/* 07 wearables */
 .lp-devices {
   list-style: none;
   margin: 0;
@@ -1464,11 +1597,11 @@ main:has(> .lp) {
   color: var(--lp-night-muted);
 }
 
-/* Narrow screens: the seven section links fold into the menu below 1100px, sign-in below 900px. */
+/* Narrow screens: the eight section links fold into the menu below 1240px, sign-in below 900px. */
 .lp-nav a {
   white-space: nowrap;
 }
-@media (max-width: 1099px) {
+@media (max-width: 1239px) {
   .lp-nav {
     display: none;
   }
