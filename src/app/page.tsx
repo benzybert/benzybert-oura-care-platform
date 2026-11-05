@@ -115,6 +115,7 @@ export default async function Home() {
                     {l.label}
                   </a>
                 ))}
+                <Link href="/contact#form">{L.nav.contact}</Link>
                 {!homeHref && <Link href="/login">{L.nav.signIn}</Link>}
               </div>
             </details>
@@ -504,6 +505,12 @@ export default async function Home() {
                 {L.clinics.getsTitle}
               </h3>
               <Benefits items={L.clinics.gets} />
+              <div className="lp-impl-cta">
+                <Link href="/contact?topic=implementation#form" className="lp-btn lp-btn-ink">
+                  {L.clinics.cta}
+                </Link>
+                <p>{L.clinics.ctaNote}</p>
+              </div>
             </aside>
           </div>
           <div className="lp-guide-head lp-reveal">
@@ -658,6 +665,9 @@ export default async function Home() {
                 {L.hero.start}
               </a>
             )}
+            <Link href="/contact#form" className="lp-btn lp-btn-ghost">
+              {L.clinics.cta}
+            </Link>
           </div>
           <p className="lp-hero-note">{L.final.note}</p>
         </div>
@@ -675,6 +685,9 @@ export default async function Home() {
                 {l.label}
               </a>
             ))}
+            <Link href="/contact" className="lp-link">
+              {L.nav.contact}
+            </Link>
             {!homeHref && (
               <Link href="/login" className="lp-link">
                 {L.footer.signIn}

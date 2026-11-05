@@ -134,6 +134,13 @@
       "when": 1794126000000,
       "tag": "0018_records_and_views",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794212400000,
+      "tag": "0019_contact_requests",
+      "breakpoints": true
     }
   ]
 }

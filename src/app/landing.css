@@ -1694,3 +1694,176 @@ main:has(> .lp) {
     display: none;
   }
 }
+
+/* Contact page (/contact) and the contact buttons on the landing page */
+.lp-contact {
+  border-top: 0;
+  padding-block: clamp(48px, 8vw, 104px);
+}
+.lp-contact .lp-display {
+  margin: 0 0 16px;
+}
+.lp-contact-card {
+  background: var(--lp-card);
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  padding: clamp(20px, 3.5vw, 36px);
+  scroll-margin-top: 88px;
+}
+.lp-contact-sent .lp-display {
+  font-size: clamp(1.8rem, 3.4vw, 2.4rem);
+}
+.lp-contact-sent .lp-btn {
+  margin-block-start: 12px;
+}
+.lp-form {
+  display: grid;
+  gap: 20px;
+}
+.lp-field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.lp-field > span,
+.lp-field > legend {
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0;
+  margin-block-end: 8px;
+}
+.lp-field > span {
+  margin-block-end: 0;
+}
+.lp-field input,
+.lp-field select,
+.lp-field textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--lp-ink);
+  background: var(--lp-paper);
+  border: 1px solid var(--lp-line-strong);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 48px;
+}
+.lp-field textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.55;
+}
+.lp-field input:focus-visible,
+.lp-field select:focus-visible,
+.lp-field textarea:focus-visible,
+.lp-chip input:focus-visible + span,
+.lp-check input:focus-visible {
+  outline: 2px solid var(--lp-data);
+  outline-offset: 2px;
+}
+.lp-field small {
+  color: var(--lp-ink-2);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+.lp-field-row {
+  display: grid;
+  gap: 20px;
+}
+@media (min-width: 640px) {
+  .lp-field-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.lp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lp-chip {
+  position: relative;
+  cursor: pointer;
+}
+.lp-chip input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.lp-chip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-strong);
+  font-size: 0.92rem;
+  transition:
+    background-color 0.2s var(--lp-ease),
+    border-color 0.2s var(--lp-ease);
+}
+.lp-chip input:checked + span {
+  background: var(--lp-ink);
+  border-color: var(--lp-ink);
+  color: var(--lp-paper);
+}
+.lp-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.lp-check input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  flex: none;
+  accent-color: var(--lp-data);
+}
+.lp-form-note {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--lp-ink-2);
+  border-inline-start: 2px solid var(--lp-attention);
+  padding-inline-start: 10px;
+}
+.lp-form-error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--lp-attention);
+  color: var(--lp-ink);
+  background: color-mix(in srgb, var(--lp-attention) 10%, transparent);
+}
+.lp-form .lp-btn {
+  justify-self: start;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.lp-hp {
+  position: absolute;
+  inset-inline-start: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.lp-impl-cta {
+  padding: 20px 0 22px;
+  display: grid;
+  gap: 10px;
+}
+.lp-impl-cta p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--lp-ink-2);
+}
+.lp-impl-cta .lp-btn {
+  justify-self: start;
+}

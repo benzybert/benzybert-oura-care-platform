@@ -939,3 +939,32 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_member_at_idx").on(t.memberId, t.at)],
 );
+
+/**
+ * Requests from the public contact form (/contact): clinics and care teams asking about implementation or a
+ * demo. Contact details the person typed, never health data, not linked to any member. Read by the owner only
+ * (database or the notification email); no page in the app lists them.
+ */
+export const contactRequests = pgTable(
+  "contact_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** implementation | demo | partnership | other */
+    topic: text("topic").notNull(),
+    name: text("name").notNull(),
+    organization: text("organization").notNull(),
+    /** physician | nurse | coordinator | management | other */
+    role: text("role"),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    message: text("message"),
+    /** en | he: the language the form was filled in */
+    locale: text("locale").notNull().default("en"),
+    /** new | answered | closed */
+    status: text("status").notNull().default("new"),
+    /** true when the notification email went out */
+    notified: boolean("notified").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("contact_requests_created_idx").on(t.createdAt), index("contact_requests_email_idx").on(t.email, t.createdAt)],
+);
