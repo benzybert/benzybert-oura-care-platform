@@ -1,17 +1,18 @@
 import { addAlertDevice, addCircleLink, emailCircleInvite, removeAlertDevice, revokeCircleLink, saveCircleProfile, testAlertDevice, testCircleLink, updateCircleLink } from "@/app/circle-actions";
 import { CopyField } from "@/components/copy-field";
 import "@/components/heart/heart.css";
+import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { circlePath, circleStatus, linkTokenOf, listAlertDevices, listCircleLinks, type CircleLinkRow } from "@/lib/circle/queries";
 import { decrypt } from "@/lib/crypto";
 import { formatDateTime } from "@/lib/format-locale";
-import { getMemberPrefs } from "@/lib/heart/data";
 import { LEVELS } from "@/lib/heart/engine";
 import { getT } from "@/lib/i18n/server";
 import { mailConfigured } from "@/lib/mail";
 import { siteUrl } from "@/config/site";
 import { twilioConfigured } from "@/lib/notify/channels";
 import { maskPhone } from "@/lib/notify/phone";
+import { wantsHeart } from "@/lib/member-tabs";
 import { WEBHOOK_KINDS, webhookHostLabel } from "@/lib/notify/webhook-url";
 import type { Locale } from "@/lib/i18n";
 import type { Messages } from "@/lib/i18n/messages";
@@ -141,10 +142,12 @@ function Person({ link, t, locale }: { link: CircleLinkRow; t: Messages; locale:
 
 /** Who hears about a heart alert, how, and which alarms go off. Everything here is the member's own choice. */
 export default async function MemberCirclePage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember({ sync: false });
+  const { member, prefs } = await loadMember({ sync: false });
+  // Only for members who declared heart health in their focus (profile or onboarding).
+  if (!wantsHeart(prefs?.focusAreas)) redirect("/member/profile?heart=off");
   const { locale, t } = await getT();
   const db = getDb();
-  const [links, devices, prefs] = await Promise.all([listCircleLinks(db, member.id), listAlertDevices(db, member.id), getMemberPrefs(db, member.id)]);
+  const [links, devices] = await Promise.all([listCircleLinks(db, member.id), listAlertDevices(db, member.id)]);
   const p = t.circle.page;
   const smsOk = twilioConfigured();
 

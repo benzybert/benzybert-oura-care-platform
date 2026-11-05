@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TAB_HREFS, TAB_IDS, navGroups, parseFocusAreas, tabOrder } from "./member-tabs";
+import { TAB_HREFS, TAB_IDS, navGroups, parseFocusAreas, tabOrder, wantsHeart } from "./member-tabs";
 
 describe("tabOrder", () => {
   it("puts the heart group right after home for a heart-focused member", () => {
@@ -7,20 +7,44 @@ describe("tabOrder", () => {
   });
 
   it("keeps the data tab first for everyone else", () => {
-    expect(tabOrder(["sleep"]).slice(0, 6)).toEqual(["home", "data", "assistant", "heart", "circle", "challenges"]);
+    expect(tabOrder(["sleep", "heart"]).slice(0, 6)).toEqual(["home", "data", "assistant", "heart", "circle", "challenges"]);
     expect(tabOrder(null)[1]).toBe("data");
     expect(tabOrder([])[1]).toBe("data");
   });
 
-  it("always lists every tab exactly once", () => {
-    for (const focus of [null, ["heart"], ["activity"]]) {
-      const order = tabOrder(focus);
-      expect([...order].sort()).toEqual([...TAB_IDS].sort());
+  it("shows the Heart and Family circle tabs only to a member who picked heart health", () => {
+    for (const focus of [["sleep"], ["general"], null]) {
+      expect(tabOrder(focus)).not.toContain("heart");
+      expect(tabOrder(focus)).not.toContain("circle");
+      expect(tabOrder(focus)).toContain("challenges");
+    }
+    for (const focus of [["sleep", "heart"], ["heart"]]) {
+      expect(tabOrder(focus)).toContain("heart");
+      expect(tabOrder(focus)).toContain("circle");
+    }
+  });
+
+  it("lists every tab exactly once, the heart tabs only when asked for", () => {
+    for (const focus of [["heart"], ["activity", "heart"]]) {
+      expect([...tabOrder(focus)].sort()).toEqual([...TAB_IDS].sort());
+    }
+    for (const focus of [null, ["activity"]]) {
+      expect([...tabOrder(focus)].sort()).toEqual(TAB_IDS.filter((t) => t !== "heart" && t !== "circle").sort());
     }
   });
 
   it("has a path for every tab", () => {
     for (const id of TAB_IDS) expect(TAB_HREFS[id]).toMatch(/^\/member/);
+  });
+});
+
+describe("wantsHeart", () => {
+  it("is true when heart health is the main focus or an extra one", () => {
+    expect(wantsHeart(["heart"])).toBe(true);
+    expect(wantsHeart(["sleep", "heart"])).toBe(true);
+    expect(wantsHeart(["sleep"])).toBe(false);
+    expect(wantsHeart(null)).toBe(false);
+    expect(wantsHeart(undefined)).toBe(false);
   });
 });
 

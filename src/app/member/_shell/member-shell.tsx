@@ -9,7 +9,7 @@ import { LEVEL_RANK, isHeartRule } from "@/lib/heart/engine";
 import { getT } from "@/lib/i18n/server";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
 import { MemberNavIcon } from "@/components/member-nav-icon";
-import { TAB_HREFS, navGroups, tabOrder, type MemberTab } from "@/lib/member-tabs";
+import { TAB_HREFS, navGroups, tabOrder, wantsHeart, type MemberTab } from "@/lib/member-tabs";
 import { getCustomViews } from "@/lib/records-data";
 import { requireRole } from "@/lib/session";
 import { noticesFor, type MemberSearchParams } from "./messages";
@@ -73,7 +73,7 @@ export async function MemberShell({
   const state = visitState();
   const notices = noticesFor(params, t);
   const top = [...state.alerts]
-    .filter((a) => isHeartRule(a.rule))
+    .filter((a) => wantsHeart(state.prefs?.focusAreas) && isHeartRule(a.rule))
     .sort((a, b) => LEVEL_RANK[alertLevel(b)] - LEVEL_RANK[alertLevel(a)])[0];
   const topRule = top && isHeartRule(top.rule) ? top.rule : null;
 

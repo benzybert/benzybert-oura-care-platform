@@ -4,6 +4,7 @@ import { RingCard } from "@/components/ring-card";
 import { getT } from "@/lib/i18n/server";
 import { needsMorePermissions } from "@/lib/oura/scopes";
 import { getOuraProfile, ouraStatus } from "@/lib/queries";
+import { wantsHeart } from "@/lib/member-tabs";
 import { MemberShell, loadMember } from "../_shell/member-shell";
 import type { MemberSearchParams } from "../_shell/messages";
 
@@ -16,7 +17,7 @@ export const maxDuration = 60;
  * PDF, doctor links, alarms). Other wearables are listed as planned, never as connected, until a real connector exists.
  */
 export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember();
+  const { member, prefs } = await loadMember();
   const { t } = await getT();
   const g = t.records.integrations;
   const [oura, profile] = await Promise.all([ouraStatus(member.id), getOuraProfile(member.id)]);
@@ -72,15 +73,17 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             </div>
           </div>
         ))}
-        <div className="card rc-item">
-          <h3>{g.alarmsTitle}</h3>
-          <p className="muted small">{g.alarmsText}</p>
-          <div className="rc-actions">
-            <a className="btn secondary" href="/member/circle">
-              {g.alarmsLink}
-            </a>
+        {wantsHeart(prefs?.focusAreas) && (
+          <div className="card rc-item">
+            <h3>{g.alarmsTitle}</h3>
+            <p className="muted small">{g.alarmsText}</p>
+            <div className="rc-actions">
+              <a className="btn secondary" href="/member/circle">
+                {g.alarmsLink}
+              </a>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="rc-section-title">

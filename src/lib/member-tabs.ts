@@ -69,12 +69,22 @@ export function parseFocusAreas(values: unknown[]): FocusArea[] {
 }
 
 /**
+ * Whether the member asked for heart health (main focus or "also interested in"). The Heart and Family circle tabs,
+ * their home cards and tiles, the heart watch and the guardians' pages exist only for them: nobody gets them without
+ * declaring heart health on the profile.
+ */
+export function wantsHeart(focus: readonly string[] | null | undefined): boolean {
+  return Boolean(focus?.includes("heart"));
+}
+
+/**
  * Tab order. Home always comes first. A member whose main focus is the heart sees the heart, the family
- * circle and the challenges right after it; everyone else sees their data first and those three after.
+ * circle and the challenges right after it; everyone else sees their data first and those after. The Heart and
+ * Family circle tabs are left out for a member who did not pick heart health.
  */
 export function tabOrder(focus: readonly string[] | null | undefined): MemberTab[] {
   const heartFirst = focus?.[0] === "heart";
-  const heartGroup: MemberTab[] = ["heart", "circle", "challenges"];
+  const heartGroup: MemberTab[] = wantsHeart(focus) ? ["heart", "circle", "challenges"] : ["challenges"];
   const rest: MemberTab[] = ["data", "assistant", "experiments", "goals", ...RECORD_TABS, ...ACCOUNT_TABS];
   return heartFirst
     ? ["home", ...heartGroup, ...rest]

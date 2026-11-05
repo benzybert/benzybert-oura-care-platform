@@ -15,7 +15,7 @@ export const circle = defineDict(
         general: { title: "A bit of everything", text: "Keep an eye on the whole picture." },
       },
       alsoLabel: "Also interested in (optional)",
-      heartNote: "Heart health switches on the heart watch. Next you can choose who hears about it.",
+      heartNote: "The Heart tab, the heart watch and the family circle appear only if you pick heart health, as your main focus or as an extra. As your main focus it also switches the heart watch on. Leaving it out hides them, switches the watch off and closes your family's pages until you pick it again.",
       cont: "Continue",
       skip: "Skip for now",
       changeTitle: "My focus",
@@ -134,6 +134,7 @@ export const circle = defineDict(
       heart: {
         saved: "Your heart settings are saved.",
         invalid: "Some numbers are not valid. Check them and try again.",
+        off: "The Heart page and the family circle are only shown when you pick heart health in your focus. Add it below to use them.",
       },
     },
     family: {
@@ -187,7 +188,7 @@ export const circle = defineDict(
         general: { title: "קצת מהכול", text: "לשמור עין על התמונה המלאה." },
       },
       alsoLabel: "מעניין אותי גם (לא חובה)",
-      heartNote: "בחירה בבריאות הלב מפעילה את מעקב הלב. בשלב הבא תבחרו מי מקבל הודעה.",
+      heartNote: "לשונית הלב, מעקב הלב ומעגל המשפחה מופיעים רק אם בחרתם בבריאות הלב, כמיקוד הראשי או כתוספת. כמיקוד ראשי היא גם מפעילה את מעקב הלב. בלי בחירה בה הם מוסתרים, מעקב הלב כבוי והדפים של בני המשפחה סגורים עד שתבחרו בה שוב.",
       cont: "המשך",
       skip: "דלגו בינתיים",
       changeTitle: "המיקוד שלי",
@@ -306,6 +307,7 @@ export const circle = defineDict(
       heart: {
         saved: "הגדרות הלב נשמרו.",
         invalid: "חלק מהמספרים לא תקינים. בדקו ונסו שוב.",
+        off: "דף הלב ומעגל המשפחה מוצגים רק אם בחרתם בבריאות הלב במיקוד שלכם. הוסיפו אותה כאן למטה כדי להשתמש בהם.",
       },
     },
     family: {

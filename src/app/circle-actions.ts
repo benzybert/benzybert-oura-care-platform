@@ -12,6 +12,7 @@ import { isLevel } from "@/lib/heart/engine";
 import { sendTestToDevice, sendTestToLink } from "@/lib/heart/watch";
 import { getMemberPrefs } from "@/lib/heart/data";
 import { isLocale } from "@/lib/i18n";
+import { wantsHeart } from "@/lib/member-tabs";
 import { messagesFor } from "@/lib/i18n/messages";
 import { sendMail, mailConfigured } from "@/lib/mail";
 import { normalizeEmail } from "@/lib/auth-rules";
@@ -27,6 +28,8 @@ async function currentMember() {
   const user = await requireRole("member");
   const member = await getMemberForUser(user.id);
   if (!member) redirect("/member");
+  // The family circle exists only for members who declared heart health in their focus.
+  if (!wantsHeart((await getMemberPrefs(getDb(), member.id))?.focusAreas)) redirect("/member/profile?heart=off");
   return { user, member };
 }
 

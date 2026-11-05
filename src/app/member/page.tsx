@@ -36,6 +36,7 @@ import {
 import { getLabReports, getLabResults, getMedications } from "@/lib/records-data";
 import { RANGE_DAYS, buildToday } from "@/lib/today";
 import { CONSENT_SCOPES } from "@/lib/types";
+import { wantsHeart } from "@/lib/member-tabs";
 import { MemberShell, loadMember } from "./_shell/member-shell";
 import type { MemberSearchParams } from "./_shell/messages";
 
@@ -95,6 +96,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const activeLinks = links.filter((l) => l.status === "active").length;
   const heart = assessHeart(heartInputs, heartSettings, today);
   const heartFirst = prefs.focusAreas?.[0] === "heart";
+  const showHeart = wantsHeart(prefs.focusAreas);
   const people = circle.filter((l) => !l.revokedAt).length;
   const running = challenges.filter((c) => c.endDay >= today).length;
   const markers = biomarkerSeries(labResults);
@@ -107,8 +109,12 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const sf = view.soFar;
 
   const tiles = [
-    { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
-    { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
+    ...(showHeart
+      ? [
+          { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
+          { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
+        ]
+      : []),
     { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
     { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
     { href: "/member/assistant", title: t.core.tabs.assistant, text: h.tiles.assistant },
@@ -168,7 +174,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
           </section>
         )}
 
-        {(heartFirst || heartSettings.monitoring) && (
+        {showHeart && (heartFirst || heartSettings.monitoring) && (
           <a className={`card hw-status is-${heart.status}`} href="/member/heart" style={{ textDecoration: "none", color: "inherit" }}>
             <div className="hw-dot-big" aria-hidden="true">
               {{ steady: "✓", learning: "…", watch: "•", alert: "!", urgent: "!!", no_data: "?" }[heart.status]}
@@ -288,7 +294,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
             <section className="card td-card" aria-labelledby="td-heart">
               <header className="td-card-head">
                 <h2 id="td-heart">{td.heart.title}</h2>
-                <a href="/member/heart">{td.heart.more}</a>
+                <a href={showHeart ? "/member/heart" : dataHref({ view: "heart" })}>{td.heart.more}</a>
               </header>
               {view.heart ? (
                 <>
