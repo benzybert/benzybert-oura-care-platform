@@ -9,6 +9,16 @@ export function formatDay(day: string, locale: Locale): string {
   return new Date(`${day}T00:00:00Z`).toLocaleDateString(intlTag(locale), { timeZone: "UTC", day: "numeric", month: locale === "he" ? "numeric" : "short" });
 }
 
+/** "2 Nov 2026" / "2.11.2026": a day with its year, for records that span years (lab results, medications). */
+export function formatDate(day: string, locale: Locale): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString(intlTag(locale), {
+    timeZone: "UTC",
+    day: "numeric",
+    month: locale === "he" ? "numeric" : "short",
+    year: "numeric",
+  });
+}
+
 /** "Mon 2 Nov" / "יום ב׳ 2.11". */
 export function formatDayLong(day: string, locale: Locale): string {
   return new Date(`${day}T00:00:00Z`).toLocaleDateString(intlTag(locale), {

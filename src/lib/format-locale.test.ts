@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatDay, num, timeAgo } from "./format-locale";
+import { formatDate, formatDateTime, formatDay, num, timeAgo } from "./format-locale";
 
 describe("format-locale", () => {
   it("formats days", () => {
@@ -22,5 +22,10 @@ describe("format-locale", () => {
     expect(num(null)).toBe("–");
     expect(num(58.46, 1)).toBe("58.5");
     expect(num(58.46)).toBe("58");
+  });
+
+  it("formats a day with its year", () => {
+    expect(formatDate("2026-11-02", "en")).toBe("2 Nov 2026");
+    expect(formatDate("2026-11-02", "he")).toBe("2.11.2026");
   });
 });

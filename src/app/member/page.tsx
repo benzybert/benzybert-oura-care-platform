@@ -19,6 +19,10 @@ import { formatDay } from "@/lib/format-locale";
 import { assessHeart, getHeartSettings, loadHeartInputs } from "@/lib/heart/data";
 import { getT } from "@/lib/i18n/server";
 import { needsMorePermissions } from "@/lib/oura/scopes";
+import { biomarkerSeries, outOfRange } from "@/lib/biomarkers";
+import { formatDate } from "@/lib/format-locale";
+import { medicationStatus } from "@/lib/medications";
+import { getLabReports, getLabResults, getMedications } from "@/lib/records-data";
 import {
   getActiveInstinctAccess,
   getCoffeeClaimDays,
@@ -55,7 +59,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const today = todayInIsrael();
   const db = getDb();
 
-  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, delivered, instinctAccess, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges] =
+  const [metrics, records, rewards, oura, doctors, links, selfRewards, coffeeClaimDays, delivered, instinctAccess, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges, meds, labResults, labReports] =
     await Promise.all([
       getMetrics(member.id),
       getConsentRecords(member.id),
@@ -73,6 +77,9 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       loadHeartInputs(db, member.id, today),
       listCircleLinks(db, member.id),
       listMyChallenges(db, member.id),
+      getMedications(db, member.id),
+      getLabResults(db, member.id),
+      getLabReports(db, member.id),
     ]);
 
   const latest = [...metrics].sort((a, b) => (a.day < b.day ? 1 : -1))[0];
@@ -92,6 +99,8 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const heartFirst = prefs.focusAreas?.[0] === "heart";
   const people = circle.filter((l) => !l.revokedAt).length;
   const running = challenges.filter((c) => c.endDay >= today).length;
+  const markers = biomarkerSeries(labResults);
+  const rt = t.records.tiles;
 
   const tiles = [
     { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
@@ -104,6 +113,10 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       text: featured ? `${featured.title} · ${h.tiles.experiments.phase[experimentPhase(featured, today)]}` : h.tiles.experiments.none,
     },
     { href: "/member/goals", title: t.core.tabs.goals, text: h.tiles.goals(selfRewards.length, rewards.points) },
+    { href: "/member/medications", title: t.core.tabs.medications, text: rt.medications(meds.filter((m) => medicationStatus(m, today) === "active").length) },
+    { href: "/member/biomarkers", title: t.core.tabs.biomarkers, text: rt.biomarkers(markers.length, outOfRange(markers).length) },
+    { href: "/member/labs", title: t.core.tabs.labs, text: rt.labs(labReports.length, labReports[0] ? formatDate(labReports[0].takenOn, locale) : null) },
+    { href: "/member/integrations", title: t.core.tabs.integrations, text: rt.integrations(Boolean(oura)) },
     { href: "/member/sharing", title: t.core.tabs.sharing, text: h.tiles.sharing(sharedScopes, activeLinks) },
     { href: "/member/profile", title: t.core.tabs.profile, text: h.tiles.profile(strength.score) },
   ];

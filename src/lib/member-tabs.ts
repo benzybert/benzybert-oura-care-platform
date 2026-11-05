@@ -11,6 +11,10 @@ export const TAB_IDS = [
   "data",
   "experiments",
   "goals",
+  "medications",
+  "biomarkers",
+  "labs",
+  "integrations",
   "sharing",
   "profile",
 ] as const;
@@ -25,16 +29,23 @@ export const TAB_HREFS: Record<MemberTab, string> = {
   data: "/member/data",
   experiments: "/member/experiments",
   goals: "/member/goals",
+  medications: "/member/medications",
+  biomarkers: "/member/biomarkers",
+  labs: "/member/labs",
+  integrations: "/member/integrations",
   sharing: "/member/sharing",
   profile: "/member/profile",
 };
 
-/** Tabs about the account rather than the member's health: the sidebar lists them under a divider. */
-export const ACCOUNT_TABS: readonly MemberTab[] = ["sharing", "profile"];
+/** Health records the member types in: the sidebar lists them as their own group. */
+export const RECORD_TABS: readonly MemberTab[] = ["medications", "biomarkers", "labs"];
+/** Tabs about the account rather than the member's health: the sidebar lists them last. */
+export const ACCOUNT_TABS: readonly MemberTab[] = ["integrations", "sharing", "profile"];
 
-/** The sidebar's two groups, each in the member's tab order: health topics first, account tabs after the divider. */
-export function navGroups(order: readonly MemberTab[]): [MemberTab[], MemberTab[]] {
-  return [order.filter((t) => !ACCOUNT_TABS.includes(t)), order.filter((t) => ACCOUNT_TABS.includes(t))];
+/** The sidebar's groups, each in the member's tab order: ring data and habits, health records, account. */
+export function navGroups(order: readonly MemberTab[]): [MemberTab[], MemberTab[], MemberTab[]] {
+  const inGroup = (g: readonly MemberTab[]) => order.filter((t) => g.includes(t));
+  return [order.filter((t) => !RECORD_TABS.includes(t) && !ACCOUNT_TABS.includes(t)), inGroup(RECORD_TABS), inGroup(ACCOUNT_TABS)];
 }
 
 /** What a member can say matters most to them. The first one picked is the main focus. */
@@ -62,7 +73,7 @@ export function parseFocusAreas(values: unknown[]): FocusArea[] {
 export function tabOrder(focus: readonly string[] | null | undefined): MemberTab[] {
   const heartFirst = focus?.[0] === "heart";
   const heartGroup: MemberTab[] = ["heart", "circle", "challenges"];
-  const rest: MemberTab[] = ["data", "experiments", "goals", "sharing", "profile"];
+  const rest: MemberTab[] = ["data", "experiments", "goals", ...RECORD_TABS, ...ACCOUNT_TABS];
   return heartFirst
     ? ["home", ...heartGroup, ...rest]
     : ["home", "data", ...heartGroup, ...rest.filter((t) => t !== "data")];

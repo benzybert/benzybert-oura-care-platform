@@ -840,6 +840,92 @@ export const challengeParticipants = pgTable(
   (t) => [primaryKey({ columns: [t.challengeId, t.memberId] }), index("challenge_participants_member_idx").on(t.memberId)],
 );
 
+/**
+ * The member's medications and supplements (/member/medications). Member-only: no staff, org, doctor-link or
+ * aggregate view reads it, and it needs no consent scope. What the member types is shown back to them, nothing more.
+ */
+export const medications = pgTable(
+  "medications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    /** medication | supplement (src/lib/medications.ts) */
+    kind: text("kind").notNull(),
+    name: text("name").notNull(),
+    dose: text("dose"),
+    /** morning | noon | evening | bedtime | as_needed */
+    times: text("times").array().notNull().default(sql`'{}'::text[]`),
+    reason: text("reason"),
+    startedOn: date("started_on", { mode: "string" }),
+    /** the first day without it; empty while still taken */
+    stoppedOn: date("stopped_on", { mode: "string" }),
+    note: text("note"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("medications_member_idx").on(t.memberId)],
+);
+
+/** One lab test (a blood draw on one day) the member typed in (/member/labs). Member-only, like medications. */
+export const labReports = pgTable(
+  "lab_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    takenOn: date("taken_on", { mode: "string" }).notNull(),
+    lab: text("lab"),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("lab_reports_member_idx").on(t.memberId, t.takenOn)],
+);
+
+/** One measured value in a lab report. `biomarker` is a key of src/lib/biomarkers.ts or "custom" with `name`. */
+export const labResults = pgTable(
+  "lab_results",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => labReports.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    biomarker: text("biomarker").notNull(),
+    name: text("name"),
+    value: real("value").notNull(),
+    /** empty means the biomarker's usual unit */
+    unit: text("unit"),
+    /** the reference range printed on the lab's report, when the member typed it */
+    refLow: real("ref_low"),
+    refHigh: real("ref_high"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("lab_results_member_idx").on(t.memberId, t.biomarker), index("lab_results_report_idx").on(t.reportId)],
+);
+
+/** A view the member composed from cards ("Create custom view"), listed in the sidebar. Member-only. */
+export const customViews = pgTable(
+  "custom_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** card ids in display order (src/lib/custom-views.ts) */
+    widgets: text("widgets").array().notNull(),
+    days: integer("days").notNull().default(30),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("custom_views_member_idx").on(t.memberId)],
+);
+
 /** Who looked at whose data, and why. Members can be shown their own access log. */
 export const auditLog = pgTable(
   "audit_log",

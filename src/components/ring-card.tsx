@@ -17,7 +17,7 @@ export async function RingCard({
 }: {
   oura: { lastSyncAt: Date | null } | null;
   askMore: boolean;
-  back?: "ring";
+  back?: "ring" | "integrations";
   locale?: Locale;
 }) {
   const locale = forced ?? (await getLocale());

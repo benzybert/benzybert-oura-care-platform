@@ -872,6 +872,13 @@ select:focus-visible {
 .member-main {
   min-width: 0;
 }
+.member-nav a.member-nav-create {
+  color: var(--accent);
+  border-style: dashed;
+}
+.member-nav-heading {
+  display: none;
+}
 
 @media (min-width: 900px) {
   main:has(> .member-layout) {
@@ -916,6 +923,23 @@ select:focus-visible {
   }
   .member-nav a[aria-current="page"] .member-nav-icon {
     color: var(--accent);
+  }
+  .member-nav a span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .member-nav a.member-nav-create {
+    color: var(--accent);
+  }
+  .member-nav-heading {
+    display: block;
+    padding: 10px 12px 4px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
   .member-nav-divider {
     display: block;

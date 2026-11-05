@@ -72,8 +72,8 @@ Stop and ask only for destructive, irreversible actions on real data (dropping t
 
 - Every tab calls `loadMember()` (role check + own member; re-syncs a stale ring unless `{ sync: false }`). It is not a layout on purpose: each page checks the role itself.
 - Redirect notices are short query keys (`?doctor=saved`) mapped in `_shell/messages.ts`; any tab shows any of them. Server actions redirect to the tab that owns the feature and call `revalidatePath("/member", "layout")`.
-- New member features get their own tab (add it to `TAB_IDS`/`TAB_HREFS` in `src/lib/member-tabs.ts`, its label to `core.tabs` in the dictionary, and a tile on the home tab), not another card on the home tab. Tabs: home, heart, circle (family), challenges, data, experiments, goals, sharing, profile. Their order follows the member's main focus (`tabOrder`).
-- `loadMember()` also loads `member_prefs` and the open heart alerts; `MemberShell` reads them for the tab order and the alert banner. A member who has not answered onboarding (`member_prefs.onboarded_at`) is sent from Home to `/member/welcome` once; skipping counts.
+- New member features get their own tab (add it to `TAB_IDS`/`TAB_HREFS` in `src/lib/member-tabs.ts`, its label to `core.tabs` in the dictionary, an icon in `member-nav-icon.tsx`, and a tile on the home tab), not another card on the home tab. Tabs: home, heart, circle (family), challenges, data, experiments, goals, medications, biomarkers, labs, integrations, sharing, profile. Their order follows the member's main focus (`tabOrder`); the sidebar groups them (`navGroups`: ring and habits, `RECORD_TABS`, `ACCOUNT_TABS`) and ends with "Create custom view" and the member's custom views (`loadMember` loads them).
+- `loadMember()` also loads `member_prefs`, the open heart alerts and the member's custom views; `MemberShell` reads them for the tab order and the alert banner. A member who has not answered onboarding (`member_prefs.onboarded_at`) is sent from Home to `/member/welcome` once; skipping counts.
 
 ## Feature: "send to my doctors" (member page)
 
@@ -140,6 +140,16 @@ Built for a family member with a heart condition, details in `docs/ARCHITECTURE.
 - **Tests that need a real database**: `src/lib/heart/watch.integration.test.ts` runs only with `TEST_DATABASE_URL` set to a throwaway Postgres with every migration applied (channels are mocked, nothing is sent). Run it when touching `watch.ts`, `challenge-data.ts` or the schema. Known gaps in the repo's migrations on a fresh database: `0006` enables RLS on `context_events` that no migration creates, and no SQL file adds `daily_metrics.stress_*` (they exist in Production). Create those two by hand when building a scratch database.
 - **Schedule**: `docs/supabase-sync-schedule.sql` also defines `heart-watch-tick` (every 5 minutes, `/api/alerts/tick`, no secret, returns counts only). It must be created in the database once for repeats and "no data" alerts to run between syncs.
 - **Branch note**: this work was developed on `claude/heart-health-monitoring-r58zzd` (the session's designated branch), not `main`.
+
+## Feature: health records, integrations, custom views (Nov 2026)
+
+Migration `0018` (tables `medications`, `lab_reports`, `lab_results`, `custom_views`), details in `docs/ARCHITECTURE.md#health-records-integrations-and-custom-views-migration-0018`. Tabs `/member/medications`, `/member/labs` (+ `/member/labs/[id]`), `/member/biomarkers`, `/member/integrations`, and `/member/views/new` + `/member/views/[id]`. Text in `src/lib/i18n/dict/records.ts` (English and Hebrew), styles in `src/components/records.css` (`rc-*`), queries in `src/lib/records-data.ts`, actions in `src/app/records-actions.ts`.
+
+- **Member-only.** No staff, org, doctor-link, PDF, family or aggregate code reads these tables; every query filters by the member's id and every action re-checks ownership. No consent scope, no audit (own data on own pages).
+- **Medications**: "since you started" reuses `compareMetric` from `experiments.ts` (same thresholds, same honesty wording) and always says never to change a medication because of it without a doctor. Never call it an effect of the medication.
+- **Labs and biomarkers**: catalog in `src/lib/biomarkers.ts` (names in the dictionary). The lab's own printed range always wins; the catalog's common adult range is used only when the unit matches. "Within / below / above the range", never a diagnosis. Ranges written "a to b", never with a dash. Not built: file upload, OCR, unit conversion, editing a result (delete and re-add).
+- **Integrations**: other wearables stay marked planned, as on the landing page.
+- **Custom views**: cards from `WIDGET_IDS`; stored ids no longer in the catalog are skipped (`knownWidgets`), so removing a card never breaks a view. A view reads only the data its cards need.
 
 ## Removed: "מרכז פעולות" and "הקשר חיצוני"
 

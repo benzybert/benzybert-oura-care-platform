@@ -10,6 +10,7 @@ import { getT } from "@/lib/i18n/server";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
 import { MemberNavIcon } from "@/components/member-nav-icon";
 import { TAB_HREFS, navGroups, tabOrder, type MemberTab } from "@/lib/member-tabs";
+import { getCustomViews } from "@/lib/records-data";
 import { requireRole } from "@/lib/session";
 import { noticesFor, type MemberSearchParams } from "./messages";
 
@@ -20,10 +21,15 @@ export type { MemberTab };
  * route and server-checks the role itself; this file only holds the shared frame.
  */
 
-type VisitState = { syncing: boolean; prefs: MemberPrefsRow | null; alerts: HeartAlertRow[] };
+type VisitState = {
+  syncing: boolean;
+  prefs: MemberPrefsRow | null;
+  alerts: HeartAlertRow[];
+  views: Array<{ id: string; name: string }>;
+};
 
 /** Per-request state: loadMember fills it, the shell reads it. */
-const visitState = cache((): VisitState => ({ syncing: false, prefs: null, alerts: [] }));
+const visitState = cache((): VisitState => ({ syncing: false, prefs: null, alerts: [], views: [] }));
 
 /** The signed-in member, or a redirect. Re-syncs a stale ring first unless `sync` is false. */
 export async function loadMember({ sync = true }: { sync?: boolean } = {}) {
@@ -32,12 +38,20 @@ export async function loadMember({ sync = true }: { sync?: boolean } = {}) {
   if (!member) redirect("/");
   if (sync && (await syncOnVisit(member.id))) visitState().syncing = true;
   const db = getDb();
-  const [prefs, alerts] = await Promise.all([getMemberPrefs(db, member.id), getOpenHeartAlerts(db, member.id)]);
+  const [prefs, alerts, views] = await Promise.all([
+    getMemberPrefs(db, member.id),
+    getOpenHeartAlerts(db, member.id),
+    getCustomViews(db, member.id),
+  ]);
   const state = visitState();
   state.prefs = prefs;
   state.alerts = alerts;
+  state.views = views.map((v) => ({ id: v.id, name: v.name }));
   return { user, member, prefs };
 }
+
+/** The page being shown: a tab, the "create custom view" page, or one of the member's custom views. */
+export type ShellPage = MemberTab | "new_view" | { view: string };
 
 export async function MemberShell({
   tab,
@@ -47,7 +61,7 @@ export async function MemberShell({
   hebrew = false,
   children,
 }: {
-  tab: MemberTab;
+  tab: ShellPage;
   title: string;
   lead?: string;
   params?: MemberSearchParams;
@@ -63,21 +77,44 @@ export async function MemberShell({
     .sort((a, b) => LEVEL_RANK[alertLevel(b)] - LEVEL_RANK[alertLevel(a)])[0];
   const topRule = top && isHeartRule(top.rule) ? top.rule : null;
 
-  const [healthTabs, accountTabs] = navGroups(tabOrder(state.prefs?.focusAreas));
+  const [ringTabs, recordTabs, accountTabs] = navGroups(tabOrder(state.prefs?.focusAreas));
+  const current = (id: MemberTab) => (id === tab ? "page" : undefined);
   const link = (id: MemberTab) => (
-    <a key={id} href={TAB_HREFS[id]} aria-current={id === tab ? "page" : undefined}>
+    <a key={id} href={TAB_HREFS[id]} aria-current={current(id)}>
       <MemberNavIcon tab={id} />
       <span>{t.core.tabs[id]}</span>
     </a>
   );
+  const viewOpen = typeof tab === "object" ? tab.view : null;
+  const v = t.records.nav;
 
   return (
     <div className="member-layout">
       {/* Sidebar on wide screens, a sticky scrolling bar on phones. Same links, same order. */}
       <nav className="member-nav" aria-label={t.core.memberAreaLabel}>
-        {healthTabs.map(link)}
+        {ringTabs.map(link)}
+        <hr className="member-nav-divider" />
+        {recordTabs.map(link)}
         <hr className="member-nav-divider" />
         {accountTabs.map(link)}
+        <hr className="member-nav-divider" />
+        <a className="member-nav-create" href="/member/views/new" aria-current={tab === "new_view" ? "page" : undefined}>
+          <MemberNavIcon tab="new_view" />
+          <span>{v.createView}</span>
+        </a>
+        {state.views.length > 0 && (
+          <>
+            <span className="member-nav-heading" aria-hidden="true">
+              {v.myViews}
+            </span>
+            {state.views.map((cv) => (
+              <a key={cv.id} href={`/member/views/${cv.id}`} aria-current={viewOpen === cv.id ? "page" : undefined}>
+                <MemberNavIcon tab="view" />
+                <span>{cv.name}</span>
+              </a>
+            ))}
+          </>
+        )}
       </nav>
 
       <div className="member-main">

@@ -37,10 +37,11 @@ describe("parseFocusAreas", () => {
 });
 
 describe("navGroups", () => {
-  it("puts sharing and profile after the divider and keeps the order", () => {
-    const [health, account] = navGroups(tabOrder(["heart"]));
-    expect(health.slice(0, 2)).toEqual(["home", "heart"]);
-    expect(account).toEqual(["sharing", "profile"]);
-    expect([...health, ...account].sort()).toEqual([...TAB_IDS].sort());
+  it("splits ring tabs, health records and account tabs, keeping the order", () => {
+    const [ring, records, account] = navGroups(tabOrder(["heart"]));
+    expect(ring.slice(0, 2)).toEqual(["home", "heart"]);
+    expect(records).toEqual(["medications", "biomarkers", "labs"]);
+    expect(account).toEqual(["integrations", "sharing", "profile"]);
+    expect([...ring, ...records, ...account].sort()).toEqual([...TAB_IDS].sort());
   });
 });

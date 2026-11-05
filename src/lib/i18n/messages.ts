@@ -6,11 +6,12 @@ import { heart } from "./dict/heart";
 import { home } from "./dict/home";
 import { insights } from "./dict/insights";
 import { landing } from "./dict/landing";
+import { records } from "./dict/records";
 import { site } from "./dict/site";
 import { staff } from "./dict/staff";
 
 /** Every namespace, per language. Add a namespace here when you add a dictionary file. */
-const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights };
+const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records };
 
 type Namespaces = typeof namespaces;
 
