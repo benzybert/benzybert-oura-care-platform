@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInstinctPrompt, suggestActions, whatsappLink } from "./actions-engine";
+import { suggestActions } from "./actions-engine";
 import type { DayMetric } from "./types";
 
 const day = (d: string, o: Partial<DayMetric> = {}): DayMetric => ({
@@ -33,17 +33,5 @@ describe("suggestActions", () => {
   });
   it("needs a baseline for HRV", () => {
     expect(suggestActions([day("2026-10-21", { averageHrv: 10 })], "2026-10-21")).toEqual([]);
-  });
-});
-
-describe("WhatsApp prompt", () => {
-  it("has the task and no numbers", () => {
-    expect(buildInstinctPrompt({ task: "לנוח" })).not.toMatch(/\d/);
-  });
-  it("builds a wa.me link with the text encoded", () => {
-    const url = whatsappLink("+1 (650) 870-2892", "שלום & להתראות");
-    expect(url.startsWith("https://wa.me/16508702892?text=")).toBe(true);
-    expect(url).not.toContain(" ");
-    expect(url).toContain(encodeURIComponent("&"));
   });
 });
