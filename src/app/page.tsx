@@ -7,12 +7,14 @@ import "./landing.css";
 import { GroupBarsVisual, PatientHrvVisual, SleepStackChart, TrendChart } from "@/components/landing/charts";
 import { DayDial } from "@/components/landing/day-dial";
 import { MinutesCounter } from "@/components/landing/minutes-counter";
+import { ShareDemo } from "@/components/landing/share-demo";
 import { solutionAnchor } from "@/components/landing/solution-ids";
 import { Solutions } from "@/components/landing/solutions";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { ROLE_HOME } from "@/lib/auth-rules";
 import { databaseUrl, demoAuthEnabled } from "@/lib/env";
-import { intlTag } from "@/lib/i18n";
+import { dirOf, intlTag } from "@/lib/i18n";
+import { siteUrl } from "@/config/site";
 import { getT } from "@/lib/i18n/server";
 import { APPOINTMENT_MINUTES, YEAR_MINUTES } from "@/lib/landing/dial";
 import { HRV_BASELINE, RESTING_HR_BASELINE, hrv, restingHr } from "@/lib/landing/sample-data";
@@ -569,6 +571,10 @@ export default async function Home() {
               </li>
             ))}
           </ol>
+          <figure className="lp-demo">
+            <ShareDemo text={L.how.demo} host={new URL(siteUrl()).host} data={hrv} dir={dirOf(locale)} />
+            <figcaption className="lp-mono lp-illustrative">{L.how.demo.caption}</figcaption>
+          </figure>
         </div>
       </section>
 

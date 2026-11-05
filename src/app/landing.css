@@ -1867,3 +1867,15 @@ main:has(> .lp) {
 .lp-impl-cta .lp-btn {
   justify-self: start;
 }
+
+/* 06 How it works: the "send to my doctor" demo under the steps (share-demo.tsx) */
+.lp-demo {
+  margin: 64px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.lp-demo .lp-illustrative {
+  justify-self: center;
+  text-align: center;
+  color: var(--lp-ink-2);
+}

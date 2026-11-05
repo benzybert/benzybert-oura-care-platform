@@ -1,0 +1,322 @@
+/*
+ * The landing page's "send to my doctor" demo (share-demo.tsx), on the Stageshow kit.
+ * Everything is nested under .sd so nothing leaks into the page, and the page's own rules
+ * stay out of the stage. Positions use logical properties, so the Hebrew page mirrors the
+ * picture (navigation on the right, the doctor's card straddling the right edge).
+ *
+ * Geometry, wide (760 x 400): window 96 from the start edge, 40 from the top, 760 wide,
+ * so it runs about 13% off the far side and off the bottom. Navigation 168 wide; the
+ * doctor's card (236 wide, 40 from the start edge, the top's gutter) covers only navigation, about a third
+ * of it outside the window. Compact (358 x 352): see the block at the end.
+ */
+
+.sd {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.sd .ss-stage {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--ss-well);
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif;
+}
+
+.sd .sd-win {
+  position: absolute;
+  top: 40px;
+  inset-inline-start: 96px;
+  width: 760px;
+  height: 420px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.sd .sd-app {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  height: 100%;
+  background: var(--ss-surface);
+}
+
+.sd .sd-nav {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 18px 12px;
+  border-inline-end: 1px solid var(--ss-line);
+  background: var(--ss-canvas);
+}
+
+.sd .sd-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding-inline: 10px;
+  border-radius: 8px;
+}
+
+.sd .sd-nav-item[data-on] {
+  background: var(--ss-surface);
+  box-shadow: 0 0 0 1px var(--ss-line-faint);
+}
+
+.sd .sd-main {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: 400px;
+  padding: 22px 28px;
+}
+
+.sd .sd-title {
+  color: var(--ss-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sd .sd-card {
+  display: grid;
+  padding: 4px 14px 2px;
+  border-radius: 12px;
+  background: var(--ss-surface);
+  box-shadow: 0 0 0 1px var(--ss-line);
+}
+
+.sd .sd-card-head {
+  padding: 12px 0 4px;
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sd .sd-row {
+  height: 54px;
+  border-radius: 0;
+  border-top: 1px solid var(--ss-line-faint);
+}
+
+.sd .sd-card-head + .sd-row {
+  border-top: 0;
+}
+
+.sd .sd-role {
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sd .sd-role-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ss-accent-soft);
+  color: var(--ss-accent);
+}
+
+.sd .sd-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+/* The second line: the doctor's name (a placeholder) and, once opened, "Opened" beside it */
+.sd .sd-sub {
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+
+/* "Opened" opens its own width beside the name, then fades in */
+.sd .sd-opened {
+  display: inline-grid;
+  flex: none;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-width 0.45s cubic-bezier(0.45, 0, 0.1, 1),
+    padding 0.45s cubic-bezier(0.45, 0, 0.1, 1),
+    opacity 0.25s ease;
+}
+
+.sd .sd-opened[data-show] {
+  max-width: 104px;
+  padding-inline-start: 8px;
+  opacity: 1;
+  transition:
+    max-width 0.45s cubic-bezier(0.45, 0, 0.1, 1),
+    padding 0.45s cubic-bezier(0.45, 0, 0.1, 1),
+    opacity 0.3s ease 0.2s;
+}
+
+.sd .sd-opened .ss-badge {
+  white-space: nowrap;
+}
+
+/* A trigger with its popover open keeps its pressed look */
+.sd .ss-button[data-open] {
+  background: color-mix(in srgb, var(--ss-surface), #000 5%);
+}
+
+.sd .sd-card-quiet {
+  gap: 10px;
+  padding: 16px 14px 60px;
+}
+
+/* The review step, anchored under Send */
+.sd .sd-review {
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.sd .sd-review-title {
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sd .sd-review-line {
+  margin: 0;
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sd .sd-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+/* The doctor's read-only view: a satellite over the window's navigation */
+.sd .sd-doctor {
+  position: absolute;
+  top: 150px;
+  inset-inline-start: 40px;
+  width: 236px;
+  display: grid;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--ss-surface);
+  box-shadow: var(--ss-shadow-satellite);
+  opacity: 0;
+  transform: translateY(-12px);
+  /* Kept on its own layer, so its text does not hop as the transform ends */
+  will-change: transform;
+  transition:
+    opacity 0.25s ease,
+    transform 0.4s cubic-bezier(0.45, 0, 0.1, 1);
+}
+
+.sd .sd-doctor[data-show] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.9s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sd .sd-doctor-label {
+  color: var(--ss-text);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.sd .sd-doctor-title {
+  margin-top: 2px;
+  color: var(--ss-text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sd .sd-doctor-metric {
+  margin-top: 14px;
+  color: var(--ss-text);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.sd .sd-chart {
+  margin-top: 6px;
+}
+
+.sd .sd-doctor-rest {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* Where the cursor rests between beats: empty surface beside the page title */
+.sd .sd-rest {
+  position: absolute;
+  top: 104px;
+  inset-inline-start: 620px;
+  width: 1px;
+  height: 1px;
+}
+
+/* Compact: the phone column. A closer, square crop: no navigation, one doctor, and the
+   doctor's card straddling the window's start edge over the quiet card, running off the
+   bottom once its chart is whole. */
+.sd .ss-stage[data-layout="compact"] .sd-win {
+  top: 24px;
+  inset-inline-start: 40px;
+  width: 360px;
+  height: 360px;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-app {
+  grid-template-columns: 1fr;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-nav {
+  display: none;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-main {
+  width: 278px;
+  padding: 20px 16px;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-doctor {
+  top: 220px;
+  inset-inline-start: 24px;
+  width: 228px;
+  padding: 12px 14px;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-doctor-metric {
+  margin-top: 8px;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-chart {
+  margin-top: 4px;
+}
+
+.sd .ss-stage[data-layout="compact"] .sd-rest {
+  top: 88px;
+  inset-inline-start: 304px;
+}
+
+/* Hebrew: the window keeps dir="ltr" for its macOS chrome, so its logical inset would resolve
+   left to right; mirror its place by hand. Everything else mirrors through logical properties. */
+.sd[dir="rtl"] .sd-win {
+  left: auto;
+  right: 96px;
+}
+
+.sd[dir="rtl"] .ss-stage[data-layout="compact"] .sd-win {
+  left: auto;
+  right: 40px;
+}
