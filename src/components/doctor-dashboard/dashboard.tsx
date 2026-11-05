@@ -80,7 +80,11 @@ export type DashboardMeta = {
   sections?: DashSection[];
   /** member mode: which contributor lists the "what drives the scores" section shows (default both) */
   contributorSets?: Array<"sleep" | "readiness">;
+  /** member mode: which pattern cards the "rhythm" section shows (default all three) */
+  patternSets?: PatternSet[];
 };
+
+export type PatternSet = "week" | "short" | "stress";
 
 export type DashSection =
   | "hero"
@@ -410,15 +414,347 @@ function clockNights(slots: DaySlot[]): ClockNight[] {
   return out;
 }
 
+export type DashCardKey =
+  | "sleepHours"
+  | "hrv"
+  | "restingHr"
+  | "readiness"
+  | "sleepScore"
+  | "bedtime"
+  | "steps"
+  | "efficiency"
+  | "breath"
+  | "temperature"
+  | "stress";
+
+/** One chart card of the dashboard, drawn full width when `wide`. */
+export type DashCard = (wide: boolean) => ReactNode;
+
+/**
+ * The dashboard's trend and physiology chart cards, one renderer per metric, so the member's data tab can place each
+ * card in its own category (sleep, heart, stress, oxygen...) while the doctor link keeps them in their sections.
+ * A card is missing when its data is: efficiency, breathing, temperature and stress need at least one value.
+ */
+export function dashboardCards(data: DashboardData, isMember: boolean): Partial<Record<DashCardKey, DashCard>> {
+  const { kpis, slots, rolling, bedtime, detail, patterns } = data;
+  const days = slots.map((s) => s.day);
+  const has = (key: DetailKey) => detail[key].count > 0;
+  const reference = (key: MetricKey, label: string) =>
+    kpis[key].reference !== null ? { value: kpis[key].reference as number, label } : undefined;
+  const series = (f: (s: DaySlot) => number | null | undefined) => slots.map((s) => f(s) ?? null);
+  const breathValues = series((s) => s.averageBreath);
+  const effValues = series((s) => s.sleepEfficiency);
+  const tempValues = series((s) => s.temperatureDeviation);
+  const tempReal = tempValues.filter((v): v is number => v !== null);
+
+  const cards: Partial<Record<DashCardKey, DashCard>> = {
+    sleepHours: (wide) => (
+      <Trend
+        key="sleepHours"
+        wide={wide}
+        title="משך שינה"
+        caption="שעות שינה בפועל בכל לילה."
+        stat={
+          <>
+            <strong>{fmtNum(kpis.totalSleepHours.period, 1)}</strong> ש׳ בממוצע
+          </>
+        }
+        chart={{
+          days,
+          values: slots.map((s) => s.totalSleepHours),
+          kind: "bars",
+          valueLabel: "שעות שינה",
+          unit: "שעות",
+          digits: 1,
+          domain: [0, Math.max(10, Math.ceil(Math.max(0, ...slots.map((s) => s.totalSleepHours ?? 0))))],
+          band: { from: 7, to: 9, label: "טווח מומלץ למבוגרים: 7–9 שעות" },
+          flag: { below: SHORT_SLEEP_HOURS, label: `פחות מ-${SHORT_SLEEP_HOURS} שעות` },
+          summary: `ממוצע ${fmtNum(kpis.totalSleepHours.period, 1)} שעות ללילה בתקופה.`,
+          height: 230,
+        }}
+      />
+    ),
+    hrv: (wide) => (
+      <Trend
+        key="hrv"
+        wide={wide}
+        title="HRV"
+        caption={`שונות קצב הלב הממוצעת בשינה. חשובה המגמה ביחס לערכים ${isMember ? "שלך" : "של המטופל"}.`}
+        stat={
+          <>
+            <strong>{fmtNum(kpis.averageHrv.recent)}</strong> ms לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: slots.map((s) => s.averageHrv),
+          avg: rolling.averageHrv,
+          kind: "dots",
+          valueLabel: "HRV",
+          unit: "ms",
+          reference: reference("averageHrv", "ממוצע תחילת התקופה"),
+          summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.averageHrv.recent)} מילישניות.`,
+        }}
+      />
+    ),
+    restingHr: (wide) => (
+      <Trend
+        key="restingHr"
+        wide={wide}
+        title="דופק מנוחה"
+        caption="הדופק הנמוך ביותר שנמדד בכל לילה."
+        stat={
+          <>
+            <strong>{fmtNum(kpis.lowestHeartRate.recent)}</strong> bpm לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: slots.map((s) => s.lowestHeartRate),
+          avg: rolling.lowestHeartRate,
+          kind: "dots",
+          valueLabel: "דופק מנוחה",
+          unit: "פעימות לדקה",
+          reference: reference("lowestHeartRate", "ממוצע תחילת התקופה"),
+          summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.lowestHeartRate.recent)} פעימות לדקה.`,
+        }}
+      />
+    ),
+    readiness: (wide) => (
+      <Trend
+        key="readiness"
+        wide={wide}
+        title="ציון מוכנות"
+        caption="מדד מסכם של Oura (0–100) להתאוששות באותו בוקר."
+        stat={
+          <>
+            <strong>{fmtNum(kpis.readinessScore.recent)}</strong> לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: slots.map((s) => s.readinessScore),
+          avg: rolling.readinessScore,
+          kind: "dots",
+          valueLabel: "ציון מוכנות",
+          unit: "מתוך 100",
+          domain: [Math.min(40, Math.floor(Math.min(100, ...slots.map((s) => s.readinessScore ?? 100)) / 10) * 10), 100],
+          flag: { below: LOW_READINESS, label: `מתחת ל-${LOW_READINESS}` },
+          summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.readinessScore.recent)}.`,
+        }}
+      />
+    ),
+    sleepScore: (wide) => (
+      <Trend
+        key="sleepScore"
+        wide={wide}
+        title="ציון שינה"
+        caption="מדד מסכם של Oura (0–100) לאיכות הלילה."
+        stat={
+          <>
+            <strong>{fmtNum(kpis.sleepScore.recent)}</strong> לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: slots.map((s) => s.sleepScore),
+          avg: rolling.sleepScore,
+          kind: "dots",
+          valueLabel: "ציון שינה",
+          unit: "מתוך 100",
+          domain: [Math.min(40, Math.floor(Math.min(100, ...slots.map((s) => s.sleepScore ?? 100)) / 10) * 10), 100],
+          summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.sleepScore.recent)}.`,
+        }}
+      />
+    ),
+    bedtime: (wide) => (
+      <Trend
+        key="bedtime"
+        wide={wide}
+        title="שעת הירדמות"
+        caption="תחילת השינה העיקרית בכל לילה. פיזור גדול מעיד על שגרה לא סדירה."
+        stat={
+          <>
+            <strong>{fmtClock(bedtime.median)}</strong> חציון
+          </>
+        }
+        chart={{
+          days,
+          values: bedtime.series,
+          kind: "dots",
+          valueLabel: "שעת הירדמות",
+          unit: "",
+          format: "clock",
+          reference: bedtime.median !== null ? { value: bedtime.median, label: "חציון התקופה" } : undefined,
+          summary: `חציון ${fmtClock(bedtime.median)}, פיזור של כ-${bedtime.sd === null ? "–" : Math.round(bedtime.sd)} דקות.`,
+        }}
+      />
+    ),
+    steps: (wide) => (
+      <Trend
+        key="steps"
+        wide={wide}
+        title="צעדים"
+        caption="ספירת צעדים יומית מהטבעת."
+        stat={
+          <>
+            <strong>{fmtNum(kpis.steps.period)}</strong> בממוצע
+          </>
+        }
+        chart={{
+          days,
+          values: slots.map((s) => s.steps),
+          kind: "bars",
+          valueLabel: "צעדים",
+          unit: "צעדים",
+          format: "compact",
+          summary: `ממוצע ${fmtNum(kpis.steps.period)} צעדים ביום בתקופה.`,
+        }}
+      />
+    ),
+  };
+
+  if (has("sleepEfficiency")) {
+    cards.efficiency = (wide) => (
+      <Trend
+        key="efficiency"
+        wide={wide}
+        title="יעילות שינה"
+        caption="כמה מהזמן במיטה היה שינה בפועל."
+        stat={
+          <>
+            <strong>{fmtNum(detail.sleepEfficiency.recent)}</strong> אחוז לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: effValues,
+          avg: rollingMean(effValues),
+          kind: "dots",
+          valueLabel: "יעילות שינה",
+          unit: "אחוז",
+          domain: [Math.min(70, Math.floor(Math.min(100, ...effValues.map((v) => v ?? 100)) / 5) * 5), 100],
+          band: { from: EFFICIENCY_LOW, to: 100, label: `יעילות מקובלת: ${EFFICIENCY_LOW} ומעלה` },
+          summary: `ממוצע ${fmtNum(detail.sleepEfficiency.period)} אחוז יעילות שינה בתקופה.`,
+        }}
+      />
+    );
+  }
+  if (has("averageBreath")) {
+    cards.breath = (wide) => (
+      <Trend
+        key="breath"
+        wide={wide}
+        title="קצב נשימה בשינה"
+        caption="נשימות לדקה בממוצע הלילה. קפיצה מתמשכת יכולה לסמן מחלה או עומס."
+        stat={
+          <>
+            <strong>{fmtNum(detail.averageBreath.recent, 1)}</strong> לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: breathValues,
+          avg: rollingMean(breathValues),
+          kind: "dots",
+          valueLabel: "קצב נשימה",
+          unit: "נשימות לדקה",
+          digits: 1,
+          reference: detail.averageBreath.reference !== null ? { value: detail.averageBreath.reference, label: "ממוצע תחילת התקופה" } : undefined,
+          summary: `ממוצע ${fmtNum(detail.averageBreath.period, 1)} נשימות לדקה בשינה.`,
+        }}
+      />
+    );
+  }
+  if (has("temperatureDeviation")) {
+    cards.temperature = (wide) => (
+      <Trend
+        key="temperature"
+        wide={wide}
+        title="טמפרטורת עור בלילה"
+        caption="הסטייה מהקו האישי, במעלות. עלייה מתמשכת יכולה ללוות מחלה."
+        stat={
+          <>
+            <strong>{detail.temperatureDeviation.recent === null ? "–" : <bdi dir="ltr">{signed(detail.temperatureDeviation.recent, 2)}</bdi>}</strong> לאחרונה
+          </>
+        }
+        chart={{
+          days,
+          values: tempValues,
+          avg: rollingMean(tempValues),
+          kind: "dots",
+          valueLabel: "סטיית טמפרטורה",
+          unit: "מעלות",
+          digits: 2,
+          domain: [Math.min(-1, Math.floor(Math.min(...tempReal))), Math.max(1, Math.ceil(Math.max(...tempReal)))],
+          band: { from: -0.5, to: 0.5, label: "טווח רגיל: עד חצי מעלה" },
+          reference: { value: 0, label: "הקו האישי" },
+          summary: `סטייה ממוצעת ${detail.temperatureDeviation.period === null ? "–" : signed(detail.temperatureDeviation.period, 2)} מעלות מהקו האישי.`,
+        }}
+      />
+    );
+  }
+  if (has("stressMinutes") || has("recoveryMinutes")) {
+    cards.stress = (wide) => (
+      <ChartCard
+        key="stress"
+        wide={wide}
+        title="התאוששות מול עומס ביום"
+        caption="דקות התאוששות (למעלה) ודקות במצב לחץ (למטה), לפי Oura."
+        stat={
+          <>
+            <strong>{fmtNum(patterns.stress?.recoveryMinutes ?? null)}</strong> דק׳ התאוששות בממוצע
+          </>
+        }
+      >
+        <StackChart
+          days={days}
+          unit="דקות"
+          height={230}
+          summary={`בממוצע ${fmtNum(patterns.stress?.recoveryMinutes ?? null)} דקות התאוששות ו-${fmtNum(patterns.stress?.stressMinutes ?? null)} דקות לחץ ביום.`}
+          series={[
+            { key: "recovery", label: "התאוששות", color: "var(--viz-data)", values: series((s) => s.recoveryMinutes) },
+            { key: "stress", label: "לחץ", color: "var(--viz-attn)", negative: true, values: series((s) => s.stressMinutes) },
+          ]}
+        />
+      </ChartCard>
+    );
+  }
+  return cards;
+}
+
+/** Oura's day labels counted over the window: stressful, ordinary and restored days as one bar. */
+export function StressDaysCard({ stress }: { stress: NonNullable<DashboardData["patterns"]["stress"]> }) {
+  return (
+    <article className="panel pattern">
+      <h3>עומס והתאוששות ביום</h3>
+      <p className="pattern-big">
+        <bdi>{stress.stressful}</bdi> ימים מלחיצים ו-<bdi>{stress.restored}</bdi> ימי התאוששות מתוך <bdi>{stress.days}</bdi>
+      </p>
+      <div
+        className="shares-bar is-thin"
+        role="img"
+        aria-label={`${stress.stressful} ימים מלחיצים, ${stress.days - stress.stressful - stress.restored} רגילים, ${stress.restored} התאוששות`}
+      >
+        <span style={{ flexGrow: stress.stressful, background: "var(--viz-attn)" }} />
+        <span style={{ flexGrow: stress.days - stress.stressful - stress.restored, background: "var(--viz-neutral)" }} />
+        <span style={{ flexGrow: stress.restored, background: "var(--viz-data)" }} />
+      </div>
+      <p className="pattern-s">
+        בממוצע <bdi>{fmtNum(stress.stressMinutes)}</bdi> דקות במצב לחץ ו-<bdi>{fmtNum(stress.recoveryMinutes)}</bdi> דקות התאוששות ביום. סיווג
+        הימים הוא של Oura.
+      </p>
+    </article>
+  );
+}
+
 export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: DashboardMeta }) {
-  const { kpis, slots, rolling, bedtime, detail, shares, patterns, contributors } = data;
+  const { kpis, slots, bedtime, detail, shares, patterns, contributors } = data;
   const days = slots.map((s) => s.day);
   const attentionCount = data.findings.filter((f) => f.status === "attention").length;
   const refText = data.referenceRange
     ? `תחילת התקופה (${fmtShort(data.referenceRange.from)}–${fmtShort(data.referenceRange.to)})`
     : null;
-  const reference = (key: MetricKey, label: string) =>
-    kpis[key].reference !== null ? { value: kpis[key].reference as number, label } : undefined;
   const newestFirst = [...slots].reverse();
   const weeks = [...data.weeks].reverse();
   const empty = data.daysWithData === 0;
@@ -432,6 +768,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
   const hasStress = has("stressMinutes") || has("recoveryMinutes");
   const clock = clockNights(slots);
   const sets = meta.contributorSets ?? ["sleep", "readiness"];
+  const patternSets = meta.patternSets ?? ["week", "short", "stress"];
   const showSleepDrivers = sets.includes("sleep") && contributors.sleep.length > 0;
   const showReadinessDrivers = sets.includes("readiness") && contributors.readiness.length > 0;
   const hasContrib = showSleepDrivers || showReadinessDrivers;
@@ -440,10 +777,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
   const wideLast = physiology.length % 2 === 1 ? physiology[physiology.length - 1] : null;
 
   const series = (f: (s: DaySlot) => number | null | undefined) => slots.map((s) => f(s) ?? null);
-  const breathValues = series((s) => s.averageBreath);
   const effValues = series((s) => s.sleepEfficiency);
-  const tempValues = series((s) => s.temperatureDeviation);
-  const tempReal = tempValues.filter((v): v is number => v !== null);
 
   const heatMetrics: HeatMetric[] = [
     { key: "readiness", label: "מוכנות", unit: "", digits: 0, values: slots.map((s) => s.readinessScore), flagBelow: LOW_READINESS },
@@ -477,6 +811,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
   ];
 
   const isMember = meta.mode === "member";
+  const cards = dashboardCards(data, isMember);
   const show = (id: string) => !meta.sections || (meta.sections as string[]).includes(id);
 
   return (
@@ -653,7 +988,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
       </header>
       )}
 
-      {!empty && nav.filter((n) => show(n.id)).length > 1 && (
+      {!empty && !meta.sections && nav.filter((n) => show(n.id)).length > 1 && (
         <nav className="dash-nav no-print" aria-label="ניווט בדף">
           {nav.filter((n) => show(n.id)).map((n) => (
             <a key={n.id} href={`#sec-${n.id}`}>
@@ -862,6 +1197,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             ) : null}
 
             <div className="pattern-grid">
+              {patternSets.includes("week") && (
               <article className="panel pattern">
                 <h3>ימי עבודה מול סוף שבוע</h3>
                 {patterns.socialJetlagMinutes !== null && patterns.work.midpoint !== null && patterns.free.midpoint !== null ? (
@@ -901,7 +1237,9 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
                   <p className="pattern-none">אין מספיק לילות בכל קבוצה (נדרשים לפחות שלושה) להשוואה.</p>
                 )}
               </article>
+              )}
 
+              {patternSets.includes("short") && (
               <article className="panel pattern">
                 <h3>אחרי לילה קצר</h3>
                 {patterns.shortNights && patterns.shortNights.readinessShort !== null && patterns.shortNights.readinessOther !== null ? (
@@ -933,177 +1271,21 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
                   <p className="pattern-none">אין מספיק לילות קצרים ולילות רגילים בתקופה (נדרשים לפחות שלושה מכל סוג).</p>
                 )}
               </article>
-
-              {patterns.stress && (
-                <article className="panel pattern">
-                  <h3>עומס והתאוששות ביום</h3>
-                  <p className="pattern-big">
-                    <bdi>{patterns.stress.stressful}</bdi> ימים מלחיצים ו-<bdi>{patterns.stress.restored}</bdi> ימי התאוששות מתוך{" "}
-                    <bdi>{patterns.stress.days}</bdi>
-                  </p>
-                  <div
-                    className="shares-bar is-thin"
-                    role="img"
-                    aria-label={`${patterns.stress.stressful} ימים מלחיצים, ${patterns.stress.days - patterns.stress.stressful - patterns.stress.restored} רגילים, ${patterns.stress.restored} התאוששות`}
-                  >
-                    <span style={{ flexGrow: patterns.stress.stressful, background: "var(--viz-attn)" }} />
-                    <span style={{ flexGrow: patterns.stress.days - patterns.stress.stressful - patterns.stress.restored, background: "var(--viz-neutral)" }} />
-                    <span style={{ flexGrow: patterns.stress.restored, background: "var(--viz-data)" }} />
-                  </div>
-                  <p className="pattern-s">
-                    בממוצע <bdi>{fmtNum(patterns.stress.stressMinutes)}</bdi> דקות במצב לחץ ו-<bdi>{fmtNum(patterns.stress.recoveryMinutes)}</bdi> דקות
-                    התאוששות ביום. סיווג הימים הוא של Oura.
-                  </p>
-                </article>
               )}
+
+              {patternSets.includes("stress") && patterns.stress && <StressDaysCard stress={patterns.stress} />}
             </div>
           </Section>
 
           <Section show={show} id="trends" icon={<IconHeartPulse size={20} />} title="מגמות" lead="נקודה או עמודה לכל יום, וקו לממוצע נע של 7 ימים. ימים בלי נתונים נשארים ריקים.">
             <div className="chart-grid">
-              <Trend
-                wide
-                title="משך שינה"
-                caption="שעות שינה בפועל בכל לילה."
-                stat={
-                  <>
-                    <strong>{fmtNum(kpis.totalSleepHours.period, 1)}</strong> ש׳ בממוצע
-                  </>
-                }
-                chart={{
-                  days,
-                  values: slots.map((s) => s.totalSleepHours),
-                  kind: "bars",
-                  valueLabel: "שעות שינה",
-                  unit: "שעות",
-                  digits: 1,
-                  domain: [0, Math.max(10, Math.ceil(Math.max(0, ...slots.map((s) => s.totalSleepHours ?? 0))))],
-                  band: { from: 7, to: 9, label: "טווח מומלץ למבוגרים: 7–9 שעות" },
-                  flag: { below: SHORT_SLEEP_HOURS, label: `פחות מ-${SHORT_SLEEP_HOURS} שעות` },
-                  summary: `ממוצע ${fmtNum(kpis.totalSleepHours.period, 1)} שעות ללילה בתקופה.`,
-                  height: 230,
-                }}
-              />
-              <Trend
-                title="HRV"
-                caption={`שונות קצב הלב הממוצעת בשינה. חשובה המגמה ביחס לערכים ${isMember ? "שלך" : "של המטופל"}.`}
-                stat={
-                  <>
-                    <strong>{fmtNum(kpis.averageHrv.recent)}</strong> ms לאחרונה
-                  </>
-                }
-                chart={{
-                  days,
-                  values: slots.map((s) => s.averageHrv),
-                  avg: rolling.averageHrv,
-                  kind: "dots",
-                  valueLabel: "HRV",
-                  unit: "ms",
-                  reference: reference("averageHrv", "ממוצע תחילת התקופה"),
-                  summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.averageHrv.recent)} מילישניות.`,
-                }}
-              />
-              <Trend
-                title="דופק מנוחה"
-                caption="הדופק הנמוך ביותר שנמדד בכל לילה."
-                stat={
-                  <>
-                    <strong>{fmtNum(kpis.lowestHeartRate.recent)}</strong> bpm לאחרונה
-                  </>
-                }
-                chart={{
-                  days,
-                  values: slots.map((s) => s.lowestHeartRate),
-                  avg: rolling.lowestHeartRate,
-                  kind: "dots",
-                  valueLabel: "דופק מנוחה",
-                  unit: "פעימות לדקה",
-                  reference: reference("lowestHeartRate", "ממוצע תחילת התקופה"),
-                  summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.lowestHeartRate.recent)} פעימות לדקה.`,
-                }}
-              />
-              <Trend
-                title="ציון מוכנות"
-                caption="מדד מסכם של Oura (0–100) להתאוששות באותו בוקר."
-                stat={
-                  <>
-                    <strong>{fmtNum(kpis.readinessScore.recent)}</strong> לאחרונה
-                  </>
-                }
-                chart={{
-                  days,
-                  values: slots.map((s) => s.readinessScore),
-                  avg: rolling.readinessScore,
-                  kind: "dots",
-                  valueLabel: "ציון מוכנות",
-                  unit: "מתוך 100",
-                  domain: [
-                    Math.min(40, Math.floor(Math.min(100, ...slots.map((s) => s.readinessScore ?? 100)) / 10) * 10),
-                    100,
-                  ],
-                  flag: { below: LOW_READINESS, label: `מתחת ל-${LOW_READINESS}` },
-                  summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.readinessScore.recent)}.`,
-                }}
-              />
-              <Trend
-                title="ציון שינה"
-                caption="מדד מסכם של Oura (0–100) לאיכות הלילה."
-                stat={
-                  <>
-                    <strong>{fmtNum(kpis.sleepScore.recent)}</strong> לאחרונה
-                  </>
-                }
-                chart={{
-                  days,
-                  values: slots.map((s) => s.sleepScore),
-                  avg: rolling.sleepScore,
-                  kind: "dots",
-                  valueLabel: "ציון שינה",
-                  unit: "מתוך 100",
-                  domain: [
-                    Math.min(40, Math.floor(Math.min(100, ...slots.map((s) => s.sleepScore ?? 100)) / 10) * 10),
-                    100,
-                  ],
-                  summary: `ממוצע 7 ימים אחרונים ${fmtNum(kpis.sleepScore.recent)}.`,
-                }}
-              />
-              <Trend
-                title="שעת הירדמות"
-                caption="תחילת השינה העיקרית בכל לילה. פיזור גדול מעיד על שגרה לא סדירה."
-                stat={
-                  <>
-                    <strong>{fmtClock(bedtime.median)}</strong> חציון
-                  </>
-                }
-                chart={{
-                  days,
-                  values: bedtime.series,
-                  kind: "dots",
-                  valueLabel: "שעת הירדמות",
-                  unit: "",
-                  format: "clock",
-                  reference: bedtime.median !== null ? { value: bedtime.median, label: "חציון התקופה" } : undefined,
-                  summary: `חציון ${fmtClock(bedtime.median)}, פיזור של כ-${bedtime.sd === null ? "–" : Math.round(bedtime.sd)} דקות.`,
-                }}
-              />
-              <Trend
-                title="צעדים"
-                caption="ספירת צעדים יומית מהטבעת."
-                stat={
-                  <>
-                    <strong>{fmtNum(kpis.steps.period)}</strong> בממוצע
-                  </>
-                }
-                chart={{
-                  days,
-                  values: slots.map((s) => s.steps),
-                  kind: "bars",
-                  valueLabel: "צעדים",
-                  unit: "צעדים",
-                  format: "compact",
-                  summary: `ממוצע ${fmtNum(kpis.steps.period)} צעדים ביום בתקופה.`,
-                }}
-              />
+              {cards.sleepHours?.(true)}
+              {cards.hrv?.(false)}
+              {cards.restingHr?.(false)}
+              {cards.readiness?.(false)}
+              {cards.sleepScore?.(false)}
+              {cards.bedtime?.(false)}
+              {cards.steps?.(false)}
             </div>
           </Section>
 
@@ -1116,100 +1298,10 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
               lead="מדדים שמתווספים לתמונה: איך הגוף מתנהג בשינה, ואיך היום עבר."
             >
               <div className="chart-grid">
-                {hasEff && (
-                  <Trend
-                    wide={wideLast === "eff"}
-                    title="יעילות שינה"
-                    caption="כמה מהזמן במיטה היה שינה בפועל."
-                    stat={
-                      <>
-                        <strong>{fmtNum(detail.sleepEfficiency.recent)}</strong> אחוז לאחרונה
-                      </>
-                    }
-                    chart={{
-                      days,
-                      values: effValues,
-                      avg: rollingMean(effValues),
-                      kind: "dots",
-                      valueLabel: "יעילות שינה",
-                      unit: "אחוז",
-                      domain: [Math.min(70, Math.floor(Math.min(100, ...effValues.map((v) => v ?? 100)) / 5) * 5), 100],
-                      band: { from: EFFICIENCY_LOW, to: 100, label: `יעילות מקובלת: ${EFFICIENCY_LOW} ומעלה` },
-                      summary: `ממוצע ${fmtNum(detail.sleepEfficiency.period)} אחוז יעילות שינה בתקופה.`,
-                    }}
-                  />
-                )}
-                {hasBreath && (
-                  <Trend
-                    wide={wideLast === "breath"}
-                    title="קצב נשימה בשינה"
-                    caption="נשימות לדקה בממוצע הלילה. קפיצה מתמשכת יכולה לסמן מחלה או עומס."
-                    stat={
-                      <>
-                        <strong>{fmtNum(detail.averageBreath.recent, 1)}</strong> לאחרונה
-                      </>
-                    }
-                    chart={{
-                      days,
-                      values: breathValues,
-                      avg: rollingMean(breathValues),
-                      kind: "dots",
-                      valueLabel: "קצב נשימה",
-                      unit: "נשימות לדקה",
-                      digits: 1,
-                      reference: detail.averageBreath.reference !== null ? { value: detail.averageBreath.reference, label: "ממוצע תחילת התקופה" } : undefined,
-                      summary: `ממוצע ${fmtNum(detail.averageBreath.period, 1)} נשימות לדקה בשינה.`,
-                    }}
-                  />
-                )}
-                {hasTemp && (
-                  <Trend
-                    wide={wideLast === "temp"}
-                    title="טמפרטורת עור בלילה"
-                    caption="הסטייה מהקו האישי, במעלות. עלייה מתמשכת יכולה ללוות מחלה."
-                    stat={
-                      <>
-                        <strong>{detail.temperatureDeviation.recent === null ? "–" : <bdi dir="ltr">{signed(detail.temperatureDeviation.recent, 2)}</bdi>}</strong> לאחרונה
-                      </>
-                    }
-                    chart={{
-                      days,
-                      values: tempValues,
-                      avg: rollingMean(tempValues),
-                      kind: "dots",
-                      valueLabel: "סטיית טמפרטורה",
-                      unit: "מעלות",
-                      digits: 2,
-                      domain: [Math.min(-1, Math.floor(Math.min(...tempReal))), Math.max(1, Math.ceil(Math.max(...tempReal)))],
-                      band: { from: -0.5, to: 0.5, label: "טווח רגיל: עד חצי מעלה" },
-                      reference: { value: 0, label: "הקו האישי" },
-                      summary: `סטייה ממוצעת ${detail.temperatureDeviation.period === null ? "–" : signed(detail.temperatureDeviation.period, 2)} מעלות מהקו האישי.`,
-                    }}
-                  />
-                )}
-                {hasStress && (
-                  <ChartCard
-                    wide={wideLast === "stress"}
-                    title="התאוששות מול עומס ביום"
-                    caption="דקות התאוששות (למעלה) ודקות במצב לחץ (למטה), לפי Oura."
-                    stat={
-                      <>
-                        <strong>{fmtNum(patterns.stress?.recoveryMinutes ?? null)}</strong> דק׳ התאוששות בממוצע
-                      </>
-                    }
-                  >
-                    <StackChart
-                      days={days}
-                      unit="דקות"
-                      height={230}
-                      summary={`בממוצע ${fmtNum(patterns.stress?.recoveryMinutes ?? null)} דקות התאוששות ו-${fmtNum(patterns.stress?.stressMinutes ?? null)} דקות לחץ ביום.`}
-                      series={[
-                        { key: "recovery", label: "התאוששות", color: "var(--viz-data)", values: series((s) => s.recoveryMinutes) },
-                        { key: "stress", label: "לחץ", color: "var(--viz-attn)", negative: true, values: series((s) => s.stressMinutes) },
-                      ]}
-                    />
-                  </ChartCard>
-                )}
+                {cards.efficiency?.(wideLast === "eff")}
+                {cards.breath?.(wideLast === "breath")}
+                {cards.temperature?.(wideLast === "temp")}
+                {cards.stress?.(wideLast === "stress")}
               </div>
             </Section>
           )}

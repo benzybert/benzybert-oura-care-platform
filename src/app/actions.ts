@@ -146,7 +146,7 @@ export async function syncNow(formData?: FormData): Promise<void> {
   if (!member) redirect("/member");
   // The ring view of the data tab has its own button and comes back to itself; everywhere else it is the home tab.
   const backTo = formData?.get("back");
-  const back = backTo === "ring" ? "/member/data?view=ring&" : backTo === "integrations" ? "/member/integrations?" : "/member?";
+  const back = backTo === "ring" ? "/member/data?view=advanced&" : backTo === "integrations" ? "/member/integrations?" : "/member?";
   const connection = await ouraStatus(member.id);
   if (!connection) redirect(`${back}oura=not_connected`);
   if (syncCooldownLeftMs(connection.lastSyncAt) > 0) redirect(`${back}oura=sync_recent`);
