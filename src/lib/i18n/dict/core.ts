@@ -23,7 +23,7 @@ export const core = defineDict(
       labs: "Lab results",
       integrations: "Integrations",
       sharing: "Sharing & doctors",
-      profile: "Profile & Instinct",
+      profile: "Profile",
     },
     hebrewOnly: "This section is still in Hebrew.",
     ring: {
@@ -60,7 +60,6 @@ export const core = defineDict(
       items: {
         oura: "Connect an Oura ring",
         data: "Data is flowing (at least 3 recent days)",
-        instinct: "Sent an action to Instinct, the personal assistant",
         sharing: "Chose what is shared and with whom",
         doctor: "Added a doctor",
       },
@@ -94,10 +93,6 @@ export const core = defineDict(
         failed: "Sending failed and nothing was sent. Please try again.",
         too_many_links: "There are too many active doctor links. Revoke one below and try again.",
       },
-      integration: {
-        invalid: "That action is not valid. Please try again.",
-        gone: "That action is no longer relevant.",
-      },
       note: {
         ok: "Note saved.",
         invalid: "The note was not saved: it is too long.",
@@ -105,15 +100,6 @@ export const core = defineDict(
       suggest: {
         created: "The suggestions page is ready. Its link is in the post drafts.",
         rotated: "The link was replaced. The old link no longer works, so update it in your posts.",
-      },
-      coffee: {
-        sent: "We emailed you a coffee link. Enjoy ☕",
-        already: "You already got a coffee for this night.",
-        not_eligible: "Last night was not rough enough, so no coffee this time.",
-        not_configured: "The payment link is not set up on the server, so nothing was sent.",
-        mail_not_configured: "Email sending is not set up on the server, so nothing was sent.",
-        no_email: "Your account has no email address (you signed up with Oura), so there is nowhere to send the link.",
-        failed: "Sending failed and nothing was sent. Please try again.",
       },
       focus: {
         saved: "Your focus is saved.",
@@ -142,7 +128,7 @@ export const core = defineDict(
       labs: "תוצאות מעבדה",
       integrations: "חיבורים",
       sharing: "שיתוף ורופאים",
-      profile: "פרופיל ו-Instinct",
+      profile: "פרופיל",
     },
     hebrewOnly: "",
     ring: {
@@ -179,7 +165,6 @@ export const core = defineDict(
       items: {
         oura: "חיבור טבעת Oura",
         data: "נתונים זורמים (3 ימים אחרונים לפחות)",
-        instinct: "שלחתי פעולה ל-Instinct, העוזר האישי",
         sharing: "בחרתי מה משותף ועם מי",
         doctor: "הוספתי רופא",
       },
@@ -213,10 +198,6 @@ export const core = defineDict(
         failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
         too_many_links: "יש יותר מדי קישורים פעילים לרופאים. בטלו אחד למטה ונסו שוב.",
       },
-      integration: {
-        invalid: "הפעולה לא תקינה. נסו שוב.",
-        gone: "הפעולה כבר לא רלוונטית.",
-      },
       note: {
         ok: "ההערה נשמרה.",
         invalid: "ההערה לא נשמרה: היא ארוכה מדי.",
@@ -224,15 +205,6 @@ export const core = defineDict(
       suggest: {
         created: "דף ההצעות מוכן. הקישור מופיע בטיוטות של הפוסטים.",
         rotated: "הקישור הוחלף. הקישור הישן כבר לא עובד, אז עדכנו אותו בפוסטים.",
-      },
-      coffee: {
-        sent: "שלחנו לאימייל שלך קישור לקפה. תהנה ☕",
-        already: "כבר קיבלת קפה על הלילה הזה.",
-        not_eligible: "הלילה האחרון לא היה חלש מספיק, אז אין קפה הפעם.",
-        not_configured: "קישור התשלום עוד לא הוגדר בשרת, ולכן לא נשלח כלום.",
-        mail_not_configured: "שליחת מייל עוד לא הוגדרה בשרת, ולכן לא נשלח כלום.",
-        no_email: "אין כתובת אימייל בחשבון שלך (נרשמת עם Oura), אז אין לאן לשלוח את הקישור.",
-        failed: "השליחה נכשלה, ולא נשלח כלום. נסו שוב.",
       },
       focus: {
         saved: "המיקוד שלך נשמר.",

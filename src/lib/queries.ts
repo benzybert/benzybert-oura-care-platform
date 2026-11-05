@@ -3,7 +3,7 @@ import { getDb, schema } from "../db";
 import { hasActiveConsent, type ConsentRecord } from "./consent";
 import { decrypt } from "./crypto";
 import { addDays, todayInIsrael } from "./dates";
-import { instinctPath } from "./instinct-brief";
+import type { TodayExtras } from "./today";
 import { hashShareToken, sharePath, shareLinkStatus, type ShareLinkStatus } from "./share-links";
 import type { ConsentScope, DayExtras, DayMetric, DoctorRole, OuraEvent, OuraEventKind, OuraProfileData } from "./types";
 
@@ -21,9 +21,6 @@ const {
   shareLinks,
   selfRewards,
   experiments,
-  coffeeClaims,
-  actionDeliveries,
-  instinctAccess,
   dailyExtras,
   ouraEvents,
   ouraProfile,
@@ -95,6 +92,38 @@ export async function getDayExtras(memberId: string, windowDays: number): Promis
     .from(dailyExtras)
     .where(and(eq(dailyExtras.memberId, memberId), gte(dailyExtras.day, addDays(todayInIsrael(), -windowDays))))
     .orderBy(asc(dailyExtras.day));
+}
+
+/**
+ * The few daily_extras columns the Today tab compares (activity score, calorie target, distance, SpO2, bedtime window)
+ * for the window, and today's all-day heart-rate curve on its own so the other days' curves are never read.
+ * Member's own page only.
+ */
+export async function getTodayExtras(memberId: string, windowDays: number): Promise<{ rows: TodayExtras[]; heartBuckets: Array<number | null> | null }> {
+  const today = todayInIsrael();
+  const [rows, curve] = await Promise.all([
+    getDb()
+      .select({
+        day: dailyExtras.day,
+        activityScore: dailyExtras.activityScore,
+        targetCalories: dailyExtras.targetCalories,
+        totalCalories: dailyExtras.totalCalories,
+        equivalentWalkingDistanceM: dailyExtras.equivalentWalkingDistanceM,
+        inactivityAlerts: dailyExtras.inactivityAlerts,
+        spo2Average: dailyExtras.spo2Average,
+        optimalBedtimeStart: dailyExtras.optimalBedtimeStart,
+        optimalBedtimeEnd: dailyExtras.optimalBedtimeEnd,
+      })
+      .from(dailyExtras)
+      .where(and(eq(dailyExtras.memberId, memberId), gte(dailyExtras.day, addDays(today, -windowDays))))
+      .orderBy(asc(dailyExtras.day)),
+    getDb()
+      .select({ buckets: dailyExtras.heartRateBuckets })
+      .from(dailyExtras)
+      .where(and(eq(dailyExtras.memberId, memberId), eq(dailyExtras.day, today)))
+      .limit(1),
+  ]);
+  return { rows, heartBuckets: curve[0]?.buckets ?? null };
 }
 
 /** Workouts, sessions, tags, rest-mode periods and naps in the window, newest first. Member's own page only. */
@@ -295,7 +324,7 @@ export async function logAudit(entry: {
   memberId?: string | null;
   action: string;
   /** a consent scope, the doctor role for doctor sends and share links, or "share_link" */
-  scope?: ConsentScope | DoctorRole | "share_link" | "instinct" | "circle" | "heart" | "challenge" | null;
+  scope?: ConsentScope | DoctorRole | "share_link" | "circle" | "heart" | "challenge" | null;
 }) {
   await getDb().insert(auditLog).values({
     actorUserId: entry.actorUserId,
@@ -380,62 +409,6 @@ export async function recordShareView(linkId: string): Promise<void> {
     .update(shareLinks)
     .set({ viewCount: sql`${shareLinks.viewCount} + 1`, lastViewedAt: new Date() })
     .where(eq(shareLinks.id, linkId));
-}
-
-/** Days (YYYY-MM-DD) the member already claimed a coffee for. */
-export async function getCoffeeClaimDays(memberId: string): Promise<string[]> {
-  const rows = await getDb()
-    .select({ day: coffeeClaims.day })
-    .from(coffeeClaims)
-    .where(eq(coffeeClaims.memberId, memberId));
-  return rows.map((r) => r.day);
-}
-
-/** "rule:day" keys already delivered to a provider. */
-export async function getDeliveredActions(memberId: string, provider: string): Promise<string[]> {
-  const rows = await getDb()
-    .select({ rule: actionDeliveries.rule, day: actionDeliveries.day })
-    .from(actionDeliveries)
-    .where(and(eq(actionDeliveries.memberId, memberId), eq(actionDeliveries.provider, provider)));
-  return rows.map((r) => `${r.rule}:${r.day}`);
-}
-
-export type InstinctAccess = typeof instinctAccess.$inferSelect;
-
-/** The member's newest data link that is neither revoked nor expired, with its path when it can be shown. */
-export async function getActiveInstinctAccess(
-  memberId: string,
-): Promise<{ row: InstinctAccess; path: string | null } | null> {
-  const [row] = await getDb()
-    .select()
-    .from(instinctAccess)
-    .where(and(eq(instinctAccess.memberId, memberId), isNull(instinctAccess.revokedAt), gt(instinctAccess.expiresAt, new Date())))
-    .orderBy(desc(instinctAccess.createdAt))
-    .limit(1);
-  if (!row) return null;
-  let path: string | null = null;
-  try {
-    path = instinctPath(decrypt(row.tokenEnc));
-  } catch {
-    path = null;
-  }
-  return { row, path };
-}
-
-export async function findInstinctAccessByToken(token: string): Promise<InstinctAccess | null> {
-  const [row] = await getDb()
-    .select()
-    .from(instinctAccess)
-    .where(eq(instinctAccess.tokenHash, hashShareToken(token)))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function recordInstinctRead(id: string): Promise<void> {
-  await getDb()
-    .update(instinctAccess)
-    .set({ readCount: sql`${instinctAccess.readCount} + 1`, lastReadAt: new Date() })
-    .where(eq(instinctAccess.id, id));
 }
 
 // ---------------------------------------------------------------------------------------------
