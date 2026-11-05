@@ -1,27 +1,46 @@
 import Link from "next/link";
+import { ActiveTabIntoView } from "@/components/active-tab-into-view";
+import { dirOf, type Locale } from "@/lib/i18n";
+import type { Messages } from "@/lib/i18n/messages";
 import { DATA_VIEWS, dataHref, type DataView } from "@/lib/member-nav";
 import { SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 
-/** The data tab's views, and the 30/60/90-day window that applies to most of them. Plain links, no client state. */
-export function DataViewTabs({ active, windowDays, withWindow }: { active: DataView; windowDays: number; withWindow: boolean }) {
+/**
+ * The data tab's categories as an underlined tab bar, and the 30/60/90-day window that applies to most of them.
+ * Plain links; the only client code keeps the current category in sight on a phone. The bar follows the visitor's language, even inside the Hebrew-only data island.
+ */
+export function DataViewTabs({
+  active,
+  windowDays,
+  withWindow,
+  t,
+  locale,
+}: {
+  active: DataView;
+  windowDays: number;
+  withWindow: boolean;
+  t: Messages["insights"]["views"];
+  locale: Locale;
+}) {
   return (
-    <div className="subtabs-row">
-      <nav className="subtabs" aria-label="תצוגות הנתונים">
+    <div className="subtabs-row" dir={dirOf(locale)} lang={locale}>
+      <nav className="subtabs" aria-label={t.label}>
         <ul>
           {DATA_VIEWS.map((v) => (
-            <li key={v.id}>
-              <Link prefetch={false} href={dataHref({ view: v.id, days: windowDays })} aria-current={v.id === active ? "page" : undefined}>
-                {v.label}
+            <li key={v}>
+              <Link prefetch={false} href={dataHref({ view: v, days: windowDays })} aria-current={v === active ? "page" : undefined}>
+                {t[v]}
               </Link>
             </li>
           ))}
         </ul>
+        <ActiveTabIntoView />
       </nav>
       {withWindow && (
-        <div className="win-switch" role="group" aria-label="טווח הנתונים">
+        <div className="win-switch" role="group" aria-label={t.window}>
           {SHARE_WINDOW_OPTIONS.map((d) => (
             <Link key={d} prefetch={false} href={dataHref({ view: active, days: d })} aria-current={d === windowDays ? "true" : undefined}>
-              {d} ימים
+              {t.days(d)}
             </Link>
           ))}
         </div>

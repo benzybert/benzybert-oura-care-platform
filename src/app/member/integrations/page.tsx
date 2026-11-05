@@ -45,7 +45,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             <p className="muted small">{g.ouraText}</p>
             {oura && coverage.length > 0 && (
               <p className="small">
-                {g.coverage(answered, coverage.length)} <a href="/member/data?view=ring">{g.coverageLink}</a>
+                {g.coverage(answered, coverage.length)} <a href="/member/data?view=advanced">{g.coverageLink}</a>
               </p>
             )}
           </div>

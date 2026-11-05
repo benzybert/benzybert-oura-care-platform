@@ -388,6 +388,19 @@
 .md-days span.is-none {
   background: var(--c-line);
 }
+/* Oura's stress label per day (stress-view.tsx); the legend swatches reuse the same classes */
+.md-days span.is-stressful,
+.md-sw.is-stressful {
+  background: var(--viz-attn);
+}
+.md-days span.is-normal,
+.md-sw.is-normal {
+  background: var(--viz-neutral);
+}
+.md-days span.is-restored,
+.md-sw.is-restored {
+  background: var(--viz-data);
+}
 
 /* ---------- HRV in depth, sleep structure (hrv-insights.tsx, sleep-structure.tsx) ---------- */
 .md .md-sub {

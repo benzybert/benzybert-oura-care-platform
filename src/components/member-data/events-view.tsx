@@ -30,7 +30,20 @@ function When({ e }: { e: OuraEvent }) {
   );
 }
 
-export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage: Coverage }) {
+const SECTION_KIND: Record<string, OuraEvent["kind"]> = {
+  "ev-workouts": "workout",
+  "ev-sessions": "session",
+  "ev-tags": "tag",
+  "ev-rest": "rest_mode",
+  "ev-naps": "nap",
+};
+
+/**
+ * The ring's events as lists. The data tab spreads them over its categories (workouts under Activity, sessions under
+ * Stress, tags and rest mode under Health, naps under Sleep), so `kinds` says which lists this place shows.
+ */
+export function EventsView({ events, coverage, kinds }: { events: OuraEvent[]; coverage: Coverage; kinds: OuraEvent["kind"][] }) {
+  const show = (id: string) => kinds.includes(SECTION_KIND[id] as OuraEvent["kind"]);
   const of = (kind: OuraEvent["kind"]) => events.filter((e) => e.kind === kind);
   const workouts = of("workout");
   const sessions = of("session");
@@ -44,7 +57,7 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
 
   return (
     <Shell>
-      <Section id="ev-workouts" icon={<IconActivity size={20} />} title="אימונים" lead="אימונים שהטבעת זיהתה או שהוספת באפליקציה, מהחדש לישן.">
+      <Section show={show} id="ev-workouts" icon={<IconActivity size={20} />} title="אימונים" lead="אימונים שהטבעת זיהתה או שהוספת באפליקציה, מהחדש לישן.">
         {workouts.length === 0 ? (
           <EmptyHint families={["workout"]} coverage={coverage} what="האימונים" />
         ) : (
@@ -97,7 +110,7 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
         )}
       </Section>
 
-      <Section id="ev-sessions" icon={<IconHeartPulse size={20} />} title="סשנים" lead="נשימות, מדיטציה והרפיה שעשית באפליקציה, עם הדופק וה-HRV בזמן הסשן.">
+      <Section show={show} id="ev-sessions" icon={<IconHeartPulse size={20} />} title="סשנים" lead="נשימות, מדיטציה והרפיה שעשית באפליקציה, עם הדופק וה-HRV בזמן הסשן.">
         {sessions.length === 0 ? (
           <EmptyHint families={["session"]} coverage={coverage} what="הסשנים" />
         ) : (
@@ -125,7 +138,7 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
         )}
       </Section>
 
-      <Section id="ev-tags" icon={<IconCalendar size={20} />} title="תגיות והערות" lead="מה שסימנת באפליקציה של Oura (אלכוהול, קפאין, מחלה ועוד), כדי לקשר אותו לנתונים. הטקסט הוא שלך בלבד.">
+      <Section show={show} id="ev-tags" icon={<IconCalendar size={20} />} title="תגיות והערות" lead="מה שסימנת באפליקציה של Oura (אלכוהול, קפאין, מחלה ועוד), כדי לקשר אותו לנתונים. הטקסט הוא שלך בלבד.">
         {tags.length === 0 ? (
           <EmptyHint families={["enhanced_tag"]} coverage={coverage} what="התגיות" />
         ) : (
@@ -148,10 +161,8 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
         )}
       </Section>
 
-      <Section id="ev-rest" icon={<IconClock size={20} />} title="מצב מנוחה" lead="תקופות שהפעלת בהן מצב מנוחה (מחלה, חופשה או התאוששות). בהן הציונים לא נמדדים כרגיל.">
-        {rest.length === 0 ? (
-          <EmptyHint families={["rest_mode_period"]} coverage={coverage} what="מצב המנוחה" />
-        ) : (
+      {rest.length > 0 && (
+        <Section show={show} id="ev-rest" icon={<IconClock size={20} />} title="מצב מנוחה" lead="תקופות שהפעלת בהן מצב מנוחה (מחלה, חופשה או התאוששות). בהן הציונים לא נמדדים כרגיל.">
           <ul className="md-list panel">
             {rest.map((r) => {
               const end = str(r.data.endDay);
@@ -179,11 +190,11 @@ export function EventsView({ events, coverage }: { events: OuraEvent[]; coverage
               );
             })}
           </ul>
-        )}
-      </Section>
+        </Section>
+      )}
 
       {naps.length > 0 && (
-        <Section id="ev-naps" icon={<IconMoon size={20} />} title="תנומות" lead="שינה קצרה שאישרת, מחוץ ללילה הראשי.">
+        <Section show={show} id="ev-naps" icon={<IconMoon size={20} />} title="תנומות" lead="שינה קצרה שאישרת, מחוץ ללילה הראשי.">
           <ul className="md-list panel">
             {naps.map((n) => (
               <li key={n.id} className="md-row">
