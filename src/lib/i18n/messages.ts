@@ -1,4 +1,5 @@
 import type { Locale } from "./index";
+import { assistant } from "./dict/assistant";
 import { challenges } from "./dict/challenges";
 import { circle } from "./dict/circle";
 import { core } from "./dict/core";
@@ -11,7 +12,7 @@ import { site } from "./dict/site";
 import { staff } from "./dict/staff";
 
 /** Every namespace, per language. Add a namespace here when you add a dictionary file. */
-const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records };
+const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records, assistant };
 
 type Namespaces = typeof namespaces;
 

@@ -9,6 +9,7 @@ export const TAB_IDS = [
   "circle",
   "challenges",
   "data",
+  "assistant",
   "experiments",
   "goals",
   "medications",
@@ -27,6 +28,7 @@ export const TAB_HREFS: Record<MemberTab, string> = {
   circle: "/member/circle",
   challenges: "/member/challenges",
   data: "/member/data",
+  assistant: "/member/assistant",
   experiments: "/member/experiments",
   goals: "/member/goals",
   medications: "/member/medications",
@@ -73,8 +75,8 @@ export function parseFocusAreas(values: unknown[]): FocusArea[] {
 export function tabOrder(focus: readonly string[] | null | undefined): MemberTab[] {
   const heartFirst = focus?.[0] === "heart";
   const heartGroup: MemberTab[] = ["heart", "circle", "challenges"];
-  const rest: MemberTab[] = ["data", "experiments", "goals", ...RECORD_TABS, ...ACCOUNT_TABS];
+  const rest: MemberTab[] = ["data", "assistant", "experiments", "goals", ...RECORD_TABS, ...ACCOUNT_TABS];
   return heartFirst
     ? ["home", ...heartGroup, ...rest]
-    : ["home", "data", ...heartGroup, ...rest.filter((t) => t !== "data")];
+    : ["home", "data", "assistant", ...heartGroup, ...rest.filter((t) => t !== "data" && t !== "assistant")];
 }

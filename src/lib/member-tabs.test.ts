@@ -7,7 +7,7 @@ describe("tabOrder", () => {
   });
 
   it("keeps the data tab first for everyone else", () => {
-    expect(tabOrder(["sleep"]).slice(0, 5)).toEqual(["home", "data", "heart", "circle", "challenges"]);
+    expect(tabOrder(["sleep"]).slice(0, 6)).toEqual(["home", "data", "assistant", "heart", "circle", "challenges"]);
     expect(tabOrder(null)[1]).toBe("data");
     expect(tabOrder([])[1]).toBe("data");
   });

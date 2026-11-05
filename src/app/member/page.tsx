@@ -107,6 +107,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
     { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
     { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
     { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
+    { href: "/member/assistant", title: t.core.tabs.assistant, text: h.tiles.assistant },
     {
       href: "/member/experiments",
       title: t.core.tabs.experiments,

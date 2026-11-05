@@ -1,0 +1,129 @@
+/* "Ask my data" (/member/assistant). Classes as-*. Logical properties only: works left-to-right and right-to-left,
+   and at phone width. */
+
+.as-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.as-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.as-example {
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: start;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.as-example:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.as-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.as-msg {
+  max-width: min(100%, 760px);
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.as-user {
+  align-self: flex-end;
+  background: var(--track);
+  border-color: transparent;
+}
+.as-claude {
+  align-self: flex-start;
+}
+.as-msg p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.as-who {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-block-end: 2px;
+}
+.as-md p {
+  white-space: normal;
+  margin-block: 0 8px;
+}
+.as-md > :last-child {
+  margin-block-end: 0;
+}
+.as-md ul {
+  margin-block: 0 8px;
+  padding-inline-start: 20px;
+}
+.as-md h1,
+.as-md h2,
+.as-md h3 {
+  font-size: 1rem;
+  margin-block: 8px 4px;
+}
+.as-md table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin-block: 4px 8px;
+  font-size: 0.9rem;
+}
+.as-md th,
+.as-md td {
+  text-align: start;
+  padding: 4px 10px;
+  border-block-end: 1px solid var(--line);
+  white-space: nowrap;
+}
+.as-status {
+  margin: 0;
+  animation: as-pulse 1.4s ease-in-out infinite;
+}
+@keyframes as-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .as-status {
+    animation: none;
+  }
+}
+.as-form {
+  position: sticky;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-block: 10px;
+  background: var(--bg);
+}
+.as-form textarea {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+.as-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}

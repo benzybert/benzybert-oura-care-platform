@@ -24,6 +24,7 @@ const PATHS: Record<NavIconName, string[]> = {
     "M12 13v4M8.5 20h7M10 17h4v3h-4z",
   ],
   data: ["M4 4h6v7H4zM14 4h6v4h-6zM14 12h6v8h-6zM4 15h6v5H4z"],
+  assistant: ["M4 5.5h16v10H9.5L5 19.5v-4H4z", "M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"],
   experiments: ["M9 3h6M10 3v6l-5.2 9.2A1.9 1.9 0 0 0 6.5 21h11a1.9 1.9 0 0 0 1.7-2.8L14 9V3", "M7.5 15h9"],
   goals: [
     "M4 9h16v4H4zM5.5 13h13v7h-13zM12 9v11",

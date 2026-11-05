@@ -23,6 +23,7 @@ export const home = defineDict(
       circle: (n: number) => (n === 0 ? "Nobody in your circle yet" : `${n} ${n === 1 ? "person" : "people"} in your circle`),
       challenges: (n: number) => (n === 0 ? "No challenges yet. Start one with family or friends." : `${n} ${n === 1 ? "challenge" : "challenges"} running`),
       data: "The full dashboard: trends, sleep stages, calendar and PDF.",
+      assistant: "Ask Claude about your sleep, heart, labs and experiments.",
       experiments: {
         none: "No experiment yet. Change one thing and check.",
         phase: { planned: "planned", running: "running now", finished: "finished" },
@@ -66,6 +67,7 @@ export const home = defineDict(
       circle: (n) => (n === 0 ? "עדיין אין אף אחד במעגל" : `${n} ${n === 1 ? "אדם" : "אנשים"} במעגל`),
       challenges: (n) => (n === 0 ? "עדיין אין אתגרים. פתחו אחד עם משפחה או חברים." : `${n} ${n === 1 ? "אתגר רץ" : "אתגרים רצים"}`),
       data: "הדאשבורד המלא: מגמות, שלבי שינה, לוח שנה ו-PDF.",
+      assistant: "לשאול את Claude על השינה, הלב, הבדיקות והניסויים שלך.",
       experiments: {
         none: "עוד אין ניסוי. משנים דבר אחד ובודקים.",
         phase: { planned: "מתוכנן", running: "רץ עכשיו", finished: "הסתיים" },
