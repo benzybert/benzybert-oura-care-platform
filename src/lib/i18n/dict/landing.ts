@@ -9,13 +9,15 @@ import { defineDict } from "../index";
 export const landing = defineDict(
   {
     meta: {
-      title: "Oura Care: show your doctor the other 23 hours 45 minutes",
+      title: "Oura Care: bring the weeks between visits to your doctor",
       description:
-        "Oura Care turns the nights and days your ring records into a clear, private report your doctor can read in a minute, with your consent.",
+        "Oura Care turns the nights and weeks your ring records into a clear, private report your doctor can read in a minute, with your consent.",
     },
     nav: {
       label: "Main",
+      vision: "Why now",
       solutions: "Solutions",
+      useCases: "Use cases",
       how: "How it works",
       wearables: "Wearables",
       privacy: "Privacy",
@@ -26,11 +28,11 @@ export const landing = defineDict(
       menu: "Menu",
     },
     hero: {
-      eyebrow: "A visit lasts 15 minutes. Your health does not pause in between.",
+      eyebrow: "The next phase of care: context from the weeks between visits.",
       titleBefore: "Your doctor sees",
       titleEm: "fifteen minutes.",
-      titleAfter: "Show them the other 525,585.",
-      lead: "Oura Care turns every night and day your ring records into a calm, private report your doctor can read in a minute, before the visit.",
+      titleAfter: "Show them the weeks in between.",
+      lead: "Oura Care turns the nights and weeks your ring records into a calm, private report your doctor can read in a minute, before the visit.",
       start: "Connect your ring, free",
       doctor: "I am a doctor",
       continue: "Continue to my area",
@@ -46,7 +48,7 @@ export const landing = defineDict(
       seesValue: "23 h 45 min",
       ofDay: "of every day",
       legendVisit: "A typical appointment: 15 minutes",
-      legendRing: "What the ring records: sleep, heart rate, HRV, around the clock",
+      legendRing: "What the ring records between visits: sleep, heart rate, HRV",
       illustrative: "Illustrative data",
       caption:
         "A 24-hour dial. A 15-minute sliver marks a typical doctor's appointment. The rest of the dial shows what a ring records over the other 23 hours and 45 minutes: sleep stages at night, heart rate and heart rate variability during the day. The data is illustrative.",
@@ -66,8 +68,29 @@ export const landing = defineDict(
         { title: "Drift hides", text: "A slow change from your own normal looks fine on any single day." },
       ],
     },
+    vision: {
+      eyebrow: "02 / The next phase",
+      titleBefore: "The next phase of medicine happens",
+      titleEm: "between visits.",
+      body: "Care has long been organised around the appointment: a few minutes, a few measurements and a lot of remembering. Rings and watches now record sleep, resting heart rate and heart rate variability night after night, at home, in ordinary life. The next step is not more data in another app. It is that data, read against each person's own normal, reaching the clinician who needs it, with the patient's consent.",
+      contextTitle: "Why now",
+      context: [
+        "Rings and watches now measure sleep, resting heart rate and HRV well enough to follow a trend over weeks.",
+        "Most of that data stays in a consumer app the doctor never sees.",
+        "Clinicians ask about sleep, stress and recovery, and get answers from memory.",
+        "Care is moving toward prevention and follow-up at home, and that needs context to work with.",
+      ],
+      shiftsLabel: "What changes",
+      shifts: [
+        { from: "One reading in a clinic", to: "A trend over weeks", text: "Thirty, sixty or ninety nights show what one measurement cannot: direction, steadiness, a slow drift." },
+        { from: "Population averages", to: "Your own normal", text: "Every measure is compared with the person's own baseline, so a runner and a cardiac patient are both read fairly." },
+        { from: "“How have you been sleeping?”", to: "A page read in a minute", text: "The conversation starts from what happened, not from what someone remembers on the day." },
+        { from: "Data locked in an app", to: "Shared on purpose", text: "The member decides who sees what, for which purpose and for how long, and can take it back." },
+      ],
+      note: "Context for the clinician, not a diagnosis. Interpretation stays with the doctor.",
+    },
     solutions: {
-      eyebrow: "02 / Solutions",
+      eyebrow: "03 / Solutions",
       title: "One record. Three ways to use it.",
       lead: "The same data, seen by each person only as far as the member allows.",
       tabsLabel: "Who is it for",
@@ -77,7 +100,7 @@ export const landing = defineDict(
           tabNote: "Your story, your choice",
           titleBefore: "Your whole story,",
           titleEm: "not a snapshot.",
-          promise: "Every night and day your ring records, in one calm place, compared with your own normal rather than a population average.",
+          promise: "The nights and weeks your ring records, in one calm place, compared with your own normal rather than a population average.",
           benefits: [
             "Send your doctor a read-only dashboard or PDF before the visit. You choose the window and when it expires.",
             "A family circle: the people you choose hear when your numbers drift from your own baseline. Not an emergency service, and the data arrives with a delay.",
@@ -138,6 +161,51 @@ export const landing = defineDict(
         },
       },
     },
+    useCases: {
+      eyebrow: "04 / Use cases",
+      titleBefore: "Where it helps,",
+      titleEm: "in practice.",
+      lead: "A few of the moments when the weeks between visits matter most.",
+      items: [
+        {
+          tag: "Heart",
+          title: "Before a cardiology follow-up",
+          text: "Thirty days of resting heart rate and HRV against your own baseline, sent as a link the week before. The appointment starts from the trend, not from memory.",
+          data: "Resting heart rate, HRV, 30 days",
+        },
+        {
+          tag: "Sleep",
+          title: "Sleep that has not felt right",
+          text: "Instead of “I sleep badly”, sixty nights: when you fell asleep, how often you woke, how steady your bedtime was. A concrete place for the family doctor to start.",
+          data: "Sleep stages, awake time, bedtime, 60 days",
+        },
+        {
+          tag: "Medication",
+          title: "Starting a new medication",
+          text: "Note the start date and see how sleep and resting heart rate moved since, next to your nights before. Something to discuss with your doctor, never a reason to change a dose on your own.",
+          data: "Your nights before and since",
+        },
+        {
+          tag: "Recovery",
+          title: "Back on your feet",
+          text: "After an illness or an operation, watch the way back toward your own normal week by week, and bring that curve to the follow-up.",
+          data: "Resting heart rate, HRV, temperature trend",
+        },
+        {
+          tag: "Family",
+          title: "Keeping an eye on a parent",
+          text: "With the parent's consent, the people they choose hear when their heart measures drift from their own normal. The data arrives with a delay: it is not an emergency service.",
+          data: "Family circle, heart measures only",
+        },
+        {
+          tag: "Organizations",
+          title: "A workplace wellbeing program",
+          text: "See whether a change in shifts or a sleep program moves the group's sleep and recovery, without anyone being singled out.",
+          data: "Group averages only, small groups hidden",
+        },
+      ],
+      note: "Examples of use, not stories of real patients. None of this is a diagnosis or medical advice.",
+    },
     report: {
       eyebrow: "Sample report",
       titleBefore: "Readable in",
@@ -173,16 +241,16 @@ export const landing = defineDict(
       ],
     },
     how: {
-      eyebrow: "03 / How it works",
+      eyebrow: "05 / How it works",
       title: "Three quiet steps.",
       steps: [
-        { title: "Your ring records", text: "Sleep, resting heart rate, HRV, breathing, temperature and activity, day and night, as it already does." },
+        { title: "Your ring records", text: "Sleep, resting heart rate, HRV, breathing, temperature and activity, as it already does." },
         { title: "You choose what to share", text: "Nothing is shared by default. Pick who sees what, for how long, for which purpose." },
         { title: "Your doctor reads it", text: "A read-only dashboard link or a PDF: 30, 60 or 90 days, with an expiry, revocable any time." },
       ],
     },
     wearables: {
-      eyebrow: "04 / Wearables",
+      eyebrow: "06 / Wearables",
       titleBefore: "Works with",
       titleEm: "what you wear.",
       lead: "Oura is connected today. More devices are on the way, and so is one timeline for people who wear more than one.",
@@ -213,7 +281,7 @@ export const landing = defineDict(
       note: "Device names are trademarks of their owners. Oura Care is not affiliated with or endorsed by them.",
     },
     privacy: {
-      eyebrow: "05 / Privacy",
+      eyebrow: "07 / Privacy",
       titleBefore: "Private by design,",
       titleEm: "not by setting.",
       body: "Health data is personal. Oura Care is built so that sharing is always a decision you make, for one purpose, and can take back.",
@@ -229,7 +297,7 @@ export const landing = defineDict(
       ],
     },
     faq: {
-      eyebrow: "06 / Questions",
+      eyebrow: "08 / Questions",
       title: "Asked often.",
       items: [
         {
@@ -256,9 +324,9 @@ export const landing = defineDict(
       ],
     },
     final: {
-      titleBefore: "Bring the other",
-      titleEm: "23 hours 45 minutes",
-      titleAfter: "to your next visit.",
+      titleBefore: "Bring the",
+      titleEm: "weeks between visits",
+      titleAfter: "to your next appointment.",
       note: "Nothing is shared until you choose.",
     },
     footer: {
@@ -270,12 +338,14 @@ export const landing = defineDict(
   },
   {
     meta: {
-      title: "Oura Care: הראו לרופא את 23 השעות ו-45 הדקות האחרות",
-      description: "Oura Care הופכת את הלילות והימים שהטבעת מתעדת לדוח ברור ופרטי שהרופא קורא בדקה, בהסכמתך.",
+      title: "Oura Care: הביאו לרופא את השבועות שבין הביקורים",
+      description: "Oura Care הופכת את הלילות והשבועות שהטבעת מתעדת לדוח ברור ופרטי שהרופא קורא בדקה, בהסכמתך.",
     },
     nav: {
       label: "ראשי",
+      vision: "למה עכשיו",
       solutions: "פתרונות",
+      useCases: "שימושים",
       how: "איך זה עובד",
       wearables: "מכשירים",
       privacy: "פרטיות",
@@ -286,11 +356,11 @@ export const landing = defineDict(
       menu: "תפריט",
     },
     hero: {
-      eyebrow: "ביקור נמשך 15 דקות. הבריאות שלך לא עוצרת ביניהם.",
+      eyebrow: "השלב הבא ברפואה: הקשר מהשבועות שבין הביקורים.",
       titleBefore: "הרופא רואה",
       titleEm: "רבע שעה.",
-      titleAfter: "הראו לו את 525,585 הדקות האחרות.",
-      lead: "Oura Care הופכת כל לילה וכל יום שהטבעת מתעדת לדוח שקט ופרטי שהרופא קורא בדקה, לפני הביקור.",
+      titleAfter: "הראו לו את השבועות שביניהם.",
+      lead: "Oura Care הופכת את הלילות והשבועות שהטבעת מתעדת לדוח שקט ופרטי שהרופא קורא בדקה, לפני הביקור.",
       start: "לחבר את הטבעת, בחינם",
       doctor: "אני רופא/ה",
       continue: "המשך למסך שלי",
@@ -306,7 +376,7 @@ export const landing = defineDict(
       seesValue: "23 ש׳ 45 דק׳",
       ofDay: "מכל יממה",
       legendVisit: "תור ממוצע: 15 דקות",
-      legendRing: "מה שהטבעת מתעדת: שינה, דופק, HRV, מסביב לשעון",
+      legendRing: "מה שהטבעת מתעדת בין הביקורים: שינה, דופק, HRV",
       illustrative: "נתונים להמחשה",
       caption:
         "חוגה של 24 שעות. פלח של 15 דקות מסמן תור ממוצע אצל הרופא. שאר החוגה מראה מה טבעת מתעדת ב-23 השעות ו-45 הדקות האחרות: שלבי שינה בלילה, דופק ו-HRV ביום. הנתונים להמחשה.",
@@ -326,8 +396,29 @@ export const landing = defineDict(
         { title: "סטייה מסתתרת", text: "שינוי איטי מהנורמלי שלך נראה תקין בכל יום לבד." },
       ],
     },
+    vision: {
+      eyebrow: "02 / השלב הבא",
+      titleBefore: "השלב הבא ברפואה קורה",
+      titleEm: "בין הביקורים.",
+      body: "הרפואה בנויה כבר שנים סביב התור: כמה דקות, כמה מדידות, והרבה זיכרון. טבעות ושעונים מתעדים היום שינה, דופק מנוחה ו-HRV לילה אחרי לילה, בבית, בחיים הרגילים. הצעד הבא הוא לא עוד נתונים בעוד אפליקציה. הוא הנתונים האלה, בהשוואה לנורמלי של כל אדם, מגיעים לרופא שצריך אותם, בהסכמת המטופל.",
+      contextTitle: "למה עכשיו",
+      context: [
+        "טבעות ושעונים מודדים היום שינה, דופק מנוחה ו-HRV מספיק טוב כדי לעקוב אחרי מגמה לאורך שבועות.",
+        "רוב הנתונים האלה נשארים באפליקציה צרכנית שהרופא לא רואה.",
+        "רופאים שואלים על שינה, לחץ והתאוששות, ומקבלים תשובות מהזיכרון.",
+        "הרפואה זזה למניעה ולמעקב בבית, וזה צריך הקשר לעבוד איתו.",
+      ],
+      shiftsLabel: "מה משתנה",
+      shifts: [
+        { from: "מדידה אחת במרפאה", to: "מגמה לאורך שבועות", text: "שלושים, שישים או תשעים לילות מראים מה שמדידה אחת לא יכולה: כיוון, יציבות, סטייה איטית." },
+        { from: "ממוצע של אוכלוסייה", to: "הנורמלי שלך", text: "כל מדד מושווה לבסיס האישי של האדם, כך שגם רץ וגם מטופל לב נקראים בהוגנות." },
+        { from: "״איך ישנת לאחרונה?״", to: "עמוד שנקרא בדקה", text: "השיחה מתחילה ממה שקרה, לא ממה שמישהו זוכר ביום הביקור." },
+        { from: "נתונים נעולים באפליקציה", to: "שיתוף מכוון", text: "המשתמש מחליט מי רואה מה, לאיזו מטרה ולכמה זמן, ויכול לחזור בו." },
+      ],
+      note: "הקשר לרופא, לא אבחנה. הפרשנות נשארת אצל הרופא.",
+    },
     solutions: {
-      eyebrow: "02 / פתרונות",
+      eyebrow: "03 / פתרונות",
       title: "רשומה אחת. שלוש דרכים להשתמש בה.",
       lead: "אותם נתונים, וכל אחד רואה רק את מה שהמשתמש אישר.",
       tabsLabel: "למי זה מיועד",
@@ -337,7 +428,7 @@ export const landing = defineDict(
           tabNote: "הסיפור שלך, הבחירה שלך",
           titleBefore: "כל הסיפור שלך,",
           titleEm: "לא רק תמונה.",
-          promise: "כל לילה וכל יום שהטבעת מתעדת, במקום אחד ושקט, בהשוואה לנורמלי שלך ולא לממוצע של אחרים.",
+          promise: "הלילות והשבועות שהטבעת מתעדת, במקום אחד ושקט, בהשוואה לנורמלי שלך ולא לממוצע של אחרים.",
           benefits: [
             "שליחת דאשבורד לקריאה בלבד או PDF לרופא לפני הביקור. את התקופה ואת מועד התפוגה בוחרים אתם.",
             "מעגל משפחה: האנשים שבחרתם יודעים כשהמדדים זזים מהבסיס האישי שלכם. זה לא שירות חירום, והנתונים מגיעים באיחור.",
@@ -398,6 +489,51 @@ export const landing = defineDict(
         },
       },
     },
+    useCases: {
+      eyebrow: "04 / שימושים",
+      titleBefore: "איפה זה עוזר,",
+      titleEm: "בפועל.",
+      lead: "כמה מהרגעים שבהם השבועות שבין הביקורים חשובים במיוחד.",
+      items: [
+        {
+          tag: "לב",
+          title: "לפני מעקב אצל קרדיולוג",
+          text: "שלושים ימים של דופק מנוחה ו-HRV מול הבסיס האישי שלך, נשלחים כקישור שבוע לפני. התור מתחיל מהמגמה, לא מהזיכרון.",
+          data: "דופק מנוחה, HRV, 30 ימים",
+        },
+        {
+          tag: "שינה",
+          title: "שינה שלא מרגישה בסדר",
+          text: "במקום ״אני ישן רע״, שישים לילות: מתי נרדמת, כמה פעמים התעוררת, כמה יציבה שעת השינה. נקודת התחלה ממשית לרופא המשפחה.",
+          data: "שלבי שינה, זמן ערות, שעת שינה, 60 ימים",
+        },
+        {
+          tag: "תרופות",
+          title: "התחלת תרופה חדשה",
+          text: "רושמים את תאריך ההתחלה ורואים איך השינה ודופק המנוחה זזו מאז, ליד הלילות שלפני. משהו לדבר עליו עם הרופא, אף פעם לא סיבה לשנות מינון לבד.",
+          data: "הלילות שלך לפני ומאז",
+        },
+        {
+          tag: "התאוששות",
+          title: "חוזרים לעצמכם",
+          text: "אחרי מחלה או ניתוח, רואים את הדרך חזרה לנורמלי שלכם שבוע אחרי שבוע, ומביאים את העקומה הזו לביקור המעקב.",
+          data: "דופק מנוחה, HRV, מגמת טמפרטורה",
+        },
+        {
+          tag: "משפחה",
+          title: "לשים עין על הורה",
+          text: "בהסכמת ההורה, האנשים שהוא בוחר יודעים כשמדדי הלב שלו זזים מהנורמלי שלו. הנתונים מגיעים באיחור: זה לא שירות חירום.",
+          data: "מעגל משפחה, מדדי לב בלבד",
+        },
+        {
+          tag: "ארגונים",
+          title: "תוכנית רווחה במקום העבודה",
+          text: "לראות אם שינוי במשמרות או תוכנית שינה מזיזים את השינה וההתאוששות של הקבוצה, בלי שאף אחד יזוהה.",
+          data: "ממוצעים קבוצתיים בלבד, קבוצות קטנות מוסתרות",
+        },
+      ],
+      note: "דוגמאות לשימוש, לא סיפורים של מטופלים אמיתיים. שום דבר כאן אינו אבחנה או ייעוץ רפואי.",
+    },
     report: {
       eyebrow: "דוח לדוגמה",
       titleBefore: "נקרא",
@@ -433,16 +569,16 @@ export const landing = defineDict(
       ],
     },
     how: {
-      eyebrow: "03 / איך זה עובד",
+      eyebrow: "05 / איך זה עובד",
       title: "שלושה צעדים שקטים.",
       steps: [
-        { title: "הטבעת מתעדת", text: "שינה, דופק מנוחה, HRV, נשימה, טמפרטורה ופעילות, ביום ובלילה, כמו שהיא כבר עושה." },
+        { title: "הטבעת מתעדת", text: "שינה, דופק מנוחה, HRV, נשימה, טמפרטורה ופעילות, כמו שהיא כבר עושה." },
         { title: "אתם בוחרים מה לשתף", text: "שום דבר לא משותף כברירת מחדל. בוחרים מי רואה מה, לכמה זמן ולאיזו מטרה." },
         { title: "הרופא קורא", text: "קישור לדאשבורד לקריאה בלבד או PDF: 30, 60 או 90 ימים, עם תפוגה, ואפשר לבטל בכל עת." },
       ],
     },
     wearables: {
-      eyebrow: "04 / מכשירים",
+      eyebrow: "06 / מכשירים",
       titleBefore: "עובד עם",
       titleEm: "מה שאתם עונדים.",
       lead: "Oura מחוברת היום. מכשירים נוספים בדרך, וגם ציר זמן אחד למי שעונד יותר ממכשיר אחד.",
@@ -473,7 +609,7 @@ export const landing = defineDict(
       note: "שמות המכשירים הם סימנים מסחריים של בעליהם. Oura Care אינה קשורה אליהם ואינה מאושרת על ידם.",
     },
     privacy: {
-      eyebrow: "05 / פרטיות",
+      eyebrow: "07 / פרטיות",
       titleBefore: "פרטי מהיסוד,",
       titleEm: "לא בהגדרות.",
       body: "מידע בריאותי הוא אישי. Oura Care בנויה כך ששיתוף הוא תמיד החלטה שלכם, למטרה אחת, ואפשר לחזור ממנה.",
@@ -489,7 +625,7 @@ export const landing = defineDict(
       ],
     },
     faq: {
-      eyebrow: "06 / שאלות",
+      eyebrow: "08 / שאלות",
       title: "שואלים הרבה.",
       items: [
         {
@@ -517,8 +653,8 @@ export const landing = defineDict(
     },
     final: {
       titleBefore: "הביאו את",
-      titleEm: "23 השעות ו-45 הדקות",
-      titleAfter: "לביקור הבא.",
+      titleEm: "השבועות שבין הביקורים",
+      titleAfter: "לתור הבא.",
       note: "שום דבר לא משותף עד שתבחרו.",
     },
     footer: {

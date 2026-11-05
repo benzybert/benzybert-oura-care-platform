@@ -64,7 +64,9 @@ export default async function Home() {
   const P = L.solutions.panels;
 
   const navLinks = [
+    { href: "#vision", label: L.nav.vision },
     { href: "#solutions", label: L.nav.solutions },
+    { href: "#use-cases", label: L.nav.useCases },
     { href: "#how", label: L.nav.how },
     { href: "#wearables", label: L.nav.wearables },
     { href: "#privacy", label: L.nav.privacy },
@@ -220,8 +222,43 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 02 Solutions */}
-      <section className="lp-section lp-section-tint" id="solutions" aria-labelledby="lp-solutions">
+      {/* 02 The next phase: where care is going, and why now */}
+      <section className="lp-section lp-section-tint" id="vision" aria-labelledby="lp-vision">
+        <div className="lp-wrap lp-split">
+          <div className="lp-reveal">
+            <Eyebrow>{L.vision.eyebrow}</Eyebrow>
+            <h2 id="lp-vision" className="lp-display">
+              {L.vision.titleBefore} <em>{L.vision.titleEm}</em>
+            </h2>
+            <p className="lp-body">{L.vision.body}</p>
+          </div>
+          <div className="lp-context lp-reveal">
+            <p className="lp-mono">{L.vision.contextTitle}</p>
+            <ul className="lp-checklist">
+              {L.vision.context.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="lp-wrap">
+          <p className="lp-mono lp-shifts-label">{L.vision.shiftsLabel}</p>
+          <ol className="lp-shifts">
+            {L.vision.shifts.map((s) => (
+              <li key={s.to} className="lp-reveal">
+                <span className="lp-shift-from">{s.from}</span>
+                <span className="lp-shift-arrow" aria-hidden="true" />
+                <strong className="lp-shift-to">{s.to}</strong>
+                <p>{s.text}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="lp-fine">{L.vision.note}</p>
+        </div>
+      </section>
+
+      {/* 03 Solutions */}
+      <section className="lp-section" id="solutions" aria-labelledby="lp-solutions">
         <div className="lp-wrap">
           <div className="lp-section-head lp-reveal">
             <Eyebrow>{L.solutions.eyebrow}</Eyebrow>
@@ -354,6 +391,30 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* 04 Use cases */}
+      <section className="lp-section lp-section-tint" id="use-cases" aria-labelledby="lp-use-cases">
+        <div className="lp-wrap">
+          <div className="lp-section-head lp-reveal">
+            <Eyebrow>{L.useCases.eyebrow}</Eyebrow>
+            <h2 id="lp-use-cases" className="lp-display">
+              {L.useCases.titleBefore} <em>{L.useCases.titleEm}</em>
+            </h2>
+            <p className="lp-body">{L.useCases.lead}</p>
+          </div>
+          <ul className="lp-cases">
+            {L.useCases.items.map((c) => (
+              <li key={c.title} className="lp-reveal">
+                <span className="lp-mono">{c.tag}</span>
+                <h3>{c.title}</h3>
+                <p>{c.text}</p>
+                <span className="lp-case-data">{c.data}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="lp-fine">{L.useCases.note}</p>
+        </div>
+      </section>
+
       {/* Sample report */}
       <section className="lp-section" id="sample" aria-labelledby="lp-sample">
         <div className="lp-wrap lp-split lp-split-wide">
@@ -422,7 +483,7 @@ export default async function Home() {
         </ul>
       </section>
 
-      {/* 03 How it works */}
+      {/* 05 How it works */}
       <section className="lp-section" id="how" aria-labelledby="lp-how">
         <div className="lp-wrap">
           <div className="lp-section-head lp-reveal">
@@ -445,7 +506,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 04 Wearables */}
+      {/* 06 Wearables */}
       <section className="lp-section lp-section-tint" id="wearables" aria-labelledby="lp-wearables">
         <div className="lp-wrap">
           <div className="lp-section-head lp-reveal">
@@ -483,7 +544,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 05 Privacy */}
+      {/* 07 Privacy */}
       <section className="lp-section" id="privacy" aria-labelledby="lp-privacy">
         <div className="lp-wrap lp-split">
           <div className="lp-reveal">
@@ -502,7 +563,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 06 FAQ */}
+      {/* 08 FAQ */}
       <section className="lp-section lp-section-tint" id="faq" aria-labelledby="lp-faq">
         <div className="lp-wrap lp-split">
           <div className="lp-reveal">

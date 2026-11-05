@@ -206,6 +206,7 @@ Public marketing page, designed in v0 and rebuilt here in plain CSS (no Tailwind
 - Same honesty rules as the product: not a diagnosis, not live monitoring, no testimonials, user counts or logos, every chart labelled illustrative. Promises to doctors and organizations must match what the platform enforces (coded care view, audit, aggregates only above `ORG_MIN_COHORT`).
 - Wearables: only Oura is connected. The other devices and the "wear more than one" timeline are marked **planned**; do not change a device to "connected" until a real connector exists.
 - Signed-in visitors get "My area" instead of sign-up buttons; demo links appear only with `DEMO_AUTH`.
+- Sections: hero, 01 problem, 02 the next phase (vision, "why now" context, four from/to shifts), 03 solutions, 04 use cases (six example scenarios, labelled as examples and not real patients), sample report, 05 how, 06 wearables, 07 privacy, 08 FAQ. The 24-hour framing ("23 h 45 min", 525,585 minutes) is kept only in the dial and the counter; headlines speak of "the weeks between visits". Use cases may only describe what the platform does today (labs, for example, are member-only and never reach a doctor link).
 
 ## Feature: open-source enrichments (Nov 2026)
 

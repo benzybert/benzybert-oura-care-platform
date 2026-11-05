@@ -694,7 +694,139 @@ main:has(> .lp) {
   line-height: 1.6;
 }
 
-/* 02 solutions */
+/* 02 the next phase: context list and the from -> to shifts */
+.lp-context {
+  background: var(--lp-card);
+  border: 1px solid var(--lp-line);
+  border-radius: 14px;
+  padding: 24px 24px 8px;
+}
+.lp-context .lp-mono {
+  margin-block-end: 8px;
+}
+.lp-context .lp-checklist li:last-child {
+  border-bottom: 0;
+}
+.lp .lp-shifts-label {
+  margin-block: clamp(48px, 7vw, 80px) 18px;
+}
+.lp-shifts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 32px;
+}
+@media (min-width: 760px) {
+  .lp-shifts {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px 48px;
+  }
+}
+@media (min-width: 1100px) {
+  .lp-shifts {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.lp-shifts li {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border-top: 1px solid var(--lp-line-strong);
+  padding-block-start: 18px;
+}
+.lp-shift-from {
+  color: var(--lp-ink-2);
+  font-size: 0.92rem;
+  text-decoration: line-through;
+  text-decoration-color: var(--lp-line-strong);
+}
+.lp-shift-arrow {
+  width: 28px;
+  height: 1px;
+  background: var(--lp-data);
+  position: relative;
+  margin-block: 4px;
+}
+.lp-shift-arrow::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid var(--lp-data);
+  border-inline-end: 1px solid var(--lp-data);
+  transform: rotate(45deg);
+}
+[dir="rtl"] .lp-shift-arrow::after {
+  transform: rotate(-45deg);
+}
+.lp-shift-to {
+  font-family: var(--lp-serif);
+  font-weight: 400;
+  font-size: 1.55rem;
+  line-height: 1.15;
+  color: var(--lp-ink);
+}
+.lp-shifts p {
+  color: var(--lp-ink-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 04 use cases */
+.lp-cases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .lp-cases {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1000px) {
+  .lp-cases {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+.lp-cases li {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--lp-card);
+  border: 1px solid var(--lp-line);
+  border-radius: 14px;
+  padding: 22px 22px 20px;
+}
+.lp-cases .lp-mono {
+  color: var(--lp-data);
+}
+.lp-cases h3 {
+  font-family: var(--lp-serif);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  margin: 0;
+}
+.lp-cases p {
+  color: var(--lp-ink-2);
+  margin: 0;
+  line-height: 1.6;
+  flex: 1;
+}
+.lp-case-data {
+  font-size: 0.84rem;
+  color: var(--lp-ink-2);
+  border-top: 1px solid var(--lp-line);
+  padding-block-start: 12px;
+}
+
+/* 03 solutions */
 .lp-solutions {
   position: relative;
 }
@@ -1039,7 +1171,7 @@ main:has(> .lp) {
   font-size: 0.92rem;
 }
 
-/* 03 how it works */
+/* 05 how it works */
 .lp-steps {
   position: relative;
   list-style: none;
@@ -1104,7 +1236,7 @@ main:has(> .lp) {
   }
 }
 
-/* 04 wearables */
+/* 06 wearables */
 .lp-devices {
   list-style: none;
   margin: 0;
@@ -1205,7 +1337,7 @@ main:has(> .lp) {
   fill: var(--lp-attention);
 }
 
-/* 05 privacy */
+/* 07 privacy */
 .lp-quote {
   margin: 32px 0 0;
   padding-inline-start: 20px;
@@ -1240,7 +1372,7 @@ main:has(> .lp) {
   padding-block-start: 0.3em;
 }
 
-/* 06 FAQ */
+/* 08 FAQ */
 .lp-faq details {
   border-top: 1px solid var(--lp-line);
 }
@@ -1332,14 +1464,21 @@ main:has(> .lp) {
   color: var(--lp-night-muted);
 }
 
-/* Phone */
-@media (max-width: 899px) {
-  .lp-nav,
-  .lp-hide-sm {
+/* Narrow screens: the seven section links fold into the menu below 1100px, sign-in below 900px. */
+.lp-nav a {
+  white-space: nowrap;
+}
+@media (max-width: 1099px) {
+  .lp-nav {
     display: none;
   }
   .lp-menu {
     display: block;
+  }
+}
+@media (max-width: 899px) {
+  .lp-hide-sm {
+    display: none;
   }
 }
 @media (max-width: 420px) {
