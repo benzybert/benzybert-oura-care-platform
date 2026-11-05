@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TAB_HREFS, TAB_IDS, parseFocusAreas, tabOrder } from "./member-tabs";
+import { TAB_HREFS, TAB_IDS, navGroups, parseFocusAreas, tabOrder } from "./member-tabs";
 
 describe("tabOrder", () => {
   it("puts the heart group right after home for a heart-focused member", () => {
@@ -33,5 +33,14 @@ describe("parseFocusAreas", () => {
     expect(parseFocusAreas(["nope", 3, null, "recovery"])).toEqual(["recovery"]);
     expect(parseFocusAreas(["heart", "sleep", "recovery", "activity"])).toEqual(["heart", "sleep", "recovery"]);
     expect(parseFocusAreas([])).toEqual([]);
+  });
+});
+
+describe("navGroups", () => {
+  it("puts sharing and profile after the divider and keeps the order", () => {
+    const [health, account] = navGroups(tabOrder(["heart"]));
+    expect(health.slice(0, 2)).toEqual(["home", "heart"]);
+    expect(account).toEqual(["sharing", "profile"]);
+    expect([...health, ...account].sort()).toEqual([...TAB_IDS].sort());
   });
 });

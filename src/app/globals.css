@@ -821,7 +821,10 @@ select:focus-visible {
 .role-card p {
   flex: 1;
 }
-.section-nav {
+/* Member area navigation: one page per topic. A sidebar beside the content on wide screens,
+   a sticky scrolling bar of icon + label chips on phones. Logical properties so it sits on the
+   left in English and on the right in Hebrew. */
+.member-nav {
   position: sticky;
   top: 48px;
   z-index: 10;
@@ -833,15 +836,16 @@ select:focus-visible {
   background: var(--bg);
   scrollbar-width: none;
 }
-.section-nav::-webkit-scrollbar {
+.member-nav::-webkit-scrollbar {
   display: none;
 }
-.section-nav a {
+.member-nav a {
   flex: none;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   min-height: 40px;
-  padding: 0 14px;
+  padding-inline: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
@@ -849,16 +853,77 @@ select:focus-visible {
   text-decoration: none;
   font-size: 0.92rem;
 }
-.section-nav a:hover {
+.member-nav a:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
-/* member area tabs: one page per topic instead of one long page */
-.member-tabs a[aria-current="page"] {
+.member-nav a[aria-current="page"] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
   font-weight: 600;
+}
+.member-nav-icon {
+  flex: none;
+}
+.member-nav-divider {
+  display: none;
+}
+.member-main {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  main:has(> .member-layout) {
+    max-width: 1240px;
+  }
+  body:has(.member-layout) .appbar-inner {
+    max-width: 1240px;
+  }
+  .member-layout {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+  .member-nav {
+    top: 72px;
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+    margin: 0;
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .member-nav a {
+    min-height: 44px;
+    padding-inline: 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .member-nav a:hover {
+    background: var(--bg);
+    color: var(--text);
+  }
+  .member-nav a[aria-current="page"] {
+    background: var(--bg);
+    color: var(--text);
+  }
+  .member-nav a[aria-current="page"] .member-nav-icon {
+    color: var(--accent);
+  }
+  .member-nav-divider {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 8px 12px;
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
 }
 .hub {
   display: grid;

@@ -8,7 +8,8 @@ import { alertLevel, getMemberPrefs, getOpenHeartAlerts, type HeartAlertRow, typ
 import { LEVEL_RANK, isHeartRule } from "@/lib/heart/engine";
 import { getT } from "@/lib/i18n/server";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
-import { TAB_HREFS, tabOrder, type MemberTab } from "@/lib/member-tabs";
+import { MemberNavIcon } from "@/components/member-nav-icon";
+import { TAB_HREFS, navGroups, tabOrder, type MemberTab } from "@/lib/member-tabs";
 import { requireRole } from "@/lib/session";
 import { noticesFor, type MemberSearchParams } from "./messages";
 
@@ -62,55 +63,67 @@ export async function MemberShell({
     .sort((a, b) => LEVEL_RANK[alertLevel(b)] - LEVEL_RANK[alertLevel(a)])[0];
   const topRule = top && isHeartRule(top.rule) ? top.rule : null;
 
-  return (
-    <>
-      <div className="topbar">
-        <div>
-          <h1>{title}</h1>
-          {lead && <p className="muted">{lead}</p>}
-        </div>
-        <LogoutButton />
-      </div>
+  const [healthTabs, accountTabs] = navGroups(tabOrder(state.prefs?.focusAreas));
+  const link = (id: MemberTab) => (
+    <a key={id} href={TAB_HREFS[id]} aria-current={id === tab ? "page" : undefined}>
+      <MemberNavIcon tab={id} />
+      <span>{t.core.tabs[id]}</span>
+    </a>
+  );
 
-      <nav className="section-nav member-tabs" aria-label={t.core.memberAreaLabel}>
-        {tabOrder(state.prefs?.focusAreas).map((id) => (
-          <a key={id} href={TAB_HREFS[id]} aria-current={id === tab ? "page" : undefined}>
-            {t.core.tabs[id]}
-          </a>
-        ))}
+  return (
+    <div className="member-layout">
+      {/* Sidebar on wide screens, a sticky scrolling bar on phones. Same links, same order. */}
+      <nav className="member-nav" aria-label={t.core.memberAreaLabel}>
+        {healthTabs.map(link)}
+        <hr className="member-nav-divider" />
+        {accountTabs.map(link)}
       </nav>
 
-      {params.welcome === "1" ? (
-        <SyncRefresher next="/member?welcome=2" label={t.core.syncing} />
-      ) : params.oura === "connected" ? (
-        <SyncRefresher next="/member?oura=synced" label={t.core.syncing} />
-      ) : (
-        state.syncing && <SyncRefresher label={t.core.syncing} />
-      )}
-
-      {top && topRule && tab !== "heart" && (
-        <div className={`notice ${alertLevel(top) === "watch" ? "" : "warn"} ${alertLevel(top) === "urgent" ? "danger" : ""}`} role="alert">
-          <strong>{t.heart.levels[alertLevel(top)]}:</strong> {t.heart.rules[topRule].title}.{" "}
-          <a href={TAB_HREFS.heart}>{t.core.tabs.heart}</a>
-        </div>
-      )}
-
-      {notices.map((text) => (
-        <div className="notice" role="status" key={text}>
-          {text}
-        </div>
-      ))}
-
-      {hebrew && locale === "en" ? (
-        <>
-          <p className="muted small">{t.core.hebrewOnly}</p>
-          <div lang="he" dir="rtl">
-            {children}
+      <div className="member-main">
+        <div className="topbar">
+          <div>
+            <h1>{title}</h1>
+            {lead && <p className="muted">{lead}</p>}
           </div>
-        </>
-      ) : (
-        children
-      )}
-    </>
+          <LogoutButton />
+        </div>
+
+        {params.welcome === "1" ? (
+          <SyncRefresher next="/member?welcome=2" label={t.core.syncing} />
+        ) : params.oura === "connected" ? (
+          <SyncRefresher next="/member?oura=synced" label={t.core.syncing} />
+        ) : (
+          state.syncing && <SyncRefresher label={t.core.syncing} />
+        )}
+
+        {top && topRule && tab !== "heart" && (
+          <div
+            className={`notice ${alertLevel(top) === "watch" ? "" : "warn"} ${alertLevel(top) === "urgent" ? "danger" : ""}`}
+            role="alert"
+          >
+            <strong>{t.heart.levels[alertLevel(top)]}:</strong> {t.heart.rules[topRule].title}.{" "}
+            <a href={TAB_HREFS.heart}>{t.core.tabs.heart}</a>
+          </div>
+        )}
+
+        {notices.map((text) => (
+          <div className="notice" role="status" key={text}>
+            {text}
+          </div>
+        ))}
+
+        {hebrew && locale === "en" ? (
+          <>
+            <p className="muted small">{t.core.hebrewOnly}</p>
+            <div lang="he" dir="rtl">
+              {children}
+            </div>
+          </>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
   );
 }

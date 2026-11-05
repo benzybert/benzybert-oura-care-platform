@@ -29,6 +29,14 @@ export const TAB_HREFS: Record<MemberTab, string> = {
   profile: "/member/profile",
 };
 
+/** Tabs about the account rather than the member's health: the sidebar lists them under a divider. */
+export const ACCOUNT_TABS: readonly MemberTab[] = ["sharing", "profile"];
+
+/** The sidebar's two groups, each in the member's tab order: health topics first, account tabs after the divider. */
+export function navGroups(order: readonly MemberTab[]): [MemberTab[], MemberTab[]] {
+  return [order.filter((t) => !ACCOUNT_TABS.includes(t)), order.filter((t) => ACCOUNT_TABS.includes(t))];
+}
+
 /** What a member can say matters most to them. The first one picked is the main focus. */
 export const FOCUS_AREAS = ["heart", "sleep", "recovery", "activity", "general"] as const;
 export type FocusArea = (typeof FOCUS_AREAS)[number];
