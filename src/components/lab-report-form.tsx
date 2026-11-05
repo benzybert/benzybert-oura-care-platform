@@ -44,7 +44,7 @@ export function LabReportForm({ r, today, draft }: { r: RecordsText; today: stri
         </label>
         <label className="rc-row-name">
           {f.name}
-          <input name={`n${i}`} maxLength={60} autoComplete="off" />
+          <input name={`n${i}`} maxLength={60} autoComplete="off" defaultValue={d?.name ?? undefined} />
         </label>
         <label>
           {f.value}

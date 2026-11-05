@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { MAX_LAB_REPORTS, parseLabReportForm } from "@/lib/biomarkers";
+import { readLabPdfWithClaude, type AiReadError } from "@/lib/ai/lab-reader";
+import { aiEnabled } from "@/lib/ai/config";
 import { MAX_CUSTOM_VIEWS, parseCustomViewForm } from "@/lib/custom-views";
 import { todayInIsrael } from "@/lib/dates";
 import { parseLabText, type LabPdfDraft } from "@/lib/lab-pdf";
@@ -137,22 +139,39 @@ export async function createLabReport(formData: FormData): Promise<void> {
 
 export type LabPdfState =
   | { status: "idle" }
-  | { status: "error"; error: "missing" | "not_pdf" | "too_big" | "too_many_pages" | "unreadable" | "scanned"; at: number }
-  | { status: "ok"; draft: LabPdfDraft; at: number };
+  | {
+      status: "error";
+      error: "missing" | "not_pdf" | "too_big" | "too_many_pages" | "unreadable" | "scanned" | "scanned_ai" | AiReadError;
+      at: number;
+    }
+  | { status: "ok"; draft: LabPdfDraft; ai: boolean; at: number };
 
 /**
  * Reads an uploaded lab report PDF into a draft (used with useActionState). Nothing is stored: not the file, not the
  * text, not the draft. The draft goes back to the member's own browser in the action's response, is shown in the
  * review form, and only "save" (createLabReport) writes anything. Nothing about the file is logged.
+ *
+ * Two buttons: "read the PDF" reads the text on our server and sends nothing anywhere; "read with AI" (mode=ai, only
+ * when an Anthropic key is configured) sends this one file to Claude, which also reads scans. The member picks it per
+ * file; it is never automatic.
  */
 export async function readLabPdf(_prev: LabPdfState, formData: FormData): Promise<LabPdfState> {
   await currentMember();
+  const at = Date.now();
   const file = formData.get("pdf");
-  if (!(file instanceof File) || file.size === 0) return { status: "error", error: "missing", at: Date.now() };
-  const text = await pdfTextLines(new Uint8Array(await file.arrayBuffer()));
-  if (!text.ok) return { status: "error", error: text.error, at: Date.now() };
-  if (text.lines.join("").replace(/\s/g, "").length < 20) return { status: "error", error: "scanned", at: Date.now() };
-  return { status: "ok", draft: parseLabText(text.lines, todayInIsrael()), at: Date.now() };
+  if (!(file instanceof File) || file.size === 0) return { status: "error", error: "missing", at };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // also checks the size, that it is a PDF and the number of pages, for both ways of reading
+  const text = await pdfTextLines(bytes);
+  if (!text.ok) return { status: "error", error: text.error, at };
+
+  if (formData.get("mode") === "ai") {
+    const read = await readLabPdfWithClaude(bytes, todayInIsrael());
+    if (!read.ok) return { status: "error", error: read.error, at };
+    return { status: "ok", draft: read.draft, ai: true, at };
+  }
+  if (text.lines.join("").replace(/\s/g, "").length < 20) return { status: "error", error: aiEnabled() ? "scanned_ai" : "scanned", at };
+  return { status: "ok", draft: parseLabText(text.lines, todayInIsrael()), ai: false, at };
 }
 
 export async function deleteLabReport(formData: FormData): Promise<void> {

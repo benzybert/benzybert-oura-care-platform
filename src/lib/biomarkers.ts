@@ -79,7 +79,7 @@ export function biomarkerDef(key: string): BiomarkerDef | null {
 }
 
 /** The most result rows one report can carry (a PDF read can fill many). */
-export const LAB_ROWS = 40;
+export const LAB_ROWS = 60;
 /** Rows the empty "add a lab report" form shows (half of them folded). */
 export const LAB_FORM_ROWS = 10;
 export const LAB_NAME_MAX = 80;

@@ -8,7 +8,7 @@
  * like results are listed so the member can add them by hand. It is a draft: the member checks every row.
  */
 
-import { BIOMARKERS, biomarkerDef, parseNumber, type BiomarkerKey } from "./biomarkers";
+import { BIOMARKERS, biomarkerDef, parseNumber, type BiomarkerKey, type CUSTOM_MARKER } from "./biomarkers";
 import { isIsoDay } from "./experiments";
 
 /** Names a marker goes by on lab reports. Lower case; matched as whole words, longest first. */
@@ -142,7 +142,9 @@ const ALIASES: Alias[] = (Object.entries(MARKER_ALIASES) as Array<[BiomarkerKey,
   .sort((a, b) => b.alias.length - a.alias.length);
 
 export type DraftRow = {
-  biomarker: BiomarkerKey;
+  /** a catalog marker, or "custom" with its printed name (only the AI reader fills custom rows) */
+  biomarker: BiomarkerKey | typeof CUSTOM_MARKER;
+  name?: string | null;
   value: number;
   unit: string | null;
   refLow: number | null;
@@ -157,7 +159,18 @@ export type LabPdfDraft = {
   rows: DraftRow[];
   /** lines that look like a result (a name and a number) but name no catalog marker */
   unmatched: string[];
+  /** results the report gives for another test day (the AI reader only); one report is one day, so they are listed */
+  otherDays?: string[];
 };
+
+/** A printed unit in the catalog's spelling ("mg/dl" is "mg/dL", "micg/ml" stays as printed); empty is null. */
+export function normalizeUnit(raw: string | null | undefined): string | null {
+  const s = (raw ?? "").trim().replace(/\s+/g, "");
+  if (!s) return null;
+  const lower = s.toLowerCase().replace(/μ/g, "µ");
+  const hit = UNIT_SPELLINGS.find(([spelling]) => spelling === lower);
+  return hit ? hit[1] : s;
+}
 
 function findUnit(text: string): { unit: string; at: number; len: number } | null {
   const lower = text.toLowerCase().replace(/μ/g, "µ");
@@ -218,7 +231,7 @@ export function parseResultLine(line: string): DraftRow | null {
 }
 
 /** Drops page numbers and stray figures: a value far outside anything the marker can be in its usual unit. */
-function plausible(key: BiomarkerKey, value: number, unit: string | null): boolean {
+export function plausible(key: BiomarkerKey, value: number, unit: string | null): boolean {
   if (value < 0) return false;
   const def = BIOMARKERS[key] as { unit: string; low?: number; high?: number };
   if (unit && unit !== def.unit) return true;

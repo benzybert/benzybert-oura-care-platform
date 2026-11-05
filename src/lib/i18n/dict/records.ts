@@ -140,6 +140,15 @@ export const records = defineDict(
         unmatchedTitle: (n: number) => `${n} more ${n === 1 ? "line looks" : "lines look"} like a result we do not know. Add ${n === 1 ? "it" : "them"} with “Other” if you need ${n === 1 ? "it" : "them"}:`,
         again: "Read another file",
         manualTitle: "Or type the results in",
+        leadAi:
+          "Pick the PDF your lab or health fund sent. “Read the PDF” reads its text on our server and sends it nowhere. “Read with AI” sends this one file to Claude (Anthropic's AI) and also reads scans and photos. Either way the file is not stored, and nothing is saved until you check the results and press save.",
+        readAi: "Read with AI (Claude)",
+        readingAi: "Claude is reading the report… (up to a minute)",
+        aiCaution: "Read by AI, which can misread a number or a range. Compare every row with your report before you save.",
+        otherDaysTitle: (n: number) =>
+          n === 1
+            ? "1 more result is from another test day. One report is one day, so add it as a separate report:"
+            : `${n} more results are from other test days. One report is one day, so add them as a separate report:`,
         errors: {
           missing: "Choose a PDF file first.",
           not_pdf: "That file is not a PDF.",
@@ -147,6 +156,11 @@ export const records = defineDict(
           too_many_pages: "The PDF has more than 20 pages.",
           unreadable: "The PDF could not be read. It may be damaged or password-protected.",
           scanned: "This PDF has no text in it (it is a scan or a photo), so it cannot be read automatically. Please type the values in below.",
+          scanned_ai: "This PDF has no text in it (it is a scan or a photo). Choose the file again and press “Read with AI”: Claude can read scans. Or type the values in below.",
+          ai_off: "Reading with AI is not set up yet (no Anthropic API key).",
+          ai_failed: "The AI could not read this file. Try again, or type the values in below.",
+          ai_busy: "The AI is busy right now. Try again in a minute.",
+          ai_declined: "The AI declined to read this file. Please type the values in below.",
         },
       },
       report: {
@@ -421,6 +435,15 @@ export const records = defineDict(
         unmatchedTitle: (n: number) => (n === 1 ? "עוד שורה אחת נראית כמו תוצאה שאנחנו לא מכירים. אפשר להוסיף אותה עם ״אחר״:" : `עוד ${n} שורות נראות כמו תוצאות שאנחנו לא מכירים. אפשר להוסיף אותן עם ״אחר״:`),
         again: "קריאת קובץ אחר",
         manualTitle: "או להקליד את התוצאות",
+        leadAi:
+          "בוחרים את קובץ ה-PDF שהמעבדה או הקופה שלחו. ״קריאת הקובץ״ קוראת את הטקסט בשרת שלנו ולא שולחת אותו לשום מקום. ״קריאה עם AI״ שולחת את הקובץ הזה בלבד ל-Claude (ה-AI של Anthropic), וקוראת גם סריקות ותמונות. בשתי הדרכים הקובץ לא נשמר, ושום דבר לא נשמר עד שבודקים את התוצאות ולוחצים שמירה.",
+        readAi: "קריאה עם AI ‏(Claude)",
+        readingAi: "Claude קורא את הבדיקה… (עד דקה)",
+        aiCaution: "נקרא על ידי AI, שעלול לטעות במספר או בטווח. כדאי להשוות כל שורה לדף הבדיקה לפני השמירה.",
+        otherDaysTitle: (n: number) =>
+          n === 1
+            ? "עוד תוצאה אחת היא מיום בדיקה אחר. בדיקה אחת היא יום אחד, אז אפשר להוסיף אותה כבדיקה נפרדת:"
+            : `עוד ${n} תוצאות הן מימי בדיקה אחרים. בדיקה אחת היא יום אחד, אז אפשר להוסיף אותן כבדיקה נפרדת:`,
         errors: {
           missing: "צריך לבחור קובץ PDF קודם.",
           not_pdf: "הקובץ הזה הוא לא PDF.",
@@ -428,6 +451,11 @@ export const records = defineDict(
           too_many_pages: "בקובץ יותר מ-20 עמודים.",
           unreadable: "לא הצלחנו לקרוא את הקובץ. אולי הוא פגום או מוגן בסיסמה.",
           scanned: "אין טקסט בקובץ הזה (זו סריקה או תמונה), אז אי אפשר לקרוא אותו אוטומטית. אפשר להקליד את הערכים למטה.",
+          scanned_ai: "אין טקסט בקובץ הזה (זו סריקה או תמונה). אפשר לבחור אותו שוב וללחוץ ״קריאה עם AI״: Claude יודע לקרוא סריקות. או להקליד את הערכים למטה.",
+          ai_off: "הקריאה עם AI עוד לא הוגדרה (אין מפתח API של Anthropic).",
+          ai_failed: "ה-AI לא הצליח לקרוא את הקובץ. אפשר לנסות שוב, או להקליד את הערכים למטה.",
+          ai_busy: "ה-AI עמוס כרגע. אפשר לנסות שוב בעוד דקה.",
+          ai_declined: "ה-AI סירב לקרוא את הקובץ. אפשר להקליד את הערכים למטה.",
         },
       },
       report: {

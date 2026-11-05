@@ -2,6 +2,7 @@ import { LabPdfImport } from "@/components/lab-pdf-import";
 import { LabReportForm } from "@/components/lab-report-form";
 import "@/components/records.css";
 import { getDb } from "@/db";
+import { aiEnabled } from "@/lib/ai/config";
 import { rangeStatus } from "@/lib/biomarkers";
 import { todayInIsrael } from "@/lib/dates";
 import { formatDate } from "@/lib/format-locale";
@@ -11,7 +12,8 @@ import { MemberShell, loadMember } from "../_shell/member-shell";
 import type { MemberSearchParams } from "../_shell/messages";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// reading a scanned report with the AI can take up to a minute or two
+export const maxDuration = 120;
 
 /** Lab results: the member's lab reports and the form to add one. Member-only, own data. */
 export default async function LabsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
@@ -53,8 +55,8 @@ export default async function LabsPage({ searchParams }: { searchParams: Promise
 
       <section className="card" id="upload">
         <h2>{l.pdf.title}</h2>
-        <p className="muted small">{l.pdf.lead}</p>
-        <LabPdfImport locale={locale} today={todayInIsrael()} />
+        <p className="muted small">{aiEnabled() ? l.pdf.leadAi : l.pdf.lead}</p>
+        <LabPdfImport locale={locale} today={todayInIsrael()} ai={aiEnabled()} />
       </section>
 
       <section className="card" id="add">
