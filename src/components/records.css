@@ -282,6 +282,11 @@
     font-size: 0.85rem;
   }
 }
+.rc-row-source {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .rc-rows-more summary {
   margin: 4px 0 8px;
 }

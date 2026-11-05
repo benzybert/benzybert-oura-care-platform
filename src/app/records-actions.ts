@@ -8,7 +8,9 @@ import { getDb, schema } from "@/db";
 import { MAX_LAB_REPORTS, parseLabReportForm } from "@/lib/biomarkers";
 import { MAX_CUSTOM_VIEWS, parseCustomViewForm } from "@/lib/custom-views";
 import { todayInIsrael } from "@/lib/dates";
+import { parseLabText, type LabPdfDraft } from "@/lib/lab-pdf";
 import { MAX_MEDICATIONS, parseMedicationForm } from "@/lib/medications";
+import { pdfTextLines } from "@/lib/pdf-text";
 import { getMemberForUser } from "@/lib/queries";
 import { getOwnCustomView, getOwnLabReport, getOwnMedication } from "@/lib/records-data";
 import { requireRole } from "@/lib/session";
@@ -131,6 +133,26 @@ export async function createLabReport(formData: FormData): Promise<void> {
     return created.id;
   });
   done(`/member/labs/${reportId}?lab=saved`);
+}
+
+export type LabPdfState =
+  | { status: "idle" }
+  | { status: "error"; error: "missing" | "not_pdf" | "too_big" | "too_many_pages" | "unreadable" | "scanned"; at: number }
+  | { status: "ok"; draft: LabPdfDraft; at: number };
+
+/**
+ * Reads an uploaded lab report PDF into a draft (used with useActionState). Nothing is stored: not the file, not the
+ * text, not the draft. The draft goes back to the member's own browser in the action's response, is shown in the
+ * review form, and only "save" (createLabReport) writes anything. Nothing about the file is logged.
+ */
+export async function readLabPdf(_prev: LabPdfState, formData: FormData): Promise<LabPdfState> {
+  await currentMember();
+  const file = formData.get("pdf");
+  if (!(file instanceof File) || file.size === 0) return { status: "error", error: "missing", at: Date.now() };
+  const text = await pdfTextLines(new Uint8Array(await file.arrayBuffer()));
+  if (!text.ok) return { status: "error", error: text.error, at: Date.now() };
+  if (text.lines.join("").replace(/\s/g, "").length < 20) return { status: "error", error: "scanned", at: Date.now() };
+  return { status: "ok", draft: parseLabText(text.lines, todayInIsrael()), at: Date.now() };
 }
 
 export async function deleteLabReport(formData: FormData): Promise<void> {

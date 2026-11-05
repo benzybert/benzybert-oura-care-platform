@@ -1,3 +1,4 @@
+import { LabPdfImport } from "@/components/lab-pdf-import";
 import { LabReportForm } from "@/components/lab-report-form";
 import "@/components/records.css";
 import { getDb } from "@/db";
@@ -50,10 +51,16 @@ export default async function LabsPage({ searchParams }: { searchParams: Promise
         </div>
       )}
 
+      <section className="card" id="upload">
+        <h2>{l.pdf.title}</h2>
+        <p className="muted small">{l.pdf.lead}</p>
+        <LabPdfImport locale={locale} today={todayInIsrael()} />
+      </section>
+
       <section className="card" id="add">
         <h2>{l.addTitle}</h2>
         <p className="muted small">{l.addLead}</p>
-        <LabReportForm t={t} today={todayInIsrael()} />
+        <LabReportForm r={t.records} today={todayInIsrael()} />
       </section>
     </MemberShell>
   );

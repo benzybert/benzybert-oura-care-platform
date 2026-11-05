@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Lab report PDFs (up to 4 MB, src/lib/pdf-text.ts) are uploaded through a server action. Vercel caps a request
+    // body at 4.5 MB, so this stays just above the file limit plus the form fields.
+    serverActions: { bodySizeLimit: "4.5mb" },
+  },
   // The PDF generator reads the self-hosted font files at runtime; make sure serverless bundles carry them.
   outputFileTracingIncludes: {
     "/member/**/*": ["./node_modules/@fontsource/ibm-plex-sans-hebrew/files/*-{400,700}-normal.woff"],
