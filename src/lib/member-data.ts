@@ -1,188 +1,81 @@
 import { addDays } from "./dates";
+import type { Locale } from "./i18n";
+import { dataLib } from "./i18n/dict/data-lib";
 import type { CollectionCoverage, DayExtras } from "./types";
 
 /**
  * Labels and small pure helpers for the member's own data views (activity, heart, recovery, events, ring).
- * Hebrew UI text; Oura's own codes are mapped here, anything unknown falls back to a readable version of the code.
+ * Oura's own codes are mapped to words here (text in src/lib/i18n/dict/data-lib.ts, Hebrew unless a language is
+ * passed); anything unknown falls back to a readable version of the code.
  */
 
-/** "strength_training" -> "Strength training": a readable fallback for codes we have no Hebrew for. */
+/** "strength_training" -> "Strength training": a readable fallback for codes we have no word for. */
 export function prettyCode(code: string | null | undefined): string {
   if (!code) return "–";
   const t = code.replace(/^tag_generic_/, "").replace(/^tag_/, "").replace(/[_-]+/g, " ").trim();
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : "–";
 }
 
+type Lang = Locale;
+const O = (lang: Lang) => dataLib[lang].oura;
+
 const pick = (map: Record<string, string>, code: string | null | undefined) =>
   code ? (map[code] ?? prettyCode(code)) : "–";
 
 export const RESILIENCE_ORDER = ["limited", "adequate", "solid", "strong", "exceptional"] as const;
-export const RESILIENCE_LABEL_HE: Record<string, string> = {
-  limited: "מוגבל",
-  adequate: "מספק",
-  solid: "יציב",
-  strong: "חזק",
-  exceptional: "יוצא דופן",
-};
-export const resilienceLabel = (level: string | null | undefined) => pick(RESILIENCE_LABEL_HE, level);
-/** 1 (limited) .. 5 (exceptional), or null for an unknown level. */
+/** Hebrew maps kept by name for older callers; new code passes a language to the label functions. */
+export const RESILIENCE_LABEL_HE: Record<string, string> = dataLib.he.oura.resilience;
+export const resilienceLabelsFor = (lang: Lang): Record<string, string> => O(lang).resilience;
+export const resilienceLabel = (level: string | null | undefined, lang: Lang = "he") => pick(O(lang).resilience, level);
+
 export const resilienceRank = (level: string | null | undefined): number | null => {
   const i = RESILIENCE_ORDER.indexOf(level as (typeof RESILIENCE_ORDER)[number]);
   return i < 0 ? null : i + 1;
 };
 
-export const RESILIENCE_CONTRIBUTORS_HE: Record<string, string> = {
-  sleep_recovery: "התאוששות בשינה",
-  daytime_recovery: "התאוששות ביום",
-  stress: "לחץ",
-};
+export const RESILIENCE_CONTRIBUTORS_HE: Record<string, string> = dataLib.he.contributors.resilience;
+export const resilienceContributorsFor = (lang: Lang): Record<string, string> => dataLib[lang].contributors.resilience;
 
-export const ACTIVITY_CONTRIBUTORS_HE: Record<string, string> = {
-  meet_daily_targets: "עמידה ביעדים יומיים",
-  move_every_hour: "תנועה כל שעה",
-  recovery_time: "זמן התאוששות",
-  stay_active: "פעילות לאורך היום",
-  training_frequency: "תדירות אימונים",
-  training_volume: "נפח אימונים",
-};
+export const ACTIVITY_CONTRIBUTORS_HE: Record<string, string> = dataLib.he.contributors.activity;
+export const activityContributorsFor = (lang: Lang): Record<string, string> => dataLib[lang].contributors.activity;
 
-export const BEDTIME_RECOMMENDATION_HE: Record<string, string> = {
-  improve_efficiency: "כדאי לשפר את יעילות השינה",
-  earlier_bedtime: "כדאי ללכת לישון מוקדם יותר",
-  later_bedtime: "אפשר ללכת לישון מאוחר יותר",
-  earlier_wake_up_time: "כדאי לקום מוקדם יותר",
-  later_wake_up_time: "אפשר לקום מאוחר יותר",
-  follow_optimal_bedtime: "להישאר בחלון השינה האופטימלי",
-};
-export const bedtimeRecommendationLabel = (code: string | null | undefined) => pick(BEDTIME_RECOMMENDATION_HE, code);
+export const BEDTIME_RECOMMENDATION_HE: Record<string, string> = dataLib.he.oura.bedtimeRecommendation;
+export const bedtimeRecommendationLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).bedtimeRecommendation, code);
 
-export const BEDTIME_STATUS_HE: Record<string, string> = {
-  not_enough_nights: "אין עדיין מספיק לילות כדי להמליץ",
-  not_enough_recent_nights: "אין מספיק לילות מהימים האחרונים",
-  bad_sleep_quality: "איכות השינה נמוכה מכדי להמליץ",
-  only_recommended_found: "נמצא חלון מומלץ (לא אופטימלי)",
-  optimal_found: "נמצא חלון שינה אופטימלי",
-};
-export const bedtimeStatusLabel = (code: string | null | undefined) => pick(BEDTIME_STATUS_HE, code);
+export const BEDTIME_STATUS_HE: Record<string, string> = dataLib.he.oura.bedtimeStatus;
+export const bedtimeStatusLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).bedtimeStatus, code);
 
-const WORKOUT_HE: Record<string, string> = {
-  walking: "הליכה",
-  running: "ריצה",
-  cycling: "רכיבה על אופניים",
-  hiking: "טיול רגלי",
-  swimming: "שחייה",
-  yoga: "יוגה",
-  pilates: "פילאטיס",
-  strength_training: "אימון כוח",
-  weight_lifting: "הרמת משקולות",
-  hiit: "אינטרוולים (HIIT)",
-  dancing: "ריקוד",
-  elliptical: "אליפטיקל",
-  rowing: "חתירה",
-  stretching: "מתיחות",
-  tennis: "טניס",
-  soccer: "כדורגל",
-  basketball: "כדורסל",
-  golf: "גולף",
-  climbing: "טיפוס",
-  skiing: "סקי",
-  surfing: "גלישה",
-  housework: "עבודות בית",
-  gardening: "גינון",
-  mindfulness: "מיינדפולנס",
-  meditation: "מדיטציה",
-  cooldown: "הרגעה",
-  warmup: "חימום",
-};
-export const workoutName = (activity: string | null | undefined) => pick(WORKOUT_HE, activity);
+export const workoutName = (activity: string | null | undefined, lang: Lang = "he") => pick(O(lang).workout, activity);
 
-export const INTENSITY_HE: Record<string, string> = { easy: "קלה", moderate: "בינונית", hard: "קשה" };
-export const intensityLabel = (code: string | null | undefined) => pick(INTENSITY_HE, code);
+export const INTENSITY_HE: Record<string, string> = dataLib.he.oura.intensity;
+export const intensityLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).intensity, code);
 
-export const SESSION_TYPE_HE: Record<string, string> = {
-  breathing: "נשימות",
-  meditation: "מדיטציה",
-  nap: "תנומה",
-  relaxation: "הרפיה",
-  rest: "מנוחה",
-  body_status: "מצב הגוף",
-};
-export const sessionTypeLabel = (code: string | null | undefined) => pick(SESSION_TYPE_HE, code);
+export const SESSION_TYPE_HE: Record<string, string> = dataLib.he.oura.sessionType;
+export const sessionTypeLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).sessionType, code);
 
-export const MOOD_HE: Record<string, string> = { bad: "רע", worse: "גרוע יותר", same: "בלי שינוי", good: "טוב", great: "מצוין" };
-export const moodLabel = (code: string | null | undefined) => pick(MOOD_HE, code);
+export const MOOD_HE: Record<string, string> = dataLib.he.oura.mood;
+export const moodLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).mood, code);
 
-const TAG_HE: Record<string, string> = {
-  alcohol: "אלכוהול",
-  caffeine: "קפאין",
-  nap: "תנומה",
-  sick: "מחלה",
-  illness: "מחלה",
-  stress: "לחץ",
-  travel: "נסיעה",
-  late_meal: "ארוחה מאוחרת",
-  sauna: "סאונה",
-  massage: "עיסוי",
-  meditation: "מדיטציה",
-  medication: "תרופה",
-  supplements: "תוספי תזונה",
-};
-export function tagName(label: string | null | undefined): string {
-  if (!label) return "תגית";
+export function tagName(label: string | null | undefined, lang: Lang = "he"): string {
+  if (!label) return O(lang).tagFallback;
   const bare = label.replace(/^tag_generic_/, "").replace(/^tag_/, "");
-  return TAG_HE[bare] ?? (label.startsWith("tag_") ? prettyCode(label) : label);
+  return O(lang).tag[bare] ?? (label.startsWith("tag_") ? prettyCode(label) : label);
 }
 
-export const RING_COLOR_HE: Record<string, string> = {
-  brushed_silver: "כסף מוברש",
-  glossy_black: "שחור מבריק",
-  glossy_gold: "זהב מבריק",
-  glossy_white: "לבן מבריק",
-  gucci: "Gucci",
-  matt_gold: "זהב מט",
-  rose: "רוז",
-  silver: "כסף",
-  stealth_black: "שחור סטלת׳",
-  titanium: "טיטניום",
-  titanium_and_gold: "טיטניום וזהב",
-  cloud: "ענן",
-  petal: "עלה כותרת",
-  midnight: "חצות",
-  tide: "גאות",
-};
-export const ringColorLabel = (code: string | null | undefined) => pick(RING_COLOR_HE, code);
+export const RING_COLOR_HE: Record<string, string> = dataLib.he.oura.ringColor;
+export const ringColorLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).ringColor, code);
 
-export const RING_DESIGN_HE: Record<string, string> = {
-  heritage: "Heritage",
-  balance: "Balance",
-  balance_diamond: "Balance Diamond",
-  horizon: "Horizon",
-  ceramic: "Ceramic",
-};
-export const ringDesignLabel = (code: string | null | undefined) => pick(RING_DESIGN_HE, code);
+export const RING_DESIGN_HE: Record<string, string> = dataLib.he.oura.ringDesign;
+export const ringDesignLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).ringDesign, code);
 
-export const RING_HARDWARE_HE: Record<string, string> = {
-  gen1: "דור 1",
-  gen2: "דור 2",
-  gen2m: "דור 2M",
-  gen3: "דור 3",
-  gen4: "דור 4",
-};
-export const ringHardwareLabel = (code: string | null | undefined) => pick(RING_HARDWARE_HE, code);
+export const RING_HARDWARE_HE: Record<string, string> = dataLib.he.oura.ringHardware;
+export const ringHardwareLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).ringHardware, code);
 
-export const SEX_HE: Record<string, string> = { male: "זכר", female: "נקבה" };
-export const sexLabel = (code: string | null | undefined) => pick(SEX_HE, code);
+export const SEX_HE: Record<string, string> = dataLib.he.oura.sex;
+export const sexLabel = (code: string | null | undefined, lang: Lang = "he") => pick(O(lang).sex, code);
 
-export const HR_SOURCE_HE: Record<string, string> = {
-  awake: "ערות",
-  rest: "מנוחה",
-  sleep: "שינה",
-  workout: "אימון",
-  session: "סשן",
-  live: "מדידה חיה",
-  other: "אחר",
-};
-export const hrSourceLabel = (code: string) => pick(HR_SOURCE_HE, code);
+export const HR_SOURCE_HE: Record<string, string> = dataLib.he.oura.hrSource;
+export const hrSourceLabel = (code: string, lang: Lang = "he") => pick(O(lang).hrSource, code);
 
 /** Run-length decode of a code string such as an activity or movement strip: "0011" -> [{ch:"0",len:2},{ch:"1",len:2}] */
 export function runs(s: string | null | undefined): Array<{ ch: string; len: number }> {
@@ -208,21 +101,22 @@ export function bedtimeWindowLabel(start: number | null | undefined, end: number
   return `${clockLabel(start)}–${clockLabel(end)}`;
 }
 
-/** "1:25" for minutes, for workout and session lengths. */
-export function durationLabel(minutes: number | null | undefined): string {
+/** "1:25 hours" / "40 minutes", for workout and session lengths. */
+export function durationLabel(minutes: number | null | undefined, lang: Lang = "he"): string {
   if (minutes == null || !Number.isFinite(minutes)) return "–";
   const m = Math.round(minutes);
-  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")} שעות` : `${m} דקות`;
+  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")} ${O(lang).hoursUnit}` : `${m} ${O(lang).minutesUnit}`;
 }
 
 /** Share of the day (in minutes) per activity intensity, for the stacked bar. */
-export function activityBreakdown(d: DayExtras): Array<{ key: string; label: string; minutes: number }> {
+export function activityBreakdown(d: DayExtras, lang: Lang = "he"): Array<{ key: string; label: string; minutes: number }> {
+  const b = O(lang).breakdown;
   const parts: Array<[string, string, number | null]> = [
-    ["high", "עצימה", d.highActivityMinutes],
-    ["medium", "בינונית", d.mediumActivityMinutes],
-    ["low", "קלה", d.lowActivityMinutes],
-    ["rest", "מנוחה", d.restingMinutes],
-    ["nonwear", "ללא הטבעת", d.nonWearMinutes],
+    ["high", b.high, d.highActivityMinutes],
+    ["medium", b.medium, d.mediumActivityMinutes],
+    ["low", b.low, d.lowActivityMinutes],
+    ["rest", b.rest, d.restingMinutes],
+    ["nonwear", b.nonwear, d.nonWearMinutes],
   ];
   return parts.filter((p): p is [string, string, number] => p[2] !== null && p[2] > 0).map(([key, label, minutes]) => ({ key, label, minutes }));
 }
@@ -242,27 +136,35 @@ export function heartRateDayStats(buckets: Array<number | null> | null | undefin
   };
 }
 
-/** The Oura data families, in the order the ring view lists them. */
-export const COVERAGE_FAMILIES: Array<{ id: string; label: string; what: string }> = [
-  { id: "daily_sleep", label: "ציון שינה", what: "הציון היומי וגורמיו" },
-  { id: "sleep", label: "תקופות שינה", what: "שלבים, דופק ו-HRV בלילה, תנומות" },
-  { id: "daily_readiness", label: "מוכנות", what: "הציון, גורמיו וטמפרטורת העור" },
-  { id: "daily_activity", label: "פעילות", what: "צעדים, קלוריות, דקות פעילות ומרחק" },
-  { id: "daily_stress", label: "לחץ והתאוששות", what: "דקות לחץ והתאוששות ביום" },
-  { id: "daily_resilience", label: "חוסן", what: "רמת החוסן וגורמיה" },
-  { id: "daily_spo2", label: "חמצן בדם", what: "ריווי חמצן בשינה ומדד הפרעות נשימה" },
-  { id: "daily_cardiovascular_age", label: "גיל כלי דם", what: "הערכת גיל כלי הדם" },
-  { id: "vO2_max", label: "VO2 max", what: "הערכת כושר אירובי" },
-  { id: "heartrate", label: "דופק לאורך היום", what: "עקומת הדופק בכל יום" },
-  { id: "sleep_time", label: "זמן שינה מומלץ", what: "חלון שינה והמלצה" },
-  { id: "workout", label: "אימונים", what: "סוג, משך, עצימות, קלוריות ומרחק" },
-  { id: "session", label: "סשנים", what: "נשימות, מדיטציה והרפיה" },
-  { id: "enhanced_tag", label: "תגיות", what: "תגיות והערות שהוספת באפליקציה" },
-  { id: "rest_mode_period", label: "מצב מנוחה", what: "תקופות שהפעלת בהן מצב מנוחה" },
-  { id: "ring_configuration", label: "פרטי הטבעת", what: "דגם, צבע, מידה וקושחה" },
-  { id: "ring_battery_level", label: "סוללה", what: "רמת הסוללה האחרונה" },
-  { id: "personal_info", label: "פרטים אישיים", what: "גיל, משקל, גובה ומין ביולוגי" },
-];
+const FAMILY_IDS = [
+  "daily_sleep",
+  "sleep",
+  "daily_readiness",
+  "daily_activity",
+  "daily_stress",
+  "daily_resilience",
+  "daily_spo2",
+  "daily_cardiovascular_age",
+  "vO2_max",
+  "heartrate",
+  "sleep_time",
+  "workout",
+  "session",
+  "enhanced_tag",
+  "rest_mode_period",
+  "ring_configuration",
+  "ring_battery_level",
+  "personal_info",
+] as const;
+
+/** The Oura data families, in the order the ring view lists them, with their name and what they hold. */
+export function coverageFamilies(lang: Lang = "he"): Array<{ id: string; label: string; what: string }> {
+  return FAMILY_IDS.map((id) => {
+    const [label, what] = O(lang).families[id] as [string, string];
+    return { id, label, what };
+  });
+}
+export const COVERAGE_FAMILIES = coverageFamilies("he");
 
 export type FamilyState = "ok" | "empty" | "forbidden" | "error" | "unknown";
 
@@ -272,13 +174,8 @@ export function familyState(c: CollectionCoverage | undefined): FamilyState {
   return c.status;
 }
 
-export const FAMILY_STATE_HE: Record<FamilyState, string> = {
-  ok: "מתקבל",
-  empty: "אין נתונים בתקופה",
-  forbidden: "דורש אישור הרשאה",
-  error: "לא התקבל בסנכרון האחרון",
-  unknown: "עוד לא נבדק",
-};
+export const FAMILY_STATE_HE: Record<FamilyState, string> = dataLib.he.oura.familyState;
+export const familyStatesFor = (lang: Lang): Record<FamilyState, string> => O(lang).familyState;
 
 /** Window days that actually have a value for `pick`, aligned to `days` (null where the day has no row). */
 export function alignExtras<T>(days: string[], extras: DayExtras[], pick: (d: DayExtras) => T | null | undefined): Array<T | null> {

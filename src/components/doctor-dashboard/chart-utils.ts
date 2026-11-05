@@ -27,12 +27,13 @@ export function shortDay(day: string): string {
   return `${Number(d)}.${Number(m)}`;
 }
 
-export function longDay(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", {
+/** "יום רביעי, 5.11" in Hebrew (the default), "Wednesday 5 Nov" in English. */
+export function longDay(day: string, lang: "he" | "en" = "he"): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", {
     timeZone: "UTC",
     weekday: "long",
     day: "numeric",
-    month: "numeric",
+    month: lang === "he" ? "numeric" : "short",
   });
 }
 

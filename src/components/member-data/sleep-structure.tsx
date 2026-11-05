@@ -20,10 +20,10 @@ export function SleepStructureView({ slots, coverage, t, locale }: { slots: DayS
 
   return (
     <div dir={dirOf(locale)} lang={locale}>
-      <Shell>
+      <Shell lang={locale}>
         <Section id="sleep-structure" icon={<IconLayers size={20} />} title={s.title} lead={s.lead}>
           {!latest || !win ? (
-            <EmptyHint families={["sleep"]} coverage={coverage} what={s.title} />
+            <EmptyHint families={["sleep"]} coverage={coverage} what={s.title} lang={locale} />
           ) : (
             <>
               <h3 className="md-sub">{s.lastNight(fmtShort(latest.day))}</h3>

@@ -3,6 +3,7 @@
 import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import { fmtClock, median } from "@/lib/series-math";
 import { longDay, shortDay } from "./chart-utils";
+import { useChartLang, useChartText } from "./chart-lang";
 import { formatHm } from "./format";
 import { useWidth } from "./use-width";
 
@@ -32,6 +33,8 @@ export function SleepClock({
   /** hours below which a night is drawn in the attention colour */
   shortBelow: number;
 }) {
+  const lang = useChartLang();
+  const T = useChartText();
   const [wrapRef, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const rows = [...nights].sort((x, y) => (x.day < y.day ? 1 : -1)); // newest first
@@ -70,21 +73,21 @@ export function SleepClock({
       ref={wrapRef}
       tabIndex={0}
       role="group"
-      aria-roledescription="תרשים"
-      aria-label={`שעות שינה בכל לילה. שעת הירדמות חציונית ${fmtClock(bedMedian)}, שעת קימה חציונית ${fmtClock(wakeMedian)}.`}
+      aria-roledescription={T.chart}
+      aria-label={T.clockAria(fmtClock(bedMedian), fmtClock(wakeMedian))}
       onKeyDown={onKey}
       onFocus={() => setActive((i) => i ?? 0)}
       onBlur={() => setActive(null)}
     >
       <ul className="tc-legend">
         <li>
-          <span className="sw sw-fill" style={{ background: "var(--viz-data)" }} /> לילה
+          <span className="sw sw-fill" style={{ background: "var(--viz-data)" }} /> {T.night}
         </li>
         <li>
-          <span className="sw sw-fill" style={{ background: "var(--viz-attn)" }} /> פחות מ-{shortBelow} שעות
+          <span className="sw sw-fill" style={{ background: "var(--viz-attn)" }} /> {T.shorterThan(shortBelow)}
         </li>
         <li>
-          <span className="sw sw-ref" /> חציון הירדמות וקימה
+          <span className="sw sw-ref" /> {T.medians}
         </li>
       </ul>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} direction="ltr" aria-hidden="true">
@@ -142,7 +145,7 @@ export function SleepClock({
           role="status"
           aria-live="polite"
         >
-          <span className="tc-tip-day">{longDay(row.day)}</span>
+          <span className="tc-tip-day">{longDay(row.day, lang)}</span>
           <span className="tc-tip-row">
             <strong>
               <bdi dir="ltr">
@@ -151,7 +154,7 @@ export function SleepClock({
             </strong>
           </span>
           <span className="tc-tip-row tc-tip-muted">
-            שינה בפועל: {row.sleepHours === null ? "–" : <bdi>{formatHm(row.sleepHours * 60)}</bdi>} שעות
+            {T.asleep}: {row.sleepHours === null ? "–" : <bdi>{formatHm(row.sleepHours * 60)}</bdi>} {T.hours}
           </span>
         </div>
       )}

@@ -2,19 +2,13 @@ import { ChartCard, ContributorList, MiniStat, Section, Trend, fmtNum, fmtShort 
 import { IconActivity, IconAlert, IconClock, IconHeartPulse, IconWind, IconZap } from "@/components/doctor-dashboard/icons";
 import { StackChart } from "@/components/doctor-dashboard/stack-chart";
 import type { ContributorRow, DaySlot } from "@/lib/doctor-dashboard";
-import { ACTIVITY_CONTRIBUTORS_HE, activityBreakdown, alignExtras, latestOf, meanOf } from "@/lib/member-data";
+import type { Locale } from "@/lib/i18n";
+import { dataViews } from "@/lib/i18n/dict/data-views";
+import { activityBreakdown, activityContributorsFor, alignExtras, latestOf, meanOf } from "@/lib/member-data";
 import { rollingMean } from "@/lib/series-math";
 import type { DayExtras } from "@/lib/types";
 import { ChartGrid, EmptyHint, Legend, Shell, Strip, percent, type Coverage } from "./shared";
 
-const ACTIVITY_LEGEND = [
-  { cls: "act0", label: "הטבעת לא נענדה" },
-  { cls: "act1", label: "מנוחה" },
-  { cls: "act2", label: "ישיבה" },
-  { cls: "act3", label: "פעילות קלה" },
-  { cls: "act4", label: "בינונית" },
-  { cls: "act5", label: "עצימה" },
-];
 
 const BREAKDOWN_COLOR: Record<string, string> = {
   high: "var(--viz-attn)",
@@ -24,8 +18,8 @@ const BREAKDOWN_COLOR: Record<string, string> = {
   nonwear: "var(--viz-grid)",
 };
 
-function contributorRows(extras: DayExtras[], recentDays: Set<string>): ContributorRow[] {
-  return Object.entries(ACTIVITY_CONTRIBUTORS_HE)
+function contributorRows(extras: DayExtras[], recentDays: Set<string>, lang: Locale): ContributorRow[] {
+  return Object.entries(activityContributorsFor(lang))
     .map(([key, label]) => {
       const get = (e: DayExtras) => e.activityContributors?.[key] ?? null;
       const recent = extras.filter((e) => recentDays.has(e.day));
@@ -34,7 +28,10 @@ function contributorRows(extras: DayExtras[], recentDays: Set<string>): Contribu
     .filter((r) => r.count > 0);
 }
 
-export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; extras: DayExtras[]; coverage: Coverage }) {
+export function ActivityView({ slots, extras, coverage, lang }: { slots: DaySlot[]; extras: DayExtras[]; coverage: Coverage; lang: Locale }) {
+  const V = dataViews[lang].activity;
+  const short = (day: string) => fmtShort(day, lang);
+  const ACTIVITY_LEGEND = (["act0", "act1", "act2", "act3", "act4", "act5"] as const).map((cls) => ({ cls, label: V.legend[cls] }));
   const days = slots.map((s) => s.day);
   const byDay = new Map(extras.map((e) => [e.day, e]));
   const slotByDay = new Map(slots.map((s) => [s.day, s]));
@@ -42,8 +39,8 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
 
   if (!hasActivity) {
     return (
-      <Shell>
-        <EmptyHint families={["daily_activity"]} coverage={coverage} what="נתוני הפעילות" />
+      <Shell lang={lang}>
+        <EmptyHint families={["daily_activity"]} coverage={coverage} what={V.what} lang={lang} />
       </Shell>
     );
   }
@@ -63,70 +60,70 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
   const hasStack = extras.some((x) => x.lowActivityMinutes !== null || x.mediumActivityMinutes !== null || x.highActivityMinutes !== null);
   const targetCal = latestOf(extras, (x) => x.targetCalories)?.value ?? null;
   const targetKm = latestOf(extras, (x) => x.targetMeters)?.value ?? null;
-  const contributors = contributorRows(extras, recentDays);
-  const breakdown = e ? activityBreakdown(e) : [];
+  const contributors = contributorRows(extras, recentDays, lang);
+  const breakdown = e ? activityBreakdown(e, lang) : [];
   const breakdownTotal = breakdown.reduce((t, p) => t + p.minutes, 0);
-  const dayLabel = latest ? fmtShort(latest.day) : "";
+  const dayLabel = latest ? short(latest.day) : "";
   const strip = [...extras].reverse().find((x) => x.activityClass5Min);
 
   return (
-    <Shell>
+    <Shell lang={lang}>
       <Section
         id="activity-today"
         icon={<IconActivity size={20} />}
-        title={`היום האחרון עם נתונים (${dayLabel})`}
-        lead="ציון הפעילות של Oura ופירוט היום: תנועה, קלוריות ושעות ישיבה."
+        title={V.todayTitle(dayLabel)}
+        lead={V.todayLead}
       >
         <div className="mini-grid">
-          <MiniStat icon={<IconActivity size={16} />} label="ציון פעילות" value={fmtNum(e?.activityScore ?? null)} unit="מתוך 100" />
-          <MiniStat icon={<IconZap size={16} />} label="צעדים" value={fmtNum(s?.steps ?? null)} unit="צעדים" />
+          <MiniStat icon={<IconActivity size={16} />} label={V.score} value={fmtNum(e?.activityScore ?? null)} unit={V.outOf100} />
+          <MiniStat icon={<IconZap size={16} />} label={V.steps} value={fmtNum(s?.steps ?? null)} unit={V.stepsUnit} />
           <MiniStat
             icon={<IconHeartPulse size={16} />}
-            label="קלוריות כוללות"
+            label={V.totalCal}
             value={fmtNum(e?.totalCalories ?? null)}
-            unit="קק״ל"
-            hint={s?.activeCalories != null ? `מהן פעילות: ${fmtNum(s.activeCalories)}` : undefined}
+            unit={V.kcal}
+            hint={s?.activeCalories != null ? V.ofWhichActive(fmtNum(s.activeCalories)) : undefined}
           />
           <MiniStat
             icon={<IconWind size={16} />}
-            label="מרחק מקביל"
+            label={V.distance}
             value={e?.equivalentWalkingDistanceM == null ? "–" : (e.equivalentWalkingDistanceM / 1000).toFixed(1)}
-            unit="ק״מ"
-            hint={e?.targetMeters != null ? `יעד: ${(e.targetMeters / 1000).toFixed(1)} ק״מ` : "הליכה שקולה להוצאת האנרגיה"}
+            unit={V.km}
+            hint={e?.targetMeters != null ? V.goalKm((e.targetMeters / 1000).toFixed(1)) : V.distanceHint}
           />
           <MiniStat
             icon={<IconClock size={16} />}
-            label="פעילות בינונית ועצימה"
+            label={V.activeMin}
             value={fmtNum(s?.activeMinutes ?? null)}
-            unit="דקות"
+            unit={dataViews[lang].common.minutes}
           />
           <MiniStat
             icon={<IconClock size={16} />}
-            label="ישיבה"
+            label={V.sitting}
             value={s?.sedentaryMinutes == null ? "–" : (s.sedentaryMinutes / 60).toFixed(1)}
-            unit="שעות"
-            hint="זמן ללא תנועה כמעט"
+            unit={V.hoursUnit}
+            hint={V.sittingHint}
           />
           <MiniStat
             icon={<IconAlert size={16} />}
-            label="התראות חוסר תנועה"
+            label={V.inactivity}
             value={fmtNum(e?.inactivityAlerts ?? null)}
-            unit="היום"
+            unit={V.today}
             flag={(e?.inactivityAlerts ?? 0) >= 3}
           />
           <MiniStat
             icon={<IconActivity size={16} />}
-            label="עומס ממוצע (MET)"
+            label={V.met}
             value={e?.averageMetMinutes == null ? "–" : e.averageMetMinutes.toFixed(1)}
             unit="MET"
-            hint={e?.nonWearMinutes ? `הטבעת לא נענדה ${e.nonWearMinutes} דקות` : undefined}
+            hint={e?.nonWearMinutes ? V.nonWearHint(e.nonWearMinutes) : undefined}
           />
         </div>
 
         {breakdownTotal > 0 && (
           <div className="panel" style={{ marginTop: 16 }}>
-            <h3>איך חולק היום</h3>
-            <div className="md-split" role="img" aria-label={breakdown.map((p) => `${p.label} ${p.minutes} דקות`).join(", ")}>
+            <h3>{V.split}</h3>
+            <div className="md-split" role="img" aria-label={breakdown.map((p) => `${p.label} ${p.minutes} ${dataViews[lang].common.minutes}`).join(", ")}>
               {breakdown.map((p) => (
                 <span key={p.key} style={{ flexGrow: p.minutes, background: BREAKDOWN_COLOR[p.key] }} />
               ))}
@@ -144,14 +141,14 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
 
         {strip?.activityClass5Min && (
           <div className="panel" style={{ marginTop: 16 }}>
-            <h3>היום בחמש דקות ({fmtShort(strip.day)})</h3>
+            <h3>{V.fiveMin(short(strip.day))}</h3>
             <p className="md-note" style={{ marginTop: 0 }}>
-              כל פס הוא רצף של חמש דקות. היום של Oura מתחיל ב-04:00 ונגמר ב-04:00 למחרת.
+              {V.fiveMinNote}
             </p>
             <Strip
               codes={strip.activityClass5Min}
               prefix="act"
-              label={`סיווג הפעילות של ${fmtShort(strip.day)}, בחלקי חמש דקות`}
+              label={V.fiveMinAria(short(strip.day))}
               axis={[0, 48, 96, 144, 192, 240, 288].map((at, i) => ({ at: Math.min(at, strip.activityClass5Min?.length ?? 288), text: ["04", "08", "12", "16", "20", "00", "04"][i] as string }))}
             />
             <Legend items={ACTIVITY_LEGEND} />
@@ -159,7 +156,7 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
         )}
       </Section>
 
-      <Section id="activity-trends" icon={<IconZap size={20} />} title="מגמות פעילות" lead="יום אחד בכל עמודה או נקודה, והקו הוא ממוצע נע של 7 ימים.">
+      <Section id="activity-trends" icon={<IconZap size={20} />} title={V.trendsTitle} lead={V.trendsLead}>
         <ChartGrid
           items={[
             score.some((v) => v !== null) && {
@@ -168,11 +165,11 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="ציון פעילות"
-                  caption="ציון מסכם של Oura (0–100) לתנועה, לאימונים ולהתאוששות."
+                  title={V.score}
+                  caption={V.scoreCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(score.slice(-7)))}</strong> ממוצע שבוע
+                      <strong>{fmtNum(meanOf(score.slice(-7)))}</strong> {dataViews[lang].common.weekAvg}
                     </>
                   }
                   chart={{
@@ -180,10 +177,10 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
                     values: score,
                     avg: rollingMean(score),
                     kind: "dots",
-                    valueLabel: "ציון פעילות",
-                    unit: "מתוך 100",
+                    valueLabel: V.score,
+                    unit: V.outOf100,
                     domain: [Math.min(40, Math.floor(Math.min(100, ...score.map((v) => v ?? 100)) / 10) * 10), 100],
-                    summary: `ממוצע ${fmtNum(meanOf(score))} בתקופה.`,
+                    summary: V.scoreSummary(fmtNum(meanOf(score))),
                   }}
                 />
               ),
@@ -193,21 +190,21 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="צעדים"
-                  caption="צעדים בכל יום."
+                  title={V.steps}
+                  caption={V.stepsCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(slots.map((x) => x.steps)))}</strong> בממוצע
+                      <strong>{fmtNum(meanOf(slots.map((x) => x.steps)))}</strong> {dataViews[lang].common.onAverage}
                     </>
                   }
                   chart={{
                     days,
                     values: slots.map((x) => x.steps),
                     kind: "bars",
-                    valueLabel: "צעדים",
-                    unit: "צעדים",
+                    valueLabel: V.steps,
+                    unit: V.stepsUnit,
                     format: "compact",
-                    summary: `ממוצע ${fmtNum(meanOf(slots.map((x) => x.steps)))} צעדים ביום.`,
+                    summary: V.stepsSummary(fmtNum(meanOf(slots.map((x) => x.steps)))),
                   }}
                 />
               ),
@@ -217,14 +214,14 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="קלוריות כוללות"
-                  caption="הוצאה אנרגטית כוללת ביום, מנוחה ופעילות."
+                  title={V.totalCal}
+                  caption={V.totalCalCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(totalCal))}</strong> קק״ל בממוצע
+                      <strong>{fmtNum(meanOf(totalCal))}</strong> {V.kcalAvg}
                     </>
                   }
-                  chart={{ days, values: totalCal, kind: "bars", valueLabel: "קלוריות כוללות", unit: "קק״ל", format: "compact", summary: `ממוצע ${fmtNum(meanOf(totalCal))} קלוריות ביום.` }}
+                  chart={{ days, values: totalCal, kind: "bars", valueLabel: V.totalCal, unit: V.kcal, format: "compact", summary: V.totalCalSummary(fmtNum(meanOf(totalCal))) }}
                 />
               ),
             },
@@ -233,22 +230,22 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="קלוריות פעילות"
-                  caption="הקלוריות שנשרפו בתנועה בלבד."
+                  title={V.activeCal}
+                  caption={V.activeCalCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(slots.map((x) => x.activeCalories ?? null)))}</strong> קק״ל בממוצע
+                      <strong>{fmtNum(meanOf(slots.map((x) => x.activeCalories ?? null)))}</strong> {V.kcalAvg}
                     </>
                   }
                   chart={{
                     days,
                     values: slots.map((x) => x.activeCalories ?? null),
                     kind: "bars",
-                    valueLabel: "קלוריות פעילות",
-                    unit: "קק״ל",
+                    valueLabel: V.activeCal,
+                    unit: V.kcal,
                     format: "compact",
-                    reference: targetCal !== null ? { value: targetCal, label: "יעד היומי של Oura" } : undefined,
-                    summary: `ממוצע ${fmtNum(meanOf(slots.map((x) => x.activeCalories ?? null)))} קלוריות פעילות ביום.`,
+                    reference: targetCal !== null ? { value: targetCal, label: V.ouraGoal } : undefined,
+                    summary: V.activeCalSummary(fmtNum(meanOf(slots.map((x) => x.activeCalories ?? null)))),
                   }}
                 />
               ),
@@ -258,22 +255,22 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="מרחק מקביל"
-                  caption="כמה היית הולך כדי להוציא את אותה אנרגיה."
+                  title={V.distance}
+                  caption={V.kmCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(km), 1)}</strong> ק״מ בממוצע
+                      <strong>{fmtNum(meanOf(km), 1)}</strong> {V.kmAvg}
                     </>
                   }
                   chart={{
                     days,
                     values: km,
                     kind: "bars",
-                    valueLabel: "מרחק מקביל",
-                    unit: "ק״מ",
+                    valueLabel: V.distance,
+                    unit: V.km,
                     digits: 1,
-                    reference: targetKm !== null ? { value: targetKm / 1000, label: "יעד היומי של Oura" } : undefined,
-                    summary: `ממוצע ${fmtNum(meanOf(km), 1)} ק״מ ביום.`,
+                    reference: targetKm !== null ? { value: targetKm / 1000, label: V.ouraGoal } : undefined,
+                    summary: V.kmSummary(fmtNum(meanOf(km), 1)),
                   }}
                 />
               ),
@@ -283,11 +280,11 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="שעות ישיבה"
-                  caption="זמן שבו כמעט לא זזת, בכל יום."
+                  title={V.sittingHours}
+                  caption={V.sittingCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(sedentaryHours), 1)}</strong> שעות בממוצע
+                      <strong>{fmtNum(meanOf(sedentaryHours), 1)}</strong> {V.hoursAvg}
                     </>
                   }
                   chart={{
@@ -295,10 +292,10 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
                     values: sedentaryHours,
                     avg: rollingMean(sedentaryHours),
                     kind: "dots",
-                    valueLabel: "שעות ישיבה",
-                    unit: "שעות",
+                    valueLabel: V.sittingHours,
+                    unit: V.hoursUnit,
                     digits: 1,
-                    summary: `ממוצע ${fmtNum(meanOf(sedentaryHours), 1)} שעות ישיבה ביום.`,
+                    summary: V.sittingSummary(fmtNum(meanOf(sedentaryHours), 1)),
                   }}
                 />
               ),
@@ -308,14 +305,14 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="התראות חוסר תנועה"
-                  caption="כמה פעמים הטבעת הזכירה לך לקום."
+                  title={V.inactivity}
+                  caption={V.inactivityCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(alerts), 1)}</strong> ליום בממוצע
+                      <strong>{fmtNum(meanOf(alerts), 1)}</strong> {V.perDayAvg}
                     </>
                   }
-                  chart={{ days, values: alerts, kind: "bars", valueLabel: "התראות", unit: "התראות", summary: `ממוצע ${fmtNum(meanOf(alerts), 1)} התראות חוסר תנועה ביום.` }}
+                  chart={{ days, values: alerts, kind: "bars", valueLabel: V.alertsUnit, unit: V.alertsUnit, summary: V.inactivitySummary(fmtNum(meanOf(alerts), 1)) }}
                 />
               ),
             },
@@ -324,14 +321,14 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="עומס ממוצע (MET)"
-                  caption="כמה מאמץ היה ביום בממוצע, ביחס למנוחה (1 = מנוחה)."
+                  title={V.met}
+                  caption={V.metCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(met), 1)}</strong> MET בממוצע
+                      <strong>{fmtNum(meanOf(met), 1)}</strong> {V.metAvg}
                     </>
                   }
-                  chart={{ days, values: met, avg: rollingMean(met), kind: "dots", valueLabel: "MET ממוצע", unit: "MET", digits: 1, summary: `ממוצע ${fmtNum(meanOf(met), 1)} MET.` }}
+                  chart={{ days, values: met, avg: rollingMean(met), kind: "dots", valueLabel: V.metLabel, unit: "MET", digits: 1, summary: V.metSummary(fmtNum(meanOf(met), 1)) }}
                 />
               ),
             },
@@ -340,14 +337,14 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="זמן ללא הטבעת"
-                  caption="דקות שבהן הטבעת לא נענדה. נתונים של ימים עם הרבה דקות כאלה פחות אמינים."
+                  title={V.nonWear}
+                  caption={V.nonWearCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(nonWear))}</strong> דקות בממוצע
+                      <strong>{fmtNum(meanOf(nonWear))}</strong> {V.minutesAvg}
                     </>
                   }
-                  chart={{ days, values: nonWear, kind: "bars", valueLabel: "ללא הטבעת", unit: "דקות", summary: `ממוצע ${fmtNum(meanOf(nonWear))} דקות ביום ללא הטבעת.` }}
+                  chart={{ days, values: nonWear, kind: "bars", valueLabel: V.nonWearLabel, unit: dataViews[lang].common.minutes, summary: V.nonWearSummary(fmtNum(meanOf(nonWear))) }}
                 />
               ),
             },
@@ -355,16 +352,19 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
               key: "stack",
               wide: "tail",
               render: () => (
-                <ChartCard wide title="דקות פעילות לפי עצימות" caption="פעילות קלה, בינונית ועצימה בכל יום.">
+                <ChartCard wide title={V.byIntensity} caption={V.byIntensityCaption}>
                   <StackChart
                     days={days}
-                    unit="דקות"
+                    unit={dataViews[lang].common.minutes}
                     height={240}
-                    summary={`ממוצע ${fmtNum(meanOf(alignExtras(days, extras, (x) => x.mediumActivityMinutes)))} דקות בינוניות ו-${fmtNum(meanOf(alignExtras(days, extras, (x) => x.highActivityMinutes)))} עצימות ביום.`}
+                    summary={V.byIntensitySummary(
+                      fmtNum(meanOf(alignExtras(days, extras, (x) => x.mediumActivityMinutes))),
+                      fmtNum(meanOf(alignExtras(days, extras, (x) => x.highActivityMinutes))),
+                    )}
                     series={[
-                      { key: "low", label: "קלה", color: "var(--viz-data-soft)", values: alignExtras(days, extras, (x) => x.lowActivityMinutes) },
-                      { key: "medium", label: "בינונית", color: "var(--viz-data)", values: alignExtras(days, extras, (x) => x.mediumActivityMinutes) },
-                      { key: "high", label: "עצימה", color: "var(--viz-attn)", values: alignExtras(days, extras, (x) => x.highActivityMinutes) },
+                      { key: "low", label: V.light, color: "var(--viz-data-soft)", values: alignExtras(days, extras, (x) => x.lowActivityMinutes) },
+                      { key: "medium", label: V.medium, color: "var(--viz-data)", values: alignExtras(days, extras, (x) => x.mediumActivityMinutes) },
+                      { key: "high", label: V.vigorous, color: "var(--viz-attn)", values: alignExtras(days, extras, (x) => x.highActivityMinutes) },
                     ]}
                   />
                 </ChartCard>
@@ -378,11 +378,11 @@ export function ActivityView({ slots, extras, coverage }: { slots: DaySlot[]; ex
         <Section
           id="activity-drivers"
           icon={<IconZap size={20} />}
-          title="מה מניע את ציון הפעילות"
-          lead="Oura מרכיבה את הציון מכמה גורמים (1–100). החלשים ב-7 הימים האחרונים ראשונים. הסימון הקטן הוא ממוצע כל התקופה."
+          title={V.driversTitle}
+          lead={V.driversLead}
         >
           <div className="drivers-grid">
-            <ContributorList title="ציון פעילות" rows={contributors} />
+            <ContributorList title={V.score} rows={contributors} lang={lang} />
           </div>
         </Section>
       )}

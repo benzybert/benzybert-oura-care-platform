@@ -55,8 +55,8 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
     ouraStatus(member.id),
   ]);
 
-  const dashboard = buildDashboard(dashboardMetrics, today, windowDays);
-  const cards = dashboardCards(dashboard, true);
+  const dashboard = buildDashboard(dashboardMetrics, today, windowDays, locale);
+  const cards = dashboardCards(dashboard, true, locale);
   const empty = dashboard.daysWithData === 0;
   const askMore = oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: profile?.coverage }) : false;
   const coverage = { families: profile?.coverage ?? {}, askMore };
@@ -78,29 +78,30 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
         shareHref: "/member/sharing#doctors",
         windowLinks: SHARE_WINDOW_OPTIONS.map((d) => ({ days: d, href: dataHref({ view, days: d }), active: d === windowDays })),
         sections,
+        locale,
         ...opts,
       }}
     />
   );
 
   return (
-    <MemberShell tab="data" title={t.core.tabs.data} params={params} hebrew>
+    <MemberShell tab="data" title={t.core.tabs.data} params={params}>
       <DataViewTabs active={view} windowDays={windowDays} withWindow={WINDOWED.includes(view)} t={t.insights.views} locale={locale} />
 
-      <section id="data" className="data-section" aria-label="הנתונים שלי">
+      <section id="data" className="data-section" aria-label={t.dataViews.page.region}>
         {empty ? (
           <>
             {/* no ring data in the window: one "no data yet" note (the hero keeps the window switch), and on Advanced what Oura answered */}
             {dash(view === "health" ? ["hero"] : [])}
-            {view === "advanced" && <RingView oura={oura} profile={profile} askMore={askMore} />}
+            {view === "advanced" && <RingView oura={oura} profile={profile} askMore={askMore} lang={locale} />}
           </>
         ) : (
           <>
             {view === "health" && (
               <>
                 {dash(["hero", "findings"])}
-                <HealthView data={dashboard} cards={cards} extras={extras} coverage={coverage} />
-                <EventsView events={events} coverage={coverage} kinds={["tag", "rest_mode"]} />
+                <HealthView data={dashboard} cards={cards} extras={extras} coverage={coverage} lang={locale} />
+                <EventsView events={events} coverage={coverage} kinds={["tag", "rest_mode"]} lang={locale} />
                 {dash(["about"])}
               </>
             )}
@@ -111,41 +112,42 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
                 <CardsSection
                   id="sleep-trends"
                   icon={<IconMoon size={20} />}
-                  title="מגמות שינה"
-                  lead="נקודה או עמודה לכל לילה, וקו לממוצע נע של 7 ימים."
+                  title={t.dataViews.page.sleepTrends}
+                  lead={t.dataViews.page.sleepTrendsLead}
                   cards={cards}
+                  lang={locale}
                   keys={[{ key: "sleepHours", wide: "lead" }, { key: "sleepScore" }, { key: "bedtime" }, { key: "efficiency" }]}
                 />
                 {dash(["architecture", "rhythm", "drivers"], { contributorSets: ["sleep"], patternSets: ["week", "short"] })}
-                <SleepExtras slots={dashboard.slots} extras={extras} coverage={coverage} />
-                <EventsView events={events} coverage={coverage} kinds={["nap"]} />
+                <SleepExtras slots={dashboard.slots} extras={extras} coverage={coverage} lang={locale} />
+                <EventsView events={events} coverage={coverage} kinds={["nap"]} lang={locale} />
               </>
             )}
 
-            {view === "heart" && <HeartView slots={dashboard.slots} extras={extras} coverage={coverage} profile={profile} />}
+            {view === "heart" && <HeartView slots={dashboard.slots} extras={extras} coverage={coverage} profile={profile} lang={locale} />}
 
             {view === "activity" && (
               <>
-                <ActivityView slots={dashboard.slots} extras={extras} coverage={coverage} />
-                <EventsView events={events} coverage={coverage} kinds={["workout"]} />
+                <ActivityView slots={dashboard.slots} extras={extras} coverage={coverage} lang={locale} />
+                <EventsView events={events} coverage={coverage} kinds={["workout"]} lang={locale} />
               </>
             )}
 
             {view === "stress" && (
               <>
-                <StressView data={dashboard} cards={cards} extras={extras} coverage={coverage} />
-                <EventsView events={events} coverage={coverage} kinds={["session"]} />
+                <StressView data={dashboard} cards={cards} extras={extras} coverage={coverage} lang={locale} />
+                <EventsView events={events} coverage={coverage} kinds={["session"]} lang={locale} />
               </>
             )}
 
-            {view === "oxygen" && <OxygenView data={dashboard} cards={cards} extras={extras} coverage={coverage} />}
+            {view === "oxygen" && <OxygenView data={dashboard} cards={cards} extras={extras} coverage={coverage} lang={locale} />}
 
             {view === "advanced" && (
               <>
                 <HrvInsights slots={dashboard.slots} coverage={coverage} t={t.insights} locale={locale} />
                 <SleepStructureView slots={dashboard.slots} coverage={coverage} t={t.insights} locale={locale} />
                 {dash(["calendar", "weekly", "daily"])}
-                <RingView oura={oura} profile={profile} askMore={askMore} />
+                <RingView oura={oura} profile={profile} askMore={askMore} lang={locale} />
               </>
             )}
           </>

@@ -2,6 +2,7 @@
 
 import { useId, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { barPath, longDay, niceTicks, shortDay } from "./chart-utils";
+import { useChartLang, useChartText } from "./chart-lang";
 import { formatHm } from "./format";
 import { useWidth } from "./use-width";
 
@@ -26,7 +27,7 @@ export type StackChartProps = {
   series: StackSeries[];
   unit: string;
   summary: string;
-  /** shown above the legend, e.g. "דקות" */
+  /** shown above the legend, e.g. "minutes" */
   height?: number;
   /** show the sum of the stacked series in the tooltip, as hours:minutes (the values are minutes) */
   showTotal?: boolean;
@@ -37,6 +38,8 @@ const M = { top: 12, right: 12, bottom: 26, left: 40 };
 const GAP = 2;
 
 export function StackChart({ days, series, unit, summary, height = 240, showTotal, totalLabel }: StackChartProps) {
+  const lang = useChartLang();
+  const T = useChartText();
   const [wrapRef, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const descId = useId();
@@ -121,7 +124,7 @@ export function StackChart({ days, series, unit, summary, height = 240, showTota
       ref={wrapRef}
       tabIndex={0}
       role="group"
-      aria-roledescription="תרשים"
+      aria-roledescription={T.chart}
       aria-label={summary}
       aria-describedby={descId}
       onKeyDown={onKey}
@@ -129,7 +132,7 @@ export function StackChart({ days, series, unit, summary, height = 240, showTota
       onBlur={() => setActive(null)}
     >
       <p id={descId} className="sr-only">
-        חיצים ימינה ושמאלה עוברים בין הימים. כל הערכים מופיעים גם בטבלת הנתונים היומיים.
+        {T.keysHint}
       </p>
       <ul className="tc-legend sc-legend">
         {[...up, ...down].map((s) => (
@@ -191,7 +194,7 @@ export function StackChart({ days, series, unit, summary, height = 240, showTota
 
       {a !== null && (
         <div className="tc-tip" style={tipStyle} role="status" aria-live="polite">
-          <span className="tc-tip-day">{longDay(days[a] as string)}</span>
+          <span className="tc-tip-day">{longDay(days[a] as string, lang)}</span>
           {hasData(a) ? (
             <>
               {[...up, ...down].map((s) => (
@@ -205,12 +208,12 @@ export function StackChart({ days, series, unit, summary, height = 240, showTota
               ))}
               {showTotal && up.length > 1 && (
                 <span className="tc-tip-row tc-tip-muted">
-                  {totalLabel ?? "סך הכול"}: <bdi>{formatHm(sum(up, a))}</bdi> שעות
+                  {totalLabel ?? T.total}: <bdi>{formatHm(sum(up, a))}</bdi> {T.hours}
                 </span>
               )}
             </>
           ) : (
-            <span className="tc-tip-row">אין נתון</span>
+            <span className="tc-tip-row">{T.noValue}</span>
           )}
         </div>
       )}

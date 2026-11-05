@@ -4,6 +4,8 @@ import type { DashboardData } from "@/lib/doctor-dashboard";
 import { alignExtras, latestOf, meanOf } from "@/lib/member-data";
 import { rollingMean } from "@/lib/series-math";
 import type { DayExtras } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
+import { dataViews } from "@/lib/i18n/dict/data-views";
 import { ChartGrid, EmptyHint, Shell, type Coverage } from "./shared";
 
 /**
@@ -15,12 +17,16 @@ export function HealthView({
   cards,
   extras,
   coverage,
+  lang,
 }: {
   data: DashboardData;
   cards: Partial<Record<"readiness" | "temperature", DashCard>>;
   extras: DayExtras[];
   coverage: Coverage;
+  lang: Locale;
 }) {
+  const V = dataViews[lang].health;
+  const C = dataViews[lang].common;
   const days = data.slots.map((s) => s.day);
   const delta = alignExtras(days, extras, (e) => e.readinessScoreDelta);
   const trend = alignExtras(days, extras, (e) => e.temperatureTrendDeviation);
@@ -29,8 +35,8 @@ export function HealthView({
   const hasTemp = Boolean(cards.temperature) || tempReal.length > 0;
 
   return (
-    <Shell>
-      <Section id="health-readiness" icon={<IconZap size={20} />} title="מוכנות" lead="כמה הגוף מוכן ליום, לפי Oura: הציון, איך כל לילה הזיז אותו ומה מרכיב אותו.">
+    <Shell lang={lang}>
+      <Section id="health-readiness" icon={<IconZap size={20} />} title={V.readinessTitle} lead={V.readinessLead}>
         <ChartGrid
           items={[
             cards.readiness && { key: "readiness", render: (wide) => cards.readiness?.(wide) },
@@ -39,11 +45,11 @@ export function HealthView({
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="השפעת הלילה על ציון המוכנות"
-                  caption="כמה נקודות הלילה הוסיף או הוריד למוכנות."
+                  title={V.deltaTitle}
+                  caption={V.deltaCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(delta), 1)}</strong> בממוצע
+                      <strong>{fmtNum(meanOf(delta), 1)}</strong> {C.onAverage}
                     </>
                   }
                   chart={{
@@ -51,10 +57,10 @@ export function HealthView({
                     values: delta,
                     avg: rollingMean(delta),
                     kind: "dots",
-                    valueLabel: "השפעה על המוכנות",
-                    unit: "נקודות",
-                    reference: { value: 0, label: "ללא שינוי" },
-                    summary: `השפעה ממוצעת של ${fmtNum(meanOf(delta), 1)} נקודות.`,
+                    valueLabel: V.deltaLabel,
+                    unit: C.points,
+                    reference: { value: 0, label: C.noChange },
+                    summary: V.deltaSummary(fmtNum(meanOf(delta), 1)),
                   }}
                 />
               ),
@@ -63,7 +69,7 @@ export function HealthView({
         />
         {data.contributors.readiness.length > 0 && (
           <div className="drivers-grid" style={{ marginTop: 16 }}>
-            <ContributorList title="מה מרכיב את ציון המוכנות" rows={data.contributors.readiness} />
+            <ContributorList title={V.drivers} rows={data.contributors.readiness} lang={lang} />
           </div>
         )}
       </Section>
@@ -71,10 +77,10 @@ export function HealthView({
       <Section
         id="health-temperature"
         icon={<IconThermometer size={20} />}
-        title="טמפרטורת הגוף"
-        lead="טמפרטורת העור בלילה ביחס לקו האישי שלך. עלייה מתמשכת יכולה ללוות מחלה, מחזור או עומס; זו לא מדידת חום."
+        title={V.tempTitle}
+        lead={V.tempLead}
       >
-        {!hasTemp && <EmptyHint families={["daily_readiness"]} coverage={coverage} what="נתוני הטמפרטורה" />}
+        {!hasTemp && <EmptyHint families={["daily_readiness"]} coverage={coverage} what={V.tempWhat} lang={lang} />}
         <ChartGrid
           items={[
             cards.temperature && { key: "temperature", render: (wide) => cards.temperature?.(wide) },
@@ -83,11 +89,11 @@ export function HealthView({
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="טרנד טמפרטורת העור"
-                  caption="הסטייה ארוכת הטווח מהקו האישי, במעלות, כפי ש-Oura מחשבת אותה."
+                  title={V.trendTitle}
+                  caption={V.trendCaption}
                   stat={
                     <>
-                      <strong>{lastTrend === null ? "–" : <bdi dir="ltr">{signed(lastTrend, 2)}</bdi>}</strong> לאחרונה
+                      <strong>{lastTrend === null ? "–" : <bdi dir="ltr">{signed(lastTrend, 2)}</bdi>}</strong> {C.recently}
                     </>
                   }
                   chart={{
@@ -95,13 +101,13 @@ export function HealthView({
                     values: trend,
                     avg: rollingMean(trend),
                     kind: "dots",
-                    valueLabel: "טרנד טמפרטורה",
-                    unit: "מעלות",
+                    valueLabel: V.trendLabel,
+                    unit: V.degrees,
                     digits: 2,
                     domain: [Math.min(-1, Math.floor(Math.min(...tempReal))), Math.max(1, Math.ceil(Math.max(...tempReal)))],
-                    band: { from: -0.5, to: 0.5, label: "טווח רגיל: עד חצי מעלה" },
-                    reference: { value: 0, label: "הקו האישי" },
-                    summary: `טרנד ממוצע ${fmtNum(meanOf(trend), 2)} מעלות.`,
+                    band: { from: -0.5, to: 0.5, label: V.band },
+                    reference: { value: 0, label: V.baseline },
+                    summary: V.trendSummary(fmtNum(meanOf(trend), 2)),
                   }}
                 />
               ),

@@ -12,17 +12,17 @@ import {
 } from "@/lib/member-data";
 import { rollingMean } from "@/lib/series-math";
 import type { DayExtras } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
+import { dataViews } from "@/lib/i18n/dict/data-views";
 import { ChartGrid, EmptyHint, Legend, Shell, Strip, type Coverage } from "./shared";
 
-const MOVEMENT_LEGEND = [
-  { cls: "mv1", label: "שקט" },
-  { cls: "mv2", label: "חוסר שקט" },
-  { cls: "mv3", label: "התהפכויות" },
-  { cls: "mv4", label: "תנועה פעילה" },
-];
 
 /** What the sleep period adds beyond the dashboard: Oura's bedtime guidance, naps, how the night moved the score, movement. */
-export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; extras: DayExtras[]; coverage: Coverage }) {
+export function SleepExtras({ slots, extras, coverage, lang }: { slots: DaySlot[]; extras: DayExtras[]; coverage: Coverage; lang: Locale }) {
+  const V = dataViews[lang].sleepX;
+  const C = dataViews[lang].common;
+  const short = (day: string) => fmtShort(day, lang);
+  const MOVEMENT_LEGEND = (["mv1", "mv2", "mv3", "mv4"] as const).map((cls) => ({ cls, label: V.movement[cls] }));
   const days = slots.map((s) => s.day);
   const slotByDay = new Map(slots.map((s) => [s.day, s]));
 
@@ -39,26 +39,26 @@ export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; ext
   const hasAny = Boolean(guide) || napCount > 0 || delta.some((v) => v !== null) || Boolean(move);
 
   return (
-    <Shell>
+    <Shell lang={lang}>
       <Section
         id="sleep-extras"
         icon={<IconMoon size={20} />}
-        title="עוד על השינה"
-        lead="הנחיית השעה של Oura, תנומות, ההשפעה של כל לילה על הציון והתנועה במהלך הלילה."
+        title={V.title}
+        lead={V.lead}
       >
-        {!hasAny && <EmptyHint families={["sleep_time", "sleep"]} coverage={coverage} what="נתוני שינה נוספים" />}
+        {!hasAny && <EmptyHint families={["sleep_time", "sleep"]} coverage={coverage} what={V.what} lang={lang} />}
 
         {guide && (
           <div className="panel">
-            <h3>המלצת Oura לשעת שינה</h3>
+            <h3>{V.guide}</h3>
             {window ? (
               <p className="md-big">
                 <bdi dir="ltr">{window}</bdi>
               </p>
             ) : null}
-            <p>{bedtimeRecommendationLabel(guide.bedtimeRecommendation)}</p>
+            <p>{bedtimeRecommendationLabel(guide.bedtimeRecommendation, lang)}</p>
             <p className="md-note">
-              {bedtimeStatusLabel(guide.bedtimeStatus)} · נכון ל-{fmtShort(guide.day)}
+              {bedtimeStatusLabel(guide.bedtimeStatus, lang)} · {V.asOf(short(guide.day))}
             </p>
           </div>
         )}
@@ -68,19 +68,19 @@ export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; ext
             {napCount > 0 && (
               <MiniStat
                 icon={<IconClock size={16} />}
-                label="תנומות בתקופה"
+                label={V.napsInPeriod}
                 value={String(napCount)}
-                unit="תנומות"
-                hint={`${Math.round(napTotal)} דקות בסך הכול`}
+                unit={V.napsUnit}
+                hint={V.napsTotal(Math.round(napTotal))}
               />
             )}
             {lastDelta && (
               <MiniStat
                 icon={<IconZap size={16} />}
-                label="השפעת הלילה על ציון השינה"
+                label={V.nightEffect}
                 value={`${lastDelta.value > 0 ? "+" : lastDelta.value < 0 ? "−" : ""}${Math.abs(lastDelta.value)}`}
-                unit="נקודות"
-                hint={`הלילה של ${fmtShort(lastDelta.day)}, ביחס לשגרה שלך`}
+                unit={C.points}
+                hint={V.nightEffectHint(short(lastDelta.day))}
               />
             )}
           </div>
@@ -88,17 +88,17 @@ export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; ext
 
         {move?.movement30Sec && (
           <div className="panel" style={{ marginTop: 16 }}>
-            <h3>תנועה בלילה ({fmtShort(move.day)})</h3>
+            <h3>{V.moveTitle(short(move.day))}</h3>
             <p className="md-note" style={{ marginTop: 0 }}>
-              כל פס הוא חצי דקה. הרבה צבע בהיר או כתום אומר לילה לא שקט.
+              {V.moveNote}
             </p>
             <Strip
               codes={move.movement30Sec}
               prefix="mv"
-              label={`תנועה במהלך הלילה של ${fmtShort(move.day)}, בחלקי חצי דקה`}
+              label={V.moveAria(short(move.day))}
               axis={
                 moveStart === null
-                  ? [{ at: 0, text: "תחילת הלילה" }, { at: move.movement30Sec.length, text: "סוף" }]
+                  ? [{ at: 0, text: V.nightStart }, { at: move.movement30Sec.length, text: V.end }]
                   : Array.from({ length: Math.floor(moveMinutes / 120) + 1 }, (_, k) => ({ at: k * 240, text: clockLabel(moveStart + k * 120) })).concat([
                       { at: move.movement30Sec.length, text: clockLabel(moveStart + moveMinutes) },
                     ])
@@ -116,11 +116,11 @@ export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; ext
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="השפעת הלילה על ציון השינה"
-                  caption="כמה נקודות הלילה הוסיף או הוריד ביחס לשגרה שלך."
+                  title={V.nightEffect}
+                  caption={V.deltaCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(delta), 1)}</strong> בממוצע
+                      <strong>{fmtNum(meanOf(delta), 1)}</strong> {C.onAverage}
                     </>
                   }
                   chart={{
@@ -128,10 +128,10 @@ export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; ext
                     values: delta,
                     avg: rollingMean(delta),
                     kind: "dots",
-                    valueLabel: "השפעה על הציון",
-                    unit: "נקודות",
-                    reference: { value: 0, label: "ללא שינוי" },
-                    summary: `השפעה ממוצעת של ${fmtNum(meanOf(delta), 1)} נקודות.`,
+                    valueLabel: V.deltaLabel,
+                    unit: C.points,
+                    reference: { value: 0, label: C.noChange },
+                    summary: V.deltaSummary(fmtNum(meanOf(delta), 1)),
                   }}
                 />
               ),
@@ -141,14 +141,14 @@ export function SleepExtras({ slots, extras, coverage }: { slots: DaySlot[]; ext
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="תנומות"
-                  caption="דקות של שינה קצרה ביום."
+                  title={V.naps}
+                  caption={V.napsCaption}
                   stat={
                     <>
-                      <strong>{napCount}</strong> תנומות
+                      <strong>{napCount}</strong> {V.napsUnit}
                     </>
                   }
-                  chart={{ days, values: napMinutes, kind: "bars", valueLabel: "תנומה", unit: "דקות", summary: `${napCount} תנומות בתקופה, ${Math.round(napTotal)} דקות.` }}
+                  chart={{ days, values: napMinutes, kind: "bars", valueLabel: V.napLabel, unit: C.minutes, summary: V.napsSummary(napCount, Math.round(napTotal)) }}
                 />
               ),
             },

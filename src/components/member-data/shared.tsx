@@ -1,4 +1,8 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, createElement, type ReactNode } from "react";
+import { dirOf, type Locale } from "@/lib/i18n";
+import type { Wrap } from "@/lib/i18n/dict/data";
+import { dataViews } from "@/lib/i18n/dict/data-views";
+import { ChartLangProvider } from "@/components/doctor-dashboard/chart-lang";
 import { IconInfo } from "@/components/doctor-dashboard/icons";
 import { familyState } from "@/lib/member-data";
 import type { CollectionCoverage } from "@/lib/types";
@@ -9,15 +13,25 @@ import "./member-data.css";
 export type Coverage = { families: Record<string, CollectionCoverage>; askMore: boolean } | null | undefined;
 
 /** Same design tokens as the dashboard (.dash), for the views that are not part of the dashboard component. */
-export function Shell({ children }: { children: ReactNode }) {
-  return <div className="dash is-member md">{children}</div>;
+export function Shell({ lang, children }: { lang: Locale; children: ReactNode }) {
+  return (
+    <ChartLangProvider lang={lang}>
+      <div className="dash is-member md" dir={dirOf(lang)} lang={lang}>
+        {children}
+      </div>
+    </ChartLangProvider>
+  );
 }
+
+const strong: Wrap = (v) => <strong>{v}</strong>;
+const parts = (nodes: ReactNode[]) => createElement(Fragment, null, ...nodes);
 
 /**
  * Tells the member why a block is empty. If Oura refused the endpoint, that is a missing permission and the fix is
  * to approve more data in Oura; otherwise the data is simply not there (yet, or not for this ring).
  */
-export function EmptyHint({ families, coverage, what }: { families: string[]; coverage: Coverage; what: string }) {
+export function EmptyHint({ families, coverage, what, lang }: { families: string[]; coverage: Coverage; what: string; lang: Locale }) {
+  const H = dataViews[lang].hint;
   const states = families.map((f) => familyState(coverage?.families[f]));
   const forbidden = states.includes("forbidden");
   return (
@@ -25,31 +39,20 @@ export function EmptyHint({ families, coverage, what }: { families: string[]; co
       <IconInfo size={18} />
       <div>
         {forbidden ? (
-          <>
-            {coverage?.askMore ? (
-              <>
-                <p>
-                  <strong>{what}</strong> עוד לא מגיע, כי Oura לא אישרה לנו את ההרשאה הזאת. אחרי אישור וסנכרון הנתון יופיע כאן.
-                </p>
-                <a className="dash-btn md-btn" href="/api/oura/connect">
-                  אישור הרשאות ב-Oura
-                </a>
-              </>
-            ) : (
-              <p>
-                <strong>{what}</strong> לא מגיע: Oura לא העניקה את ההרשאה הזאת בחיבור הנוכחי (ביקשנו הכול כבר). אפשר לבדוק באפליקציית Oura אם סימנת
-                אותה, או שהנתון לא קיים בדגם הטבעת.
-              </p>
-            )}
-          </>
+          coverage?.askMore ? (
+            <>
+              <p>{parts(H.notYet(strong, what))}</p>
+              <a className="dash-btn md-btn" href="/api/oura/connect">
+                {H.approve}
+              </a>
+            </>
+          ) : (
+            <p>{parts(H.notGranted(strong, what))}</p>
+          )
         ) : states.includes("error") ? (
-          <p>
-            <strong>{what}</strong> לא התקבל בסנכרון האחרון. נסו לסנכרן שוב בעוד כמה דקות.
-          </p>
+          <p>{parts(H.notReceived(strong, what))}</p>
         ) : (
-          <p>
-            <strong>{what}</strong>: אין נתונים בתקופה הזאת. זה יכול להיות תלוי בדגם הטבעת, בשימוש באפליקציה או בסנכרון שעוד לא קרה.
-          </p>
+          <p>{parts(H.none(strong, what))}</p>
         )}
       </div>
     </div>

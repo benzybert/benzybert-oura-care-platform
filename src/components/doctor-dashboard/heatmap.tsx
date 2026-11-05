@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useChartLang, useChartText } from "./chart-lang";
 import { weekdayLetter } from "./format";
 
 /**
@@ -28,6 +29,8 @@ const short = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("he-IL", { timeZone: "UTC", day: "numeric", month: "numeric" });
 
 export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric[] }) {
+  const lang = useChartLang();
+  const T = useChartText();
   const [k, setK] = useState(metrics[0]?.key ?? "");
   const [hover, setHover] = useState<number | null>(null);
   const metric = metrics.find((m) => m.key === k) ?? (metrics[0] as HeatMetric);
@@ -42,7 +45,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
   const hi = real.length ? Math.max(...real.map((x) => x.v)) : 1;
   const t = (v: number) => (hi === lo ? 0.6 : (v - lo) / (hi - lo));
   const fmt = (v: number | null) =>
-    v === null ? "אין נתון" : v.toLocaleString("he-IL", { minimumFractionDigits: metric.digits, maximumFractionDigits: metric.digits });
+    v === null ? T.noValue : v.toLocaleString(lang === "he" ? "he-IL" : "en-GB", { minimumFractionDigits: metric.digits, maximumFractionDigits: metric.digits });
 
   const avg = real.length ? real.reduce((a, x) => a + x.v, 0) / real.length : null;
   const best = real.reduce<{ v: number; i: number } | null>((m, x) => (m === null || x.v > m.v ? x : m), null);
@@ -65,11 +68,11 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
   const readout =
     hover === null
       ? null
-      : `${weekdayLetter(days[hover] as string)} ${short(days[hover] as string)}: ${fmt(metric.values[hover] ?? null)}${metric.values[hover] === null || !metric.unit ? "" : ` ${metric.unit}`}`;
+      : `${weekdayLetter(days[hover] as string, lang)} ${short(days[hover] as string)}: ${fmt(metric.values[hover] ?? null)}${metric.values[hover] === null || !metric.unit ? "" : ` ${metric.unit}`}`;
 
   return (
     <div className="hm">
-      <div className="hm-tabs" role="tablist" aria-label="בחירת מדד">
+      <div className="hm-tabs" role="tablist" aria-label={T.pickMetric}>
         {metrics.map((m) => (
           <button
             key={m.key}
@@ -88,7 +91,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
         <div className="hm-cal">
           <div className="hm-grid" style={{ gridTemplateColumns: `3.4em repeat(7, minmax(0, 1fr))` }}>
             <span />
-            {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map((d) => (
+            {T.weekdays.map((d) => (
               <span key={d} className="hm-wd">
                 {d}
               </span>
@@ -118,7 +121,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
                               color: share > 0.5 ? "#fff" : "var(--c-ink)",
                             }
                       }
-                      aria-label={`${weekdayLetter(days[idx] as string)} ${short(days[idx] as string)}: ${fmt(v)}${v === null || !metric.unit ? "" : ` ${metric.unit}`}`}
+                      aria-label={`${weekdayLetter(days[idx] as string, lang)} ${short(days[idx] as string)}: ${fmt(v)}${v === null || !metric.unit ? "" : ` ${metric.unit}`}`}
                       onPointerEnter={() => setHover(idx)}
                       onFocus={() => setHover(idx)}
                       onPointerLeave={() => setHover(null)}
@@ -133,7 +136,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
           </div>
           <div className="hm-foot">
             <p className="hm-readout" role="status" aria-live="polite">
-              {readout ?? <span className="muted">עברו על יום לראות את הערך</span>}
+              {readout ?? <span className="muted">{T.hoverHint}</span>}
             </p>
             <div className="hm-scale" aria-hidden="true">
               <bdi>{fmt(lo)}</bdi>
@@ -146,21 +149,21 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
         <div className="hm-side">
         <dl className="hm-sum">
           <div>
-            <dt>ממוצע</dt>
+            <dt>{T.mean}</dt>
             <dd>
               {fmt(avg)}
               <span>{metric.unit}</span>
             </dd>
           </div>
           <div>
-            <dt>היום הגבוה ביותר</dt>
+            <dt>{T.highest}</dt>
             <dd>
               {fmt(best?.v ?? null)}
               <span>{best ? short(days[best.i] as string) : ""}</span>
             </dd>
           </div>
           <div>
-            <dt>היום הנמוך ביותר</dt>
+            <dt>{T.lowest}</dt>
             <dd>
               {fmt(worst?.v ?? null)}
               <span>{worst ? short(days[worst.i] as string) : ""}</span>
@@ -168,18 +171,18 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
           </div>
           {below !== null && (
             <div className={below > 0 ? "is-flag" : undefined}>
-              <dt>מתחת לסף ({metric.flagBelow})</dt>
+              <dt>{T.belowThreshold(metric.flagBelow as number)}</dt>
               <dd>
                 {below}
-                <span>ימים</span>
+                <span>{T.days}</span>
               </dd>
             </div>
           )}
         </dl>
         {byWeekday && (
           <figure className="hm-wk">
-            <figcaption>ממוצע לפי יום בשבוע</figcaption>
-            <div className="hm-wk-cols" dir="rtl">
+            <figcaption>{T.byWeekday}</figcaption>
+            <div className="hm-wk-cols" dir={lang === "he" ? "rtl" : "ltr"}>
               {byWeekday.map((c, i) => (
                 <div key={i} className="hm-wk-col">
                   <span className="hm-wk-val">{c.avg === null ? "–" : fmt(c.avg)}</span>
@@ -187,7 +190,7 @@ export function Heatmap({ days, metrics }: { days: string[]; metrics: HeatMetric
                     {c.avg !== null && <span className="hm-wk-dot" style={{ bottom: `${c.pos}%` }} />}
                     {c.avg !== null && <span className="hm-wk-stem" style={{ height: `${c.pos}%` }} />}
                   </span>
-                  <span className="hm-wk-d">{["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"][i]}</span>
+                  <span className="hm-wk-d">{T.weekdays[i]}</span>
                 </div>
               ))}
             </div>

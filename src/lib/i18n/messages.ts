@@ -3,6 +3,9 @@ import { assistant } from "./dict/assistant";
 import { challenges } from "./dict/challenges";
 import { circle } from "./dict/circle";
 import { core } from "./dict/core";
+import { data } from "./dict/data";
+import { dataLib } from "./dict/data-lib";
+import { dataViews } from "./dict/data-views";
 import { heart } from "./dict/heart";
 import { home } from "./dict/home";
 import { insights } from "./dict/insights";
@@ -12,7 +15,7 @@ import { site } from "./dict/site";
 import { staff } from "./dict/staff";
 
 /** Every namespace, per language. Add a namespace here when you add a dictionary file. */
-const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records, assistant };
+const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records, assistant, dataLib, data, dataViews };
 
 type Namespaces = typeof namespaces;
 

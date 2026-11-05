@@ -5,6 +5,8 @@ import type { DaySlot } from "@/lib/doctor-dashboard";
 import { alignExtras, heartRateDayStats, hrSourceLabel, latestOf, meanOf, sleepBandsFor } from "@/lib/member-data";
 import { rollingMean } from "@/lib/series-math";
 import type { DayExtras, OuraProfileData } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
+import { dataViews } from "@/lib/i18n/dict/data-views";
 import { ChartGrid, EmptyHint, Shell, type Coverage } from "./shared";
 
 const MAX_CURVE_DAYS = 14;
@@ -14,12 +16,17 @@ export function HeartView({
   extras,
   coverage,
   profile,
+  lang,
 }: {
   slots: DaySlot[];
   extras: DayExtras[];
   coverage: Coverage;
   profile: OuraProfileData | null;
+  lang: Locale;
 }) {
+  const V = dataViews[lang].heart;
+  const C = dataViews[lang].common;
+  const short = (day: string) => fmtShort(day, lang);
   const days = slots.map((s) => s.day);
   const slotByDay = new Map(slots.map((s) => [s.day, s]));
 
@@ -43,33 +50,33 @@ export function HeartView({
   const hasBody = Boolean(lastVo2 || lastVascular);
 
   return (
-    <Shell>
+    <Shell lang={lang}>
       <Section
         id="heart-day"
         icon={<IconHeartPulse size={20} />}
-        title="הדופק לאורך היום"
-        lead="מדידת דופק של הטבעת כל כמה דקות, ביום ובלילה. בוחרים יום, ומעבירים את העכבר (או נוגעים) כדי לראות שעה מסוימת."
+        title={V.dayTitle}
+        lead={V.dayLead}
       >
         {curves.length > 0 ? (
           <div className="panel">
             <HeartDayChart days={curves} />
           </div>
         ) : (
-          <EmptyHint families={["heartrate"]} coverage={coverage} what="עקומת הדופק לאורך היום" />
+          <EmptyHint families={["heartrate"]} coverage={coverage} what={V.dayWhat} lang={lang} />
         )}
 
         {lastCurve?.heartRateSummary && (
           <div className="table-card" style={{ marginTop: 16 }}>
-            <div className="table-scroll" tabIndex={0} role="region" aria-label="דופק לפי מצב">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label={V.byState}>
               <table className="dash-table">
-                <caption className="sr-only">דופק לפי מצב ב-{fmtShort(lastCurve.day)}</caption>
+                <caption className="sr-only">{V.byStateOn(short(lastCurve.day))}</caption>
                 <thead>
                   <tr>
-                    <th scope="col">מצב ({fmtShort(lastCurve.day)})</th>
-                    <th scope="col">נמוך</th>
-                    <th scope="col">ממוצע</th>
-                    <th scope="col">גבוה</th>
-                    <th scope="col">מדידות</th>
+                    <th scope="col">{V.stateCol(short(lastCurve.day))}</th>
+                    <th scope="col">{V.low}</th>
+                    <th scope="col">{V.avg}</th>
+                    <th scope="col">{V.high}</th>
+                    <th scope="col">{V.readings}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -77,7 +84,7 @@ export function HeartView({
                     .sort((a, b) => b[1].n - a[1].n)
                     .map(([source, s]) => (
                       <tr key={source}>
-                        <th scope="row">{hrSourceLabel(source)}</th>
+                        <th scope="row">{hrSourceLabel(source, lang)}</th>
                         <td>{s.min}</td>
                         <td>{s.avg}</td>
                         <td>{s.max}</td>
@@ -92,25 +99,26 @@ export function HeartView({
       </Section>
 
       {hasBody && (
-        <Section id="heart-body" icon={<IconZap size={20} />} title="כושר וכלי דם" lead="הערכות של Oura. הן מאפשרות לעקוב אחרי מגמה, והן אינן מדידה רפואית.">
+        <Section id="heart-body" icon={<IconZap size={20} />} title={V.bodyTitle} lead={V.bodyLead}>
           <div className="mini-grid">
             {lastVo2 && (
-              <MiniStat icon={<IconZap size={16} />} label="VO2 max" value={lastVo2.value.toFixed(1)} unit="מ״ל/ק״ג/דקה" hint={`הערכת כושר אירובי, ${fmtShort(lastVo2.day)}`} />
+              <MiniStat icon={<IconZap size={16} />} label="VO2 max" value={lastVo2.value.toFixed(1)} unit={V.vo2Unit} hint={V.vo2Hint(short(lastVo2.day))} lang={lang} />
             )}
             {lastVascular && (
               <MiniStat
                 icon={<IconHeartPulse size={16} />}
-                label="גיל כלי דם"
+                label={V.vascular}
                 value={fmtNum(lastVascular.value)}
-                unit="שנים"
-                hint={profile?.age != null ? `לעומת גיל ${profile.age}` : fmtShort(lastVascular.day)}
+                unit={V.years}
+                hint={profile?.age != null ? V.vsAge(profile.age) : short(lastVascular.day)}
+                lang={lang}
               />
             )}
           </div>
         </Section>
       )}
 
-      <Section id="heart-trends" icon={<IconActivity size={20} />} title="מגמות" lead="נקודה לכל יום, והקו הוא ממוצע נע של 7 ימים.">
+      <Section id="heart-trends" icon={<IconActivity size={20} />} title={C.trends} lead={C.dotPerDay}>
         <ChartGrid
           items={[
             resting.some((v) => v !== null) && {
@@ -118,14 +126,14 @@ export function HeartView({
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="דופק מנוחה"
-                  caption="הדופק הנמוך ביותר בכל לילה."
+                  title={V.rhr}
+                  caption={V.rhrCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(resting.slice(-7)))}</strong> bpm שבוע אחרון
+                      <strong>{fmtNum(meanOf(resting.slice(-7)))}</strong> {C.lastWeekBpm}
                     </>
                   }
-                  chart={{ days, values: resting, avg: rollingMean(resting), kind: "dots", valueLabel: "דופק מנוחה", unit: "פעימות לדקה", summary: `ממוצע ${fmtNum(meanOf(resting))} פעימות לדקה.` }}
+                  chart={{ days, values: resting, avg: rollingMean(resting), kind: "dots", valueLabel: V.rhr, unit: C.bpm, summary: V.rhrSummary(fmtNum(meanOf(resting))) }}
                 />
               ),
             },
@@ -134,14 +142,14 @@ export function HeartView({
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="דופק ממוצע בשינה"
-                  caption="הממוצע של כל הלילה, לא רק הנמוך ביותר."
+                  title={V.sleepHr}
+                  caption={V.sleepHrCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(sleepHr.slice(-7)))}</strong> bpm שבוע אחרון
+                      <strong>{fmtNum(meanOf(sleepHr.slice(-7)))}</strong> {C.lastWeekBpm}
                     </>
                   }
-                  chart={{ days, values: sleepHr, avg: rollingMean(sleepHr), kind: "dots", valueLabel: "דופק בשינה", unit: "פעימות לדקה", summary: `ממוצע ${fmtNum(meanOf(sleepHr))} פעימות לדקה בשינה.` }}
+                  chart={{ days, values: sleepHr, avg: rollingMean(sleepHr), kind: "dots", valueLabel: V.sleepHrLabel, unit: C.bpm, summary: V.sleepHrSummary(fmtNum(meanOf(sleepHr))) }}
                 />
               ),
             },
@@ -151,13 +159,13 @@ export function HeartView({
                 <Trend
                   wide={wide}
                   title="HRV"
-                  caption="שונות קצב הלב הממוצעת בשינה. חשובה המגמה שלך עצמך."
+                  caption={V.hrvCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(meanOf(hrv.slice(-7)))}</strong> ms שבוע אחרון
+                      <strong>{fmtNum(meanOf(hrv.slice(-7)))}</strong> {C.lastWeekMs}
                     </>
                   }
-                  chart={{ days, values: hrv, avg: rollingMean(hrv), kind: "dots", valueLabel: "HRV", unit: "ms", summary: `ממוצע ${fmtNum(meanOf(hrv))} מילישניות.` }}
+                  chart={{ days, values: hrv, avg: rollingMean(hrv), kind: "dots", valueLabel: "HRV", unit: "ms", summary: V.hrvSummary(fmtNum(meanOf(hrv))) }}
                 />
               ),
             },
@@ -167,13 +175,13 @@ export function HeartView({
                 <Trend
                   wide={wide}
                   title="VO2 max"
-                  caption="הערכת הכושר האירובי. משתנה לאט, ולכן המגמה חשובה."
+                  caption={V.vo2Caption}
                   stat={
                     <>
-                      <strong>{fmtNum(lastVo2?.value ?? null, 1)}</strong> לאחרונה
+                      <strong>{fmtNum(lastVo2?.value ?? null, 1)}</strong> {C.recently}
                     </>
                   }
-                  chart={{ days, values: vo2, kind: "dots", valueLabel: "VO2 max", unit: "מ״ל/ק״ג/דקה", digits: 1, summary: `ערך אחרון ${fmtNum(lastVo2?.value ?? null, 1)}.` }}
+                  chart={{ days, values: vo2, kind: "dots", valueLabel: "VO2 max", unit: V.vo2Unit, digits: 1, summary: V.vo2Summary(fmtNum(lastVo2?.value ?? null, 1)) }}
                 />
               ),
             },
@@ -182,21 +190,21 @@ export function HeartView({
               render: (wide) => (
                 <Trend
                   wide={wide}
-                  title="גיל כלי דם"
-                  caption="הערכה של Oura לגיל כלי הדם שלך, לעומת הגיל הקלנדרי."
+                  title={V.vascular}
+                  caption={V.vascularCaption}
                   stat={
                     <>
-                      <strong>{fmtNum(lastVascular?.value ?? null)}</strong> לאחרונה
+                      <strong>{fmtNum(lastVascular?.value ?? null)}</strong> {C.recently}
                     </>
                   }
-                  chart={{ days, values: vascular, kind: "dots", valueLabel: "גיל כלי דם", unit: "שנים", summary: `גיל כלי דם אחרון ${fmtNum(lastVascular?.value ?? null)}.` }}
+                  chart={{ days, values: vascular, kind: "dots", valueLabel: V.vascular, unit: V.years, summary: V.vascularSummary(fmtNum(lastVascular?.value ?? null)) }}
                 />
               ),
             },
           ]}
         />
         {!vo2.some((v) => v !== null) && !vascular.some((v) => v !== null) && (
-          <EmptyHint families={["vO2_max", "daily_cardiovascular_age"]} coverage={coverage} what="VO2 max וגיל כלי דם" />
+          <EmptyHint families={["vO2_max", "daily_cardiovascular_age"]} coverage={coverage} what={V.vo2What} lang={lang} />
         )}
       </Section>
     </Shell>

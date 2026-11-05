@@ -3,7 +3,8 @@
 import { useId, useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { NightDetail } from "@/lib/doctor-dashboard";
 import { fmtClock } from "@/lib/series-math";
-import { decodeHypnogram, EPOCH_MINUTES, STAGE_LABEL_HE, toSegments, type Stage } from "@/lib/sleep-stages";
+import { decodeHypnogram, EPOCH_MINUTES, stageLabels, toSegments, type Stage } from "@/lib/sleep-stages";
+import { useChartLang, useChartText } from "./chart-lang";
 import { longDay, shortDay } from "./chart-utils";
 import { formatHm, weekdayLetter } from "./format";
 import { useWidth } from "./use-width";
@@ -93,6 +94,9 @@ function Curve({
 }
 
 export function NightExplorer({ nights }: { nights: NightDetail[] }) {
+  const lang = useChartLang();
+  const T = useChartText();
+  const STAGE_LABEL = stageLabels(lang);
   const [sel, setSel] = useState(nights.length - 1);
   const [active, setActive] = useState<number | null>(null);
   const [wrapRef, width] = useWidth<HTMLDivElement>();
@@ -164,7 +168,7 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
 
   return (
     <div className="ne">
-      <div className="ne-chips" role="tablist" aria-label="בחירת לילה" dir="ltr">
+      <div className="ne-chips" role="tablist" aria-label={T.pickNight} dir="ltr">
         {nights.map((nt, i) => (
           <button
             key={nt.day}
@@ -177,7 +181,7 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
               setActive(null);
             }}
           >
-            <span className="ne-chip-wd">{weekdayLetter(nt.day)}</span>
+            <span className="ne-chip-wd">{weekdayLetter(nt.day, lang)}</span>
             <span className="ne-chip-d">{shortDay(nt.day)}</span>
           </button>
         ))}
@@ -185,7 +189,7 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
 
       <div className="ne-head">
         <h3>
-          {longDay(night.day)}
+          {longDay(night.day, lang)}
           <span className="ne-sub">
             {" "}
             · <bdi dir="ltr">{fmtClock(night.startMinute)}–{fmtClock(night.startMinute + total)}</bdi>
@@ -195,53 +199,53 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
 
       <dl className="ne-stats">
         <div>
-          <dt>שינה בפועל</dt>
+          <dt>{T.asleep}</dt>
           <dd>
             <bdi>{formatHm(s.asleepMinutes)}</bdi>
-            <span>שעות</span>
+            <span>{T.hours}</span>
           </dd>
         </div>
         <div>
-          <dt>ציון שינה</dt>
+          <dt>{T.sleepScore}</dt>
           <dd>{night.sleepScore ?? "–"}</dd>
         </div>
         <div>
-          <dt>יעילות</dt>
+          <dt>{T.efficiency}</dt>
           <dd>
             {s.efficiency ?? "–"}
-            <span>אחוז</span>
+            <span>{T.percent}</span>
           </dd>
         </div>
         <div>
-          <dt>הירדמות</dt>
+          <dt>{T.latency}</dt>
           <dd>
             {s.onsetMinutes ?? "–"}
-            <span>דקות</span>
+            <span>{T.minutes}</span>
           </dd>
         </div>
         <div>
-          <dt>יקיצות</dt>
+          <dt>{T.awakenings}</dt>
           <dd>
             {s.awakenings}
-            <span>{s.wakeAfterOnsetMinutes} דק׳ ערות</span>
+            <span>{T.awakeMin(s.wakeAfterOnsetMinutes)}</span>
           </dd>
         </div>
         <div>
-          <dt>זמן עד REM</dt>
+          <dt>{T.toRem}</dt>
           <dd>
             {s.remLatencyMinutes ?? "–"}
-            <span>דקות</span>
+            <span>{T.minutes}</span>
           </dd>
         </div>
         <div>
-          <dt>HRV ממוצע</dt>
+          <dt>{T.avgHrv}</dt>
           <dd>
             {night.averageHrv === null ? "–" : Math.round(night.averageHrv)}
             <span>ms</span>
           </dd>
         </div>
         <div>
-          <dt>דופק נמוך</dt>
+          <dt>{T.lowHr}</dt>
           <dd>
             {night.lowestHeartRate ?? "–"}
             <span>bpm</span>
@@ -249,15 +253,15 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
         </div>
       </dl>
 
-      <ul className="ne-stages" aria-label="פילוח שלבי השינה">
+      <ul className="ne-stages" aria-label={T.stagesBreakdown}>
         {(["deep", "light", "rem", "awake"] as Stage[]).map((st) => (
           <li key={st}>
             <span className="sw sw-fill" style={{ background: STAGE_COLOR[st] }} />
-            <span className="ne-stage-name">{STAGE_LABEL_HE[st]}</span>
+            <span className="ne-stage-name">{STAGE_LABEL[st]}</span>
             <strong>
               <bdi>{formatHm(s.minutes[st])}</bdi>
             </strong>
-            {st !== "awake" && <span className="ne-stage-pct">{share(s.minutes[st])} אחוז</span>}
+            {st !== "awake" && <span className="ne-stage-pct">{share(s.minutes[st])} {T.percent}</span>}
           </li>
         ))}
       </ul>
@@ -267,8 +271,8 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
         ref={wrapRef}
         tabIndex={0}
         role="group"
-        aria-roledescription="תרשים"
-        aria-label={`שלבי שינה, דופק ו-HRV בלילה של ${longDay(night.day)}. שינה בפועל ${formatHm(s.asleepMinutes)} שעות, ${s.awakenings} יקיצות.`}
+        aria-roledescription={T.chart}
+        aria-label={T.nightAria(longDay(night.day, lang), formatHm(s.asleepMinutes), s.awakenings)}
         onKeyDown={onKey}
         onFocus={() => setActive((i) => i ?? 0)}
         onBlur={() => setActive(null)}
@@ -289,7 +293,7 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
             <g key={st}>
               <line className="tc-grid" x1={M.left} x2={M.left + plotW} y1={M.top + k * LANE_H + LANE_H / 2} y2={M.top + k * LANE_H + LANE_H / 2} />
               <text className="tc-tick ne-lane" x={M.left - 10} y={M.top + k * LANE_H + LANE_H / 2} dy="0.32em" textAnchor="end">
-                {STAGE_LABEL_HE[st]}
+                {STAGE_LABEL[st]}
               </text>
             </g>
           ))}
@@ -326,7 +330,7 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
 
           {/* heart rate + HRV */}
           <text className="tc-tick ne-lane" x={M.left - 10} y={hrTop + 14} textAnchor="end">
-            דופק
+            {T.hr}
           </text>
           <text className="tc-tick ne-sub-tick" x={M.left - 10} y={hrTop + 30} textAnchor="end">
             bpm
@@ -359,12 +363,12 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
           )}
           {!hr && (
             <text className="tc-tick" x={M.left + plotW / 2} y={hrTop + PANEL_H / 2} textAnchor="middle">
-              אין עקומת דופק ללילה הזה
+              {T.noHrCurve}
             </text>
           )}
           {!hrv && (
             <text className="tc-tick" x={M.left + plotW / 2} y={hrvTop + PANEL_H / 2} textAnchor="middle">
-              אין עקומת HRV ללילה הזה
+              {T.noHrvCurve}
             </text>
           )}
 
@@ -393,9 +397,9 @@ export function NightExplorer({ nights }: { nights: NightDetail[] }) {
             </span>
             <span className="tc-tip-row">
               <span className="tc-key" style={{ background: STAGE_COLOR[stages[a] as Stage] }} aria-hidden="true" />
-              <strong>{STAGE_LABEL_HE[stages[a] as Stage]}</strong>
+              <strong>{STAGE_LABEL[stages[a] as Stage]}</strong>
             </span>
-            <span className="tc-tip-row tc-tip-muted">דופק: {sampleAt(night.heartRate) ?? "–"}</span>
+            <span className="tc-tip-row tc-tip-muted">{T.hr}: {sampleAt(night.heartRate) ?? "–"}</span>
             <span className="tc-tip-row tc-tip-muted">HRV: {sampleAt(night.hrv) ?? "–"}</span>
           </div>
         )}

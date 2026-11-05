@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/i18n";
+import { data } from "@/lib/i18n/dict/data";
+
 /** Number and clock formatting shared by the server dashboard and the client charts. */
 
 export type ChartFormat = "number" | "clock" | "compact";
@@ -27,7 +30,7 @@ export function formatHm(minutes: number | null): string {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
 }
 
-/** Hebrew weekday letter for a YYYY-MM-DD day: א׳ ... ש׳ */
-export function weekdayLetter(day: string): string {
-  return ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"][new Date(`${day}T00:00:00Z`).getUTCDay()] as string;
+/** Weekday of a YYYY-MM-DD day: א׳ ... ש׳ in Hebrew (the default), Su ... Sa in English. */
+export function weekdayLetter(day: string, lang: Locale = "he"): string {
+  return data[lang].charts.weekdays[new Date(`${day}T00:00:00Z`).getUTCDay()] as string;
 }

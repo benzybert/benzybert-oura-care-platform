@@ -4,6 +4,9 @@
  * These describe consumer-wearable estimates, not a polysomnography.
  */
 
+import type { Locale } from "./i18n";
+import { dataLib } from "./i18n/dict/data-lib";
+
 export type Stage = "deep" | "light" | "rem" | "awake";
 
 /** Bottom to top, as drawn in stacked bars. */
@@ -13,12 +16,8 @@ export const EPOCH_MINUTES = 5;
 
 const CODE: Record<string, Stage> = { "1": "deep", "2": "light", "3": "rem", "4": "awake" };
 
-export const STAGE_LABEL_HE: Record<Stage, string> = {
-  deep: "שינה עמוקה",
-  light: "שינה קלה",
-  rem: "REM",
-  awake: "ערות",
-};
+export const STAGE_LABEL_HE: Record<Stage, string> = dataLib.he.stages;
+export const stageLabels = (lang: Locale): Record<Stage, string> => dataLib[lang].stages;
 
 /** null when there is nothing usable (empty, or a character Oura does not document). */
 export function decodeHypnogram(hypnogram: string | null | undefined): Stage[] | null {

@@ -54,10 +54,10 @@ export function HrvInsights({ slots, coverage, t, locale }: { slots: DaySlot[]; 
 
   return (
     <div dir={dirOf(locale)} lang={locale}>
-      <Shell>
+      <Shell lang={locale}>
         <Section id="hrv-depth" icon={<IconHeartPulse size={20} />} title={h.title} lead={h.lead}>
           {!hasAny ? (
-            <EmptyHint families={["sleep"]} coverage={coverage} what="HRV" />
+            <EmptyHint families={["sleep"]} coverage={coverage} what="HRV" lang={locale} />
           ) : (
             <>
               <p className={trend.status === "below" ? "md-hint is-warn" : "md-hint"} role="status">

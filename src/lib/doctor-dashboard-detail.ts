@@ -1,6 +1,8 @@
 import { mean } from "./alerts";
 import { dayOfWeek } from "./dates";
 import type { DaySlot, Finding } from "./doctor-dashboard";
+import type { Locale } from "./i18n";
+import { dataLib } from "./i18n/dict/data-lib";
 import { median, unwrapBedtime } from "./series-math";
 import { decodeHypnogram, nightStats, sleepShares, type NightStats } from "./sleep-stages";
 
@@ -134,28 +136,26 @@ export function buildNights(slots: DaySlot[], max = MAX_NIGHTS): NightDetail[] {
 
 type ContributorSpec = { key: string; label: string };
 
-/** Oura's own factor names, in Oura's order, with the Hebrew label shown to the doctor. */
-export const SLEEP_CONTRIBUTORS: ContributorSpec[] = [
-  { key: "total_sleep", label: "משך שינה" },
-  { key: "efficiency", label: "יעילות" },
-  { key: "restfulness", label: "שקט בשינה" },
-  { key: "rem_sleep", label: "שינת REM" },
-  { key: "deep_sleep", label: "שינה עמוקה" },
-  { key: "latency", label: "זמן הירדמות" },
-  { key: "timing", label: "תזמון" },
-];
+/** Oura's own factor names, in Oura's order; the labels are in the dictionary (`dataLib.contributors`). */
+export const SLEEP_CONTRIBUTOR_KEYS = ["total_sleep", "efficiency", "restfulness", "rem_sleep", "deep_sleep", "latency", "timing"] as const;
+export const READINESS_CONTRIBUTOR_KEYS = [
+  "previous_night",
+  "sleep_balance",
+  "resting_heart_rate",
+  "hrv_balance",
+  "body_temperature",
+  "recovery_index",
+  "previous_day_activity",
+  "activity_balance",
+  "sleep_regularity",
+] as const;
 
-export const READINESS_CONTRIBUTORS: ContributorSpec[] = [
-  { key: "previous_night", label: "הלילה הקודם" },
-  { key: "sleep_balance", label: "איזון שינה" },
-  { key: "resting_heart_rate", label: "דופק מנוחה" },
-  { key: "hrv_balance", label: "איזון HRV" },
-  { key: "body_temperature", label: "טמפרטורת גוף" },
-  { key: "recovery_index", label: "מדד התאוששות" },
-  { key: "previous_day_activity", label: "פעילות אתמול" },
-  { key: "activity_balance", label: "איזון פעילות" },
-  { key: "sleep_regularity", label: "סדירות שינה" },
-];
+const specsOf = (keys: readonly string[], labels: Record<string, string>): ContributorSpec[] =>
+  keys.map((key) => ({ key, label: labels[key] ?? key }));
+
+/** The Hebrew lists, as shown to doctors. */
+export const SLEEP_CONTRIBUTORS: ContributorSpec[] = specsOf(SLEEP_CONTRIBUTOR_KEYS, dataLib.he.contributors.sleep);
+export const READINESS_CONTRIBUTORS: ContributorSpec[] = specsOf(READINESS_CONTRIBUTOR_KEYS, dataLib.he.contributors.readiness);
 
 export type ContributorRow = {
   key: string;
@@ -186,10 +186,11 @@ function contributorRows(
     .filter((r) => r.count > 0);
 }
 
-export function buildContributors(slots: DaySlot[], recent: DaySlot[]) {
+export function buildContributors(slots: DaySlot[], recent: DaySlot[], lang: Locale = "he") {
+  const labels = dataLib[lang].contributors;
   return {
-    sleep: contributorRows(slots, recent, SLEEP_CONTRIBUTORS, (s) => s.sleepContributors),
-    readiness: contributorRows(slots, recent, READINESS_CONTRIBUTORS, (s) => s.readinessContributors),
+    sleep: contributorRows(slots, recent, specsOf(SLEEP_CONTRIBUTOR_KEYS, labels.sleep), (s) => s.sleepContributors),
+    readiness: contributorRows(slots, recent, specsOf(READINESS_CONTRIBUTOR_KEYS, labels.readiness), (s) => s.readinessContributors),
   };
 }
 
@@ -286,7 +287,9 @@ export function buildDetailFindings(
   detail: Record<DetailKey, DetailStat>,
   shares: { period: StageShares | null },
   patterns: Patterns,
+  lang: Locale = "he",
 ): Finding[] {
+  const F = dataLib[lang].findings;
   const out: Finding[] = [];
 
   const eff = detail.sleepEfficiency;
@@ -295,8 +298,8 @@ export function buildDetailFindings(
     out.push({
       id: "efficiency",
       status: low ? "attention" : "ok",
-      title: low ? "יעילות שינה נמוכה" : "יעילות שינה טובה",
-      detail: `בממוצע ${whole(eff.period)} אחוז מהזמן במיטה הוא שינה בפועל (ערך מקובל: ${EFFICIENCY_LOW} אחוז ומעלה).`,
+      title: low ? F.effLow : F.effGood,
+      detail: F.effDetail(whole(eff.period), EFFICIENCY_LOW),
     });
   }
 
@@ -306,8 +309,8 @@ export function buildDetailFindings(
     out.push({
       id: "latency",
       status: long ? "attention" : "ok",
-      title: long ? "הירדמות איטית" : "זמן הירדמות תקין",
-      detail: `בממוצע ${whole(lat.period)} דקות מהשכיבה ועד ההירדמות (ערך מקובל: עד ${LATENCY_LONG_MIN} דקות).`,
+      title: long ? F.latSlow : F.latOk,
+      detail: F.latDetail(whole(lat.period), LATENCY_LONG_MIN),
     });
   }
 
@@ -317,8 +320,8 @@ export function buildDetailFindings(
     out.push({
       id: "stages",
       status: unusual ? "info" : "ok",
-      title: unusual ? "הרכב שלבי השינה חריג" : "הרכב שלבי שינה סביר",
-      detail: `שינה עמוקה ${whole(deep)} אחוז ו-REM ${whole(rem)} אחוז מזמן השינה (אצל מבוגרים בדרך כלל כ-13 עד 23 וכ-20 עד 25). טבעת צרכנית מעריכה שלבים בקירוב.`,
+      title: unusual ? F.stagesUnusual : F.stagesOk,
+      detail: F.stagesDetail(whole(deep), whole(rem)),
     });
   }
 
@@ -328,15 +331,15 @@ export function buildDetailFindings(
       out.push({
         id: "breathing",
         status: "info",
-        title: "שינוי בקצב הנשימה בשינה",
-        detail: `ב-7 הימים האחרונים ${one(breath.recent)} נשימות לדקה, לעומת ${one(breath.reference)} בתחילת התקופה.`,
+        title: F.breathShift,
+        detail: F.breathShiftDetail(one(breath.recent), one(breath.reference)),
       });
     } else {
       out.push({
         id: "breathing",
         status: "ok",
-        title: "קצב נשימה יציב",
-        detail: `ממוצע ${one(breath.period)} נשימות לדקה בשינה.`,
+        title: F.breathSteady,
+        detail: F.breathSteadyDetail(one(breath.period)),
       });
     }
   }
@@ -347,15 +350,15 @@ export function buildDetailFindings(
       out.push({
         id: "temperature",
         status: "info",
-        title: "סטייה בטמפרטורת העור",
-        detail: `ב-7 הימים האחרונים הטמפרטורה בלילה ${temp.recent > 0 ? "גבוהה" : "נמוכה"} ב-${Math.abs(temp.recent).toFixed(1)} מעלות מהקו האישי.`,
+        title: F.tempShift,
+        detail: F.tempShiftDetail(temp.recent > 0, Math.abs(temp.recent).toFixed(1)),
       });
     } else {
       out.push({
         id: "temperature",
         status: "ok",
-        title: "טמפרטורת עור יציבה",
-        detail: "הטמפרטורה בלילה קרובה לקו האישי.",
+        title: F.tempSteady,
+        detail: F.tempSteadyDetail,
       });
     }
   }
@@ -366,8 +369,8 @@ export function buildDetailFindings(
     out.push({
       id: "stress",
       status: heavy ? "info" : "ok",
-      title: heavy ? "ימי עומס רבים" : "עומס יומי נמוך",
-      detail: `${stress.stressful} מתוך ${stress.days} ימים סווגו על ידי Oura כימים מלחיצים, ${stress.restored} כימי התאוששות.`,
+      title: heavy ? F.stressHeavy : F.stressLight,
+      detail: F.stressDetail(stress.stressful, stress.days, stress.restored),
     });
   }
 
