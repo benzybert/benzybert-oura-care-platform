@@ -45,14 +45,14 @@ export const landing = defineDict(
     dial: {
       visit: "Your visit",
       visitMinutes: "15 min",
-      sees: "Your ring sees",
-      seesValue: "23 h 45 min",
-      ofDay: "of every day",
+      sees: "Between visits",
+      seesValue: "Your trend",
+      ofDay: "against your own normal",
       legendVisit: "A typical appointment: 15 minutes",
       legendRing: "What the ring records between visits: sleep, heart rate, HRV",
       illustrative: "Illustrative data",
       caption:
-        "A 24-hour dial. A 15-minute sliver marks a typical doctor's appointment. The rest of the dial shows what a ring records over the other 23 hours and 45 minutes: sleep stages at night, heart rate and heart rate variability during the day. The data is illustrative.",
+        "A 24-hour dial. A 15-minute sliver marks a typical doctor's appointment. The rest of the dial shows what a ring records in between: sleep stages at night, heart rate and heart rate variability during the day. The data is illustrative.",
     },
     problem: {
       eyebrow: "01 / The fifteen-minute problem",
@@ -471,14 +471,14 @@ export const landing = defineDict(
     dial: {
       visit: "הביקור",
       visitMinutes: "15 דק׳",
-      sees: "הטבעת רואה",
-      seesValue: "23 ש׳ 45 דק׳",
-      ofDay: "מכל יממה",
+      sees: "בין הביקורים",
+      seesValue: "המגמה שלך",
+      ofDay: "מול הנורמלי שלך",
       legendVisit: "תור ממוצע: 15 דקות",
       legendRing: "מה שהטבעת מתעדת בין הביקורים: שינה, דופק, HRV",
       illustrative: "נתונים להמחשה",
       caption:
-        "חוגה של 24 שעות. פלח של 15 דקות מסמן תור ממוצע אצל הרופא. שאר החוגה מראה מה טבעת מתעדת ב-23 השעות ו-45 הדקות האחרות: שלבי שינה בלילה, דופק ו-HRV ביום. הנתונים להמחשה.",
+        "חוגה של 24 שעות. פלח של 15 דקות מסמן תור ממוצע אצל הרופא. שאר החוגה מראה מה טבעת מתעדת בזמן שביניהם: שלבי שינה בלילה, דופק ו-HRV ביום. הנתונים להמחשה.",
     },
     problem: {
       eyebrow: "01 / בעיית רבע השעה",
