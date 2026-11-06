@@ -51,8 +51,6 @@ export const sleepNights: SampleNight[] = Array.from({ length: REPORT_NIGHTS }, 
 /** 60 nights of HRV for the patients panel: a calm line around a personal baseline. */
 export const patientHrv = series(60, 5, (i, n) => 46 + n * 7 + Math.sin(i * 0.35) * 2.5);
 
-/** Weekly group means for the organizations panel (sleep score), one value per week. */
-export const groupWeeks = series(8, 11, (i, n) => 74 + n * 3 + i * 0.5);
 
 export function mean(values: number[]): number {
   return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
@@ -83,3 +81,9 @@ export function restingHrStory(values: number[] = restingHr, flaggedFrom: number
     recentNights,
   };
 }
+
+/**
+ * The organization demo's numbers: the 7-day group averages the org page would show once the
+ * fifth participant joins (the platform's default minimum, `ORG_MIN_COHORT`). Made up.
+ */
+export const ORG_DEMO = { minCohort: 5, sleep: 76.4, readiness: 74.1, hrv: 41.8 } as const;

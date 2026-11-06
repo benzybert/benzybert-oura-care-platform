@@ -1,0 +1,254 @@
+/*
+ * The organizations tab's demo (org-demo.tsx), on the Stageshow kit. Nested under .od so nothing
+ * leaks into the page. Sized for the tab's ~406px visual column, like the doctor demo.
+ *
+ * Wide (420 x 400): the org page's browser one gutter (24) from the top and the start edge,
+ * running off the far side (about 10%) and the bottom, what shows of it square; its content stops
+ * a gutter short of the stage's far edge. The member's card sits in front of the window below the
+ * averages and runs off the bottom with its placeholder rows (the sharing page's other scopes).
+ * Hebrew mirrors the window by hand (it keeps dir="ltr" for its macOS chrome).
+ */
+
+.od {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+}
+
+.od .od-frame {
+  width: 100%;
+  max-width: 420px;
+  /* Holds the stage's shape before it mounts (the tab is hidden until chosen) */
+  min-height: 300px;
+}
+
+.od .ss-stage {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--ss-well);
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif;
+}
+
+.od .od-win {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 440px;
+  height: 440px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.od[dir="rtl"] .od-win {
+  left: auto;
+  right: 24px;
+}
+
+.od .od-body {
+  display: grid;
+  align-content: start;
+  width: 392px;
+  padding: 16px 20px 0;
+  background: var(--ss-surface);
+  height: 100%;
+}
+
+/* Hebrew: the column sits at the window's right edge (the window's own frame stays left to right) */
+.od[dir="rtl"] .od-body {
+  margin-left: auto;
+}
+
+.od .od-title {
+  color: var(--ss-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.od .od-lead {
+  margin: 6px 0 0;
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* One slot, two versions crossfading in place */
+.od .od-slot {
+  position: relative;
+  height: 128px;
+  margin-top: 12px;
+}
+
+.od .od-few,
+.od .od-stats {
+  position: absolute;
+  inset: 0 0 auto;
+  opacity: 0;
+  transform: translateY(6px);
+  will-change: transform;
+  transition:
+    opacity 0.2s ease,
+    transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.od .od-few[data-show],
+.od .od-stats[data-show] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.3s ease 0.1s,
+    transform 0.45s cubic-bezier(0.25, 0.8, 0.25, 1) 0.1s;
+}
+
+/* Plain text on the page's own edge, as the real page's notice reads */
+.od .od-few {
+  display: grid;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.od .od-few-title {
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.od .od-few-text {
+  margin: 0;
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.od .od-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* The tiles arrive one after another (their delays are set inline), then the section holds */
+.od .od-stat {
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--ss-canvas);
+  opacity: 0;
+  transform: translateY(4px);
+  will-change: transform;
+  transition:
+    opacity 0.3s ease,
+    transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.od .od-stats[data-show] .od-stat {
+  opacity: 1;
+  transform: none;
+}
+
+.od .od-stat-label {
+  color: var(--ss-text);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.od .od-stat-value {
+  justify-self: start;
+  color: var(--ss-text-strong);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.od[dir="rtl"] .od-stat-value {
+  justify-self: end;
+}
+
+.od .od-filler {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* The member's sharing row: a chromeless card in front of the org page's filler */
+.od .od-member {
+  position: absolute;
+  top: 292px;
+  inset-inline-start: 40px;
+  width: 356px;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--ss-surface);
+  box-shadow: var(--ss-shadow-satellite);
+}
+
+.od .od-member-label {
+  color: var(--ss-text-faint);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.od .od-member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.od .od-member-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.od .od-member-other {
+  padding-top: 12px;
+  margin-top: 8px;
+  border-top: 1px solid var(--ss-line-faint);
+}
+
+.od .od-member-bars {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+}
+
+/* Where the cursor waits: empty surface beside the page title */
+.od .od-rest {
+  position: absolute;
+  top: 92px;
+  inset-inline-start: 350px;
+  width: 1px;
+  height: 1px;
+}
+
+/* Compact: the phone column. The same picture, narrower; the member's card keeps its title. */
+.od .ss-stage[data-layout="compact"] .od-win {
+  width: 380px;
+  height: 380px;
+}
+
+.od .ss-stage[data-layout="compact"] .od-body {
+  width: 330px;
+}
+
+.od .ss-stage[data-layout="compact"] .od-slot {
+  margin-top: 10px;
+}
+
+.od .ss-stage[data-layout="compact"] .od-member {
+  top: 238px;
+  inset-inline-start: 24px;
+  width: 310px;
+}
+
+.od .ss-stage[data-layout="compact"] .od-rest {
+  top: 92px;
+  inset-inline-start: 300px;
+}

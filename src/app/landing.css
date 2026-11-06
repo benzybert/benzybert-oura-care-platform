@@ -1124,25 +1124,6 @@ main:has(> .lp) {
   color: var(--lp-ink-2);
   font-weight: 500;
 }
-.lp-group {
-  display: grid;
-  gap: 14px;
-}
-.lp-group-hidden {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.86rem;
-  color: var(--lp-ink-2);
-  margin: 0;
-}
-.lp-group-hidden span {
-  width: 22px;
-  height: 10px;
-  border-radius: 2px;
-  border: 1px dashed var(--lp-line-strong);
-}
-
 /* Sample report */
 .lp-report {
   border: 1px solid var(--lp-line);

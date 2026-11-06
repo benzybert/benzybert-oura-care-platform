@@ -4,10 +4,11 @@ import "@fontsource/instrument-serif/latin-400.css";
 import "@fontsource/instrument-serif/latin-400-italic.css";
 import "@fontsource/frank-ruhl-libre/hebrew-400.css";
 import "./landing.css";
-import { GroupBarsVisual, PatientHrvVisual, SleepStackChart, TrendChart } from "@/components/landing/charts";
+import { PatientHrvVisual, SleepStackChart, TrendChart } from "@/components/landing/charts";
 import { DayDial } from "@/components/landing/day-dial";
 import { DoctorDemo } from "@/components/landing/doctor-demo";
 import { MinutesCounter } from "@/components/landing/minutes-counter";
+import { OrgDemo } from "@/components/landing/org-demo";
 import { ShareDemo } from "@/components/landing/share-demo";
 import { solutionAnchor } from "@/components/landing/solution-ids";
 import { Solutions } from "@/components/landing/solutions";
@@ -18,7 +19,7 @@ import { dirOf, intlTag } from "@/lib/i18n";
 import { siteUrl } from "@/config/site";
 import { getT } from "@/lib/i18n/server";
 import { APPOINTMENT_MINUTES, YEAR_MINUTES } from "@/lib/landing/dial";
-import { FLAGGED_FROM, HRV_BASELINE, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
+import { FLAGGED_FROM, HRV_BASELINE, ORG_DEMO, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
 import { getSessionUser, type Role } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -385,9 +386,9 @@ export default async function Home() {
                         </Link>
                       )}
                     </div>
-                    <figure className="lp-visual">
-                      <figcaption className="lp-mono">{P.orgs.visualLabel}</figcaption>
-                      <GroupBarsVisual label={P.orgs.visualLabel} hidden={P.orgs.hiddenGroup} weeks={P.orgs.weeks} />
+                    <figure className="lp-visual lp-demo-figure">
+                      <OrgDemo text={P.orgs.demo} host={siteHost} data={ORG_DEMO} dir={dirOf(locale)} />
+                      <figcaption className="lp-mono lp-illustrative">{P.orgs.demo.caption}</figcaption>
                     </figure>
                   </div>
                 ),

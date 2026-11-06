@@ -1,6 +1,5 @@
 import {
   FLAGGED_FROM,
-  groupWeeks,
   patientHrv,
   sleepNights,
   toPolyline,
@@ -124,33 +123,5 @@ export function PatientHrvVisual({ label, band }: { label: string; band: string 
       <polyline points={toPolyline(patientHrv, w, h, min, max)} fill="none" stroke="var(--lp-data)" strokeWidth="1.5" strokeLinejoin="round" />
       <line x1="0" x2={w} y1={h + 0.5} y2={h + 0.5} stroke="var(--lp-line)" />
     </svg>
-  );
-}
-
-/** Organizations panel: weekly group means, plus one group withheld for being too small. */
-export function GroupBarsVisual({ label, hidden, weeks }: { label: string; hidden: string; weeks: string }) {
-  const w = 320;
-  const h = 110;
-  const min = 60;
-  const max = 85;
-  const slot = w / groupWeeks.length;
-  const barW = slot * 0.46;
-  return (
-    <div className="lp-group">
-      <svg viewBox={`0 0 ${w} ${h + 18}`} className="lp-chart" role="img" aria-label={label}>
-        {groupWeeks.map((v, i) => {
-          const bh = ((v - min) / (max - min)) * h;
-          return <rect key={i} x={i * slot + (slot - barW) / 2} y={h - bh} width={barW} height={bh} rx="1.5" fill="var(--lp-data)" opacity={0.35 + (i / groupWeeks.length) * 0.65} />;
-        })}
-        <line x1="0" x2={w} y1={h + 0.5} y2={h + 0.5} stroke="var(--lp-line)" />
-        <text x="0" y={h + 14} fontSize="9" className="lp-chart-tick">
-          {weeks}
-        </text>
-      </svg>
-      <p className="lp-group-hidden">
-        <span aria-hidden="true" />
-        {hidden}
-      </p>
-    </div>
   );
 }

@@ -54,3 +54,29 @@ tested), filled into the finding sentence on the server.
   press and a `settle snap` in a `Roll` (both inside kit parts), `steps in its box` on the window's URL
   at 390 (the host page settling as the tab opens), and the kit-override false positive above.
 - **Honesty:** doctor links are Hebrew-only today; the English caption says so.
+
+---
+
+# Rehearsal: landing organizations demo
+
+Component: `src/components/landing/org-demo.tsx` (+ `org-demo.css`), in the "Organizations" tab of
+section 03, replacing the static weekly-bars visual (removed with its text and styles: the real org
+page has no per-group or weekly breakdown, so that picture promised more than exists). Text in
+`landing.solutions.panels.orgs.demo`, word for word from the real org page (`staff.org`) and the
+member's consent row (`core.consent.org_aggregate`, "Approve sharing" / "Stop sharing"); numbers in
+`ORG_DEMO` (`src/lib/landing/sample-data.ts`).
+
+- **Gold copied:** `overlap` (a smaller chromeless card in front of a window, over its filler) with
+  `form-error`'s button that changes on itself.
+- **Story (loops, about 9 s):** the org page says "Not enough participants to show" → on a member's
+  own sharing page, Approve sharing next to "Join anonymous organization statistics" → as the fifth
+  participant (the default `ORG_MIN_COHORT`), the notice crossfades to the four group averages,
+  tiles in reading order → hold → Stop sharing → the notice returns. The reset is the real revoke,
+  so the loop has a seen cause and no data rewinds on its own.
+- **Sized for the slot** (the tab's ~406 px column): 420 × 400, phones 358 × 358 without the intro
+  line (the notice states the rule). The member's card runs off the bottom with the sharing page's
+  other rows as placeholders. Mounted only once its hidden tab is shown, as the doctor demo.
+- **Looks checked:** light and dark, English and Hebrew (window and column mirrored by hand), 1280
+  and 390.
+- **Gate:** clear at 1280 apart from the kit-override false positive; at 390 also `steps in its box`
+  on the window's URL as the host page settles.
