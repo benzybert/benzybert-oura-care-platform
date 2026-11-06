@@ -1,0 +1,259 @@
+/*
+ * The patients tab's demo (patient-demo.tsx): the Today tab on a phone, on the Stageshow kit.
+ * Nested under .pd so nothing leaks into the page. Pinned, bottom bleed (phone-touch): the phone
+ * sits a gutter (32) from the top, centered, and runs off the bottom. Inside the phone, sizes are
+ * true iOS points (the kit scales the screen as a whole). The number lines and the values stay
+ * left to right in Hebrew, as on the real Today tab.
+ */
+
+.pd {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  width: 100%;
+}
+
+.pd .pd-frame {
+  width: 100%;
+  max-width: 420px;
+  /* Holds the stage's shape before it mounts */
+  min-height: 300px;
+}
+
+.pd .ss-stage {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--ss-well);
+}
+
+.pd .pd-phone {
+  position: absolute;
+  top: 32px;
+  left: 40px;
+}
+
+.pd .ss-stage[data-layout="compact"] .pd-phone {
+  top: 24px;
+  left: 24px;
+}
+
+/* The app, in points */
+.pd .pd-app {
+  display: grid;
+  /* One column, the screen's width: a changing sentence wraps instead of widening it */
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  align-content: start;
+  min-height: 100%;
+  padding: 10px 20px 0;
+  background: var(--ss-canvas);
+  color: var(--ss-text-strong);
+  font-family: -apple-system, system-ui, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif;
+}
+
+.pd .pd-sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ss-text);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.pd .pd-sync-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ss-ink-4, #b5b5b5);
+  transition: background 0.3s ease;
+}
+
+.pd .pd-sync-dot[data-fresh] {
+  background: #2f9e63;
+}
+
+.pd .pd-headline {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.pd .pd-text {
+  margin-top: 4px;
+  color: var(--ss-text);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.pd .pd-note {
+  will-change: transform;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ss-surface);
+  color: var(--ss-text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.pd .pd-card {
+  display: grid;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--ss-surface);
+}
+
+.pd .pd-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pd .pd-card-lead {
+  margin: 2px 0 0;
+  color: var(--ss-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.pd .pd-rows {
+  display: grid;
+  gap: 16px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pd .pd-row {
+  display: grid;
+  gap: 8px;
+}
+
+.pd .pd-row-head,
+.pd .pd-row-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pd .pd-row-head {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.pd .pd-row-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.pd .pd-num {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd .pd-unit {
+  color: var(--ss-text);
+  font-size: 13px;
+}
+
+/* The number line: the usual range as a band, the morning's value as a dot that travels */
+.pd .pd-range {
+  position: relative;
+  height: 14px;
+  direction: ltr;
+}
+
+.pd .pd-range::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0;
+  border-radius: 3px;
+  background: var(--ss-ink-2);
+}
+
+.pd .pd-range-band {
+  position: absolute;
+  top: 4px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ss-accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ss-accent) 35%, transparent);
+}
+
+.pd .pd-range-dot {
+  position: absolute;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border: 2px solid var(--ss-surface);
+  border-radius: 50%;
+  background: var(--ss-accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  will-change: transform;
+  transition:
+    left 0.8s cubic-bezier(0.45, 0, 0.1, 1),
+    background 0.25s ease;
+}
+
+.pd .pd-range-dot[data-out] {
+  background: #c96a12;
+}
+
+.pd .ss-stage[data-theme="dark"] .pd-range-dot[data-out] {
+  background: #c9711f;
+}
+
+.pd .pd-row-foot {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.pd .pd-band {
+  color: var(--ss-text);
+  transition: color 0.25s ease;
+}
+
+.pd .pd-band[data-out] {
+  color: #b05a0c;
+  font-weight: 500;
+}
+
+.pd .ss-stage[data-theme="dark"] .pd-band[data-out] {
+  color: #e08a3a;
+}
+
+.pd .pd-usual {
+  color: var(--ss-text-faint);
+}
+
+/* Replay: outside the stage, so the press explains the return to yesterday's page */
+.pd-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--lp-line, rgb(0 0 0 / 0.12));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lp-ink-2, inherit);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pd-replay:hover {
+  border-color: var(--lp-line-strong, rgb(0 0 0 / 0.28));
+}
+
+.pd-replay:focus-visible {
+  outline: 2px solid var(--lp-data, #0b84a5);
+  outline-offset: 2px;
+}

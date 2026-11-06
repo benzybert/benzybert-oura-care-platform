@@ -1,8 +1,6 @@
 import {
   FLAGGED_FROM,
-  patientHrv,
   sleepNights,
-  toPolyline,
   type SampleNight,
 } from "@/lib/landing/sample-data";
 
@@ -107,21 +105,3 @@ export function SleepStackChart({ label }: { label: string }) {
   );
 }
 
-/** Patients panel: 60 nights of HRV over a personal "usual range" band. */
-export function PatientHrvVisual({ label, band }: { label: string; band: string }) {
-  const w = 320;
-  const h = 120;
-  const min = 30;
-  const max = 62;
-  const yOf = (v: number) => h - ((v - min) / (max - min)) * h;
-  return (
-    <svg viewBox={`0 0 ${w} ${h + 2}`} className="lp-chart" role="img" aria-label={label}>
-      <rect x="0" y={yOf(52)} width={w} height={yOf(40) - yOf(52)} fill="var(--lp-data)" opacity="0.09" />
-      <text x="4" y={yOf(52) - 5} fontSize="9" className="lp-chart-tick">
-        {band}
-      </text>
-      <polyline points={toPolyline(patientHrv, w, h, min, max)} fill="none" stroke="var(--lp-data)" strokeWidth="1.5" strokeLinejoin="round" />
-      <line x1="0" x2={w} y1={h + 0.5} y2={h + 0.5} stroke="var(--lp-line)" />
-    </svg>
-  );
-}

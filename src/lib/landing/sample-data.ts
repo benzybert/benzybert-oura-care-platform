@@ -48,9 +48,6 @@ export const sleepNights: SampleNight[] = Array.from({ length: REPORT_NIGHTS }, 
   };
 });
 
-/** 60 nights of HRV for the patients panel: a calm line around a personal baseline. */
-export const patientHrv = series(60, 5, (i, n) => 46 + n * 7 + Math.sin(i * 0.35) * 2.5);
-
 
 export function mean(values: number[]): number {
   return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
@@ -87,3 +84,23 @@ export function restingHrStory(values: number[] = restingHr, flaggedFrom: number
  * fifth participant joins (the platform's default minimum, `ORG_MIN_COHORT`). Made up.
  */
 export const ORG_DEMO = { minCohort: 5, sleep: 76.4, readiness: 74.1, hrv: 41.8 } as const;
+
+/**
+ * The patients demo: "Body this morning" on the Today tab, before and after last night arrives.
+ * Each measure has its usual range (the member's own previous four weeks) and two mornings:
+ * yesterday's, shown while last night is still on its way, and this morning's. Made up; HRV sits
+ * below the usual range this morning, the rest within, as `HRV_BASELINE` is 44.
+ */
+export const TODAY_DEMO = [
+  { key: "hrv", unit: "ms", digits: 0, signed: false, lo: 40, hi: 48, yesterday: 45, today: 36 },
+  { key: "lowestHr", unit: "bpm", digits: 0, signed: false, lo: 54, hi: 59, yesterday: 55, today: 57 },
+  { key: "temperature", unit: "°C", digits: 1, signed: true, lo: -0.3, hi: 0.3, yesterday: -0.1, today: 0.1 },
+  { key: "breath", unit: "/min", digits: 1, signed: false, lo: 14.1, hi: 15.3, yesterday: 14.5, today: 14.8 },
+] as const;
+
+export type TodayDemoRow = (typeof TODAY_DEMO)[number];
+
+/** "below" | "within" | "above" the usual range, as the Today tab reads a value. */
+export function bandOf(value: number, lo: number, hi: number): "below" | "within" | "above" {
+  return value < lo ? "below" : value > hi ? "above" : "within";
+}

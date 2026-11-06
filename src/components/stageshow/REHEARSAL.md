@@ -80,3 +80,26 @@ member's consent row (`core.consent.org_aggregate`, "Approve sharing" / "Stop sh
   and 390.
 - **Gate:** clear at 1280 apart from the kit-override false positive; at 390 also `steps in its box`
   on the window's URL as the host page settles.
+
+---
+
+# Rehearsal: landing patients demo
+
+Component: `src/components/landing/patient-demo.tsx` (+ `patient-demo.css`), in the "Patients &
+families" tab of section 03 (the default tab), replacing the static 60-night HRV chart (removed with
+its text and data). Text in `landing.solutions.panels.patients.demo`, word for word from the Today
+tab (`home.today`); numbers in `TODAY_DEMO` with `bandOf()` (`src/lib/landing/sample-data.ts`, tested).
+
+- **Gold copied:** `phone-touch` (a phone pinned from the top, centered, running off the bottom;
+  the screen at true iOS points), with `choreography`'s rows changing in place in reading order.
+- **Story (plays once, about 5 s, then holds; Replay button):** the Today tab at 7:12, opened before
+  last night has arrived: "Ring synced 9 hours ago", the freshness note, yesterday's "Body this
+  morning", all four measures within the usual range. The background sync lands and the page
+  refreshes once, as the real `syncOnVisit` + `SyncRefresher` do: "Ring synced just now", the note
+  folds away (the card below rises with it), the day reads "A steady day", and each row's dot
+  slides to this morning's value 140 ms apart while its number rolls. HRV lands below the usual
+  range in the attention colour. No cursor: nothing is tapped in the real flow either.
+- **Sized for the slot** (~406 px column): 420 × 520 with a 340 px phone; phones 358 × 500, 310 px.
+- **Looks checked:** light and dark, English and Hebrew (the phone's frame and status bar stay left
+  to right; values with their units and the number lines stay left to right), 1280 and 390.
+- **Gate:** clear at both widths apart from the kit-override false positive.

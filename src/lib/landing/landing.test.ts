@@ -101,3 +101,17 @@ describe("doctor demo numbers", () => {
     expect(s.recentNights).toBe(1);
   });
 });
+
+describe("patients demo numbers", () => {
+  it("reads each morning against the usual range", async () => {
+    const { TODAY_DEMO, bandOf } = await import("./sample-data");
+    expect(bandOf(36, 40, 48)).toBe("below");
+    expect(bandOf(40, 40, 48)).toBe("within");
+    expect(bandOf(48.5, 40, 48)).toBe("above");
+    // Yesterday everything was within; this morning only HRV is out, below
+    for (const r of TODAY_DEMO) expect(bandOf(r.yesterday, r.lo, r.hi)).toBe("within");
+    const out = TODAY_DEMO.filter((r) => bandOf(r.today, r.lo, r.hi) !== "within").map((r) => r.key);
+    expect(out).toEqual(["hrv"]);
+    expect(bandOf(TODAY_DEMO[0].today, TODAY_DEMO[0].lo, TODAY_DEMO[0].hi)).toBe("below");
+  });
+});

@@ -4,11 +4,12 @@ import "@fontsource/instrument-serif/latin-400.css";
 import "@fontsource/instrument-serif/latin-400-italic.css";
 import "@fontsource/frank-ruhl-libre/hebrew-400.css";
 import "./landing.css";
-import { PatientHrvVisual, SleepStackChart, TrendChart } from "@/components/landing/charts";
+import { SleepStackChart, TrendChart } from "@/components/landing/charts";
 import { DayDial } from "@/components/landing/day-dial";
 import { DoctorDemo } from "@/components/landing/doctor-demo";
 import { MinutesCounter } from "@/components/landing/minutes-counter";
 import { OrgDemo } from "@/components/landing/org-demo";
+import { PatientDemo } from "@/components/landing/patient-demo";
 import { ShareDemo } from "@/components/landing/share-demo";
 import { solutionAnchor } from "@/components/landing/solution-ids";
 import { Solutions } from "@/components/landing/solutions";
@@ -19,7 +20,7 @@ import { dirOf, intlTag } from "@/lib/i18n";
 import { siteUrl } from "@/config/site";
 import { getT } from "@/lib/i18n/server";
 import { APPOINTMENT_MINUTES, YEAR_MINUTES } from "@/lib/landing/dial";
-import { FLAGGED_FROM, HRV_BASELINE, ORG_DEMO, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
+import { FLAGGED_FROM, HRV_BASELINE, ORG_DEMO, TODAY_DEMO, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
 import { getSessionUser, type Role } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -308,9 +309,9 @@ export default async function Home() {
                         </a>
                       )}
                     </div>
-                    <figure className="lp-visual">
-                      <figcaption className="lp-mono">{P.patients.visualLabel}</figcaption>
-                      <PatientHrvVisual label={P.patients.visualLabel} band={P.patients.visualBand} />
+                    <figure className="lp-visual lp-demo-figure">
+                      <PatientDemo text={P.patients.demo} rows={[...TODAY_DEMO]} dir={dirOf(locale)} />
+                      <figcaption className="lp-mono lp-illustrative">{P.patients.demo.caption}</figcaption>
                     </figure>
                   </div>
                 ),
