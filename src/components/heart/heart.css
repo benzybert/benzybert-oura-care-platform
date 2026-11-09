@@ -467,3 +467,40 @@ select {
 [data-explain="off"] .hw-explain {
   display: none;
 }
+
+/* ---------- family circle, answer first (Nov 2026) ---------- */
+.hw-answer h2 {
+  margin-block-end: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.hw-answer-line {
+  margin: 0 0 8px;
+  font-size: clamp(1.15rem, 3vw, 1.4rem);
+  font-weight: 650;
+  line-height: 1.35;
+}
+.hw-answer p {
+  margin-block: 4px;
+}
+.hw-answer.is-warn {
+  border-color: var(--warn-border, #e0b25b);
+}
+.hw-note-warn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--warn-bg, #fff4e0);
+  color: var(--warn-text, #8a5300);
+}
+.hw-add {
+  margin-block-start: 14px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--line);
+}
+.hw-add > summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 600;
+}

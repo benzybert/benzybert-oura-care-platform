@@ -1,5 +1,9 @@
 import { addAlertDevice, addCircleLink, emailCircleInvite, removeAlertDevice, revokeCircleLink, saveCircleProfile, testAlertDevice, testCircleLink, updateCircleLink } from "@/app/circle-actions";
 import { CopyField } from "@/components/copy-field";
+import { ExplainToggle } from "@/components/member-data/explain-toggle";
+import { cookies } from "next/headers";
+import { circleReach } from "@/lib/circle/reach";
+import { EXPLAIN_COOKIE } from "@/lib/member-nav";
 import "@/components/heart/heart.css";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -93,12 +97,20 @@ function Person({ link, t, locale }: { link: CircleLinkRow; t: Messages; locale:
       </div>
       <p className="muted small">{p.opened(link.viewCount, link.lastViewedAt ? formatDateTime(link.lastViewedAt, locale) : null)}</p>
 
-      {token && status !== "expired" && (
-        <>
-          <p className="muted small">{p.inviteLead}</p>
-          <CopyField path={`${siteUrl()}${circlePath(token)}`} absoluteUrl copy={p.copyLink} copied={p.copied} label={link.label} />
-        </>
-      )}
+      {/* the invite link stays in view until they have opened it once; after that it is folded */}
+      {token && status !== "expired" &&
+        (link.viewCount === 0 ? (
+          <>
+            <p className="muted small">{p.inviteLead}</p>
+            <CopyField path={`${siteUrl()}${circlePath(token)}`} absoluteUrl copy={p.copyLink} copied={p.copied} label={link.label} />
+          </>
+        ) : (
+          <details className="hw-more">
+            <summary>{p.inviteLink}</summary>
+            <p className="muted small">{p.inviteLead}</p>
+            <CopyField path={`${siteUrl()}${circlePath(token)}`} absoluteUrl copy={p.copyLink} copied={p.copied} label={link.label} />
+          </details>
+        ))}
 
       <div className="hw-actions">
         {link.email && (
@@ -140,7 +152,13 @@ function Person({ link, t, locale }: { link: CircleLinkRow; t: Messages; locale:
   );
 }
 
-/** Who hears about a heart alert, how, and which alarms go off. Everything here is the member's own choice. */
+/**
+ * Who hears about a heart alert, how, and which alarms go off. Everything here is the member's own choice.
+ * Answer first (Nov 2026): one card says who will hear and by which ways that really work in this installation
+ * (`circleReach`), who has not opened their link, and which alarms exist; then the people (an invite link folds once
+ * it was opened), the ladder, the alarms, and the member's own name (folded once set). Add forms are folded.
+ * Technical help follows the "Explain" switch (same cookie as the data tab); safety and privacy notes always show.
+ */
 export default async function MemberCirclePage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member, prefs } = await loadMember({ sync: false });
   // Only for members who declared heart health in their focus (profile or onboarding).
@@ -150,11 +168,59 @@ export default async function MemberCirclePage({ searchParams }: { searchParams:
   const [links, devices] = await Promise.all([listCircleLinks(db, member.id), listAlertDevices(db, member.id)]);
   const p = t.circle.page;
   const smsOk = twilioConfigured();
+  const mailOk = mailConfigured();
+  const explain = (await cookies()).get(EXPLAIN_COOKIE)?.value === "1";
+  const reach = circleReach(links, { mail: mailOk, sms: smsOk });
+  const how = p.list(reach.channels.map((c) => p.channelNames[c]));
+  const shown = links.filter((l) => !l.revokedAt);
+  const answer =
+    reach.active === 0
+      ? p.summaryNone
+      : reach.reachable === 0
+        ? !mailOk && !smsOk
+          ? p.summaryBlocked(reach.active)
+          : p.summaryNobody(reach.active)
+        : reach.reachable < reach.active
+          ? `${p.summary(reach.reachable, how)} ${p.summaryPartly(reach.reachable, reach.active)}`
+          : p.summary(reach.reachable, how);
+  // one note about what cannot go out from this installation, instead of two banners
+  const channelNote = !mailOk && !smsOk ? p.channelsOff : !mailOk ? p.mailOff : !smsOk ? p.smsOff : null;
 
   return (
     <MemberShell tab="circle" title={p.title} lead={p.lead} params={await searchParams}>
-      {!smsOk && <div className="notice warn">{p.smsOff}</div>}
-      {!mailConfigured() && <div className="notice warn">{p.mailOff}</div>}
+      <div className="hw-toolbar">
+        <ExplainToggle initial={explain} targetId="circle" on={t.dataViews.page.explainOn} off={t.dataViews.page.explainOff} aria={t.dataViews.page.explainAria} />
+      </div>
+
+      <div id="circle" data-explain={explain ? "on" : "off"}>
+      <section className={`card hw-answer ${reach.reachable === 0 ? "is-warn" : ""}`} aria-labelledby="circle-who">
+        <h2 id="circle-who">{p.whoTitle}</h2>
+        <p className="hw-answer-line">{answer}</p>
+        {reach.notOpened > 0 && <p className="muted">{p.notOpenedLine(reach.notOpened)}</p>}
+        <p className="muted">{p.alarmsLine(devices.length, devices.map((d) => d.name).join(", "))}</p>
+        {channelNote && <p className="hw-note-warn small">{channelNote}</p>}
+        {!prefs?.circleName && (
+          <p className="small">
+            <a href="#name">{p.nameMissing}</a>
+          </p>
+        )}
+      </section>
+
+      <section className="card" id="people" aria-label={p.peopleTitle}>
+        <h2>{p.peopleTitle}</h2>
+        {shown.length === 0 ? <p className="muted">{p.none}</p> : shown.map((l) => <Person key={l.id} link={l} t={t} locale={locale} />)}
+        <details className="hw-add" open={shown.length === 0}>
+          <summary>+ {p.addPerson}</summary>
+          <form action={addCircleLink} className="hw-form">
+            <PersonFields t={t} />
+            <div className="hw-actions">
+              <button className="btn" type="submit">
+                {p.add}
+              </button>
+            </div>
+          </form>
+        </details>
+      </section>
 
       <section className="card" aria-label={p.ladderTitle}>
         <h2>{p.ladderTitle}</h2>
@@ -170,49 +236,9 @@ export default async function MemberCirclePage({ searchParams }: { searchParams:
         <p className="muted small">{p.ladderNote}</p>
       </section>
 
-      <section className="card" aria-label={p.nameTitle}>
-        <h2>{p.nameTitle}</h2>
-        <form action={saveCircleProfile} className="hw-form">
-          <div className="hw-fields">
-            <label>
-              {p.nameLabel}
-              <input name="circleName" required maxLength={40} defaultValue={prefs?.circleName ?? ""} autoComplete="off" />
-            </label>
-            <label>
-              {p.phoneLabel}
-              <input name="circlePhone" type="tel" dir="ltr" maxLength={24} defaultValue={prefs?.circlePhone ?? ""} autoComplete="off" />
-            </label>
-          </div>
-          <div className="hw-actions">
-            <button className="btn" type="submit">
-              {p.saveName}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section className="card" id="people" aria-label={p.peopleTitle}>
-        <h2>{p.peopleTitle}</h2>
-        {links.length === 0 ? <p className="muted">{p.none}</p> : links.map((l) => <Person key={l.id} link={l} t={t} locale={locale} />)}
-      </section>
-
-      <section className="card" aria-label={p.addTitle}>
-        <h2>{p.addTitle}</h2>
-        <form action={addCircleLink} className="hw-form">
-          <PersonFields t={t} />
-          <div className="hw-actions">
-            <button className="btn" type="submit">
-              {p.add}
-            </button>
-          </div>
-        </form>
-      </section>
-
       <section className="card" id="devices" aria-label={p.devicesTitle}>
         <h2>{p.devicesTitle}</h2>
         <p className="muted">{p.devicesLead}</p>
-        <p className="muted small">{p.devicesHelp}</p>
-        <p className="muted small">{p.ntfyHelp}</p>
         {devices.length === 0 ? (
           <p className="muted">{p.noDevices}</p>
         ) : (
@@ -252,8 +278,12 @@ export default async function MemberCirclePage({ searchParams }: { searchParams:
             );
           })
         )}
-        <p className="muted small">{p.testNote}</p>
+        {devices.length > 0 && <p className="muted small">{p.testNote}</p>}
 
+        <details className="hw-add">
+        <summary>+ {p.addAlarm}</summary>
+        <p className="muted small hw-explain">{p.devicesHelp}</p>
+        <p className="muted small hw-explain">{p.ntfyHelp}</p>
         <form action={addAlertDevice} className="hw-form">
           <div className="hw-fields">
             <label>
@@ -284,7 +314,7 @@ export default async function MemberCirclePage({ searchParams }: { searchParams:
           <label>
             {p.deviceUrl}
             <input name="url" type="url" dir="ltr" required maxLength={600} autoComplete="off" placeholder="https://" />
-            <span className="small">{p.deviceUrlHint}</span>
+            <span className="small hw-explain">{p.deviceUrlHint}</span>
           </label>
           <div className="hw-actions">
             <button className="btn" type="submit">
@@ -292,7 +322,32 @@ export default async function MemberCirclePage({ searchParams }: { searchParams:
             </button>
           </div>
         </form>
+        </details>
       </section>
+
+      <details className="card" id="name" open={!prefs?.circleName}>
+        <summary>
+          <strong>{p.nameSummary(prefs?.circleName ?? null)}</strong>
+        </summary>
+        <form action={saveCircleProfile} className="hw-form">
+          <div className="hw-fields">
+            <label>
+              {p.nameLabel}
+              <input name="circleName" required maxLength={40} defaultValue={prefs?.circleName ?? ""} autoComplete="off" />
+            </label>
+            <label>
+              {p.phoneLabel}
+              <input name="circlePhone" type="tel" dir="ltr" maxLength={24} defaultValue={prefs?.circlePhone ?? ""} autoComplete="off" />
+            </label>
+          </div>
+          <div className="hw-actions">
+            <button className="btn" type="submit">
+              {p.saveName}
+            </button>
+          </div>
+        </form>
+      </details>
+      </div>
     </MemberShell>
   );
 }
