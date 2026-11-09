@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { markdownToHtml, markdownToPlain } from "./markdown-lite";
 import { suggestSection } from "./post-parts";
-import { HONEYPOT_FIELD, IDEA_MAX, isSuggestionSlug, isSuggestionStatus, newSuggestionSlug, parseSuggestionForm } from "./suggestions";
+import { HONEYPOT_FIELD, IDEA_MAX, isSuggestionSlug, isSuggestionStatus, newSuggestionSlug, parseSuggestionForm, pollVoteTitle, pollVoteUrl } from "./suggestions";
 
 const form = (values: Record<string, string>) => (key: string) => values[key] ?? null;
 
@@ -63,5 +63,20 @@ describe("markdown links", () => {
 
   it("keeps the address in plain text", () => {
     expect(markdownToPlain("**[הציעו ניסוי](https://a.test/s)**")).toBe("הציעו ניסוי: https://a.test/s");
+  });
+});
+
+describe("newsletter poll", () => {
+  it("names a known experiment template and ignores anything else", () => {
+    expect(pollVoteTitle("caffeine")).toBe("בלי קפאין אחרי 14:00");
+    expect(pollVoteTitle("outdoor")).toBe("שינה בחוץ");
+    expect(pollVoteTitle("nope")).toBeNull();
+    expect(pollVoteTitle(undefined)).toBeNull();
+    expect(pollVoteTitle(["caffeine"])).toBeNull();
+    expect(pollVoteTitle("constructor")).toBeNull();
+  });
+
+  it("builds the vote link on the site's own address", () => {
+    expect(pollVoteUrl("H-xZQkh58MwW", "cool_room")).toMatch(/^https:\/\/.+\/suggest\/H-xZQkh58MwW\?vote=cool_room$/);
   });
 });

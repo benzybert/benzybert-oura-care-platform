@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { submitSuggestion } from "@/app/actions";
 import { findSuggestionBox } from "@/lib/queries";
-import { HONEYPOT_FIELD, IDEA_MAX, SUGGESTER_MAX, isSuggestionSlug } from "@/lib/suggestions";
+import { HONEYPOT_FIELD, IDEA_MAX, SUGGESTER_MAX, isSuggestionSlug, pollVoteTitle } from "@/lib/suggestions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,29 +28,49 @@ export default async function SuggestPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ sent?: string }>;
+  searchParams: Promise<{ sent?: string; vote?: string }>;
 }) {
   const { slug } = await params;
   if (!isSuggestionSlug(slug) || !(await findSuggestionBox(slug))) notFound();
-  const notice = NOTICES[(await searchParams).sent ?? ""];
+  const query = await searchParams;
+  const notice = NOTICES[query.sent ?? ""];
+  // A vote from the newsletter poll: the click itself is the vote (MailerLite counts it); here we only say thanks.
+  const voted = pollVoteTitle(query.vote);
 
   return (
     <div className="suggest-page" dir="rtl" lang="he">
       <div className="card">
-        <h1>יש לכם רעיון לניסוי?</h1>
-        <p>
-          כל שבוע אני משנה דבר אחד, לשבוע אחד, ובודק מה טבעת ה-Oura אומרת על השינה שלי בהשוואה ללילות הרגילים. מה כדאי לבדוק
-          בשבוע הבא?
-        </p>
-        <p className="muted">למשל: בלי קפאין אחרי 12:00, מקלחת קרה לפני השינה, ארוחת ערב מוקדמת, הליכה של חצי שעה בבוקר.</p>
+        {voted ? (
+          <>
+            <p className="suggest-thanks">תודה! ההצבעה נקלטה: {voted}.</p>
+            <h1>רוצים להוסיף משהו?</h1>
+            <p>תגובה על הפוסט, למה דווקא הניסוי הזה, או רעיון אחר לגמרי. הכול מגיע אליי.</p>
+          </>
+        ) : (
+          <>
+            <h1>יש לכם רעיון לניסוי?</h1>
+            <p>
+              כל שבוע אני משנה דבר אחד, לשבוע אחד, ובודק מה טבעת ה-Oura אומרת על השינה שלי בהשוואה ללילות הרגילים. מה כדאי לבדוק
+              בשבוע הבא?
+            </p>
+            <p className="muted">למשל: בלי קפאין אחרי 12:00, מקלחת קרה לפני השינה, ארוחת ערב מוקדמת, הליכה של חצי שעה בבוקר.</p>
+          </>
+        )}
 
         {notice && <p className={notice.error ? "sr-error" : "suggest-thanks"}>{notice.text}</p>}
 
         <form action={submitSuggestion} className="suggest-form">
           <input type="hidden" name="slug" value={slug} />
           <label>
-            <span>הרעיון</span>
-            <textarea name="idea" required minLength={3} maxLength={IDEA_MAX} rows={4} placeholder="מה לשנות, ולמה לדעתך זה ישפיע" />
+            <span>{voted ? "התגובה או הרעיון" : "הרעיון"}</span>
+            <textarea
+              name="idea"
+              required
+              minLength={3}
+              maxLength={IDEA_MAX}
+              rows={4}
+              placeholder={voted ? "מה תרצו להגיד" : "מה לשנות, ולמה לדעתך זה ישפיע"}
+            />
           </label>
           <label>
             <span>איך לקרוא לך, אם אכתוב על זה (לא חובה)</span>
@@ -62,7 +82,7 @@ export default async function SuggestPage({
             <input name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" />
           </label>
           <button className="btn" type="submit">
-            שלחו רעיון
+            {voted ? "שלחו" : "שלחו רעיון"}
           </button>
         </form>
         <p className="muted">לא צריך להירשם. אל תכתבו כאן פרטים רפואיים או פרטי קשר: רק הרעיון.</p>

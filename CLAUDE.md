@@ -227,6 +227,7 @@ A public page `/suggest/<slug>` (migration `0016`, tables `suggestion_boxes` one
 - The slug is not hashed: it only lets someone send an idea. "החלף קישור" replaces it and the old link stops working.
 - Ideas are public free text: shown only to that member, never logged, not part of any aggregate, no staff or org page reads them. The member marks each one "בחרתי" or "הסתר" (status `new|used|dismissed`).
 - `markdown-lite` renders `[text](https://...)` links (http and https only, after escaping).
+- **Newsletter poll** (Nov 2026): the email lists experiment templates as links `/suggest/<slug>?vote=<template id>` (`pollVoteUrl`). The click is the vote: MailerLite's click report counts it per subscriber, and the site stores nothing for a vote. The page only thanks the reader (`pollVoteTitle`, unknown ids ignored) and offers the idea box as "comments". Readers never see each other's comments (no public thread, no moderation built).
 
 ## Landing page (`/`)
 

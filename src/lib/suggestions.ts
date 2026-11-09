@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { siteUrl } from "../config/site";
+import { EXPERIMENT_TEMPLATES } from "./experiments";
 
 /**
  * "הציעו ניסוי": a public page (/suggest/<slug>) linked from the member's posts, where a reader sends
@@ -27,6 +28,17 @@ export const isSuggestionSlug = (s: unknown): s is string => typeof s === "strin
 export const suggestPath = (slug: string) => `/suggest/${slug}`;
 /** The absolute address for posts and emails: always the site's own address, never the request's Host. */
 export const suggestUrl = (slug: string) => `${siteUrl()}${suggestPath(slug)}`;
+
+/**
+ * Newsletter poll: each option in the email is a link to the suggestion page with `?vote=<template id>`.
+ * MailerLite's own click tracking counts the votes per subscriber; the site stores nothing for a vote.
+ * The page only thanks the reader and offers the idea box for a comment. Unknown ids are ignored.
+ */
+export function pollVoteTitle(vote: unknown): string | null {
+  if (typeof vote !== "string") return null;
+  return EXPERIMENT_TEMPLATES.find((t) => t.id === vote)?.title ?? null;
+}
+export const pollVoteUrl = (slug: string, templateId: string) => `${suggestUrl(slug)}?vote=${encodeURIComponent(templateId)}`;
 
 /** The form's honeypot field: hidden from people, filled in by bots. */
 export const HONEYPOT_FIELD = "website";
