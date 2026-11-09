@@ -98,6 +98,8 @@ export type Overview = {
   steady: OverviewRow[];
   /** measures with some data but not enough for a verdict */
   learning: OverviewRow[];
+  /** every measure with some data, in catalogue order (the "in brief" strip at the top of each category) */
+  all: OverviewRow[];
   /** how many changed measures each category holds, for the topic tiles */
   changedByView: Partial<Record<DataView, number>>;
 };
@@ -180,6 +182,7 @@ export function buildOverview(slots: DayMetric[], opts: { recentDays?: number; t
     changed,
     steady: rows.filter((r) => r.strength === "none"),
     learning: rows.filter((r) => r.strength === "unknown" && (r.recentN > 0 || r.usual.n > 0)),
+    all: rows.filter((r) => r.recentN > 0 || r.usual.n > 0),
     changedByView,
   };
 }

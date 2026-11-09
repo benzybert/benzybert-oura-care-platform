@@ -795,3 +795,62 @@
     min-inline-size: 7.5em;
   }
 }
+
+/* "in brief" strip at the top of a category (CategoryBrief) */
+.ov-brief {
+  margin-bottom: 8px;
+}
+.dash .ov-brief .ov-brief-title {
+  margin: 0 0 10px;
+  line-height: 1.4;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--c-ink-2);
+}
+.ov-brief-tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.ov-brief-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-ctl);
+  background: var(--c-surface);
+}
+.ov-brief-tile.is-worse {
+  border-color: var(--c-attn-line);
+}
+.ov-brief-name {
+  font-size: 0.84rem;
+  color: var(--c-ink-2);
+}
+.ov-brief-value .ov-num {
+  font-size: 1.35rem;
+  font-weight: 650;
+}
+.ov-brief-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--c-ink-2);
+}
+.ov-brief-tile.is-worse .ov-brief-status {
+  color: var(--c-attn-ink);
+}
+.ov-brief-tile.is-better .ov-brief-status {
+  color: var(--c-ok-ink);
+}
+.ov-brief-usual {
+  font-size: 0.78rem;
+}
+@media (max-width: 520px) {
+  .ov-brief-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

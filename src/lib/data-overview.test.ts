@@ -120,5 +120,7 @@ describe("buildOverview", () => {
     expect(keys.every((k) => (OVERVIEW_KEYS as readonly string[]).includes(k))).toBe(true);
     // constant steps: no spread, so no verdict
     expect(o?.learning.map((r) => r.key)).toContain("steps");
+    // `all` keeps catalogue order and leaves out measures without any data
+    expect(o?.all.map((r) => r.key)).toEqual(["sleepScore", "steps"]);
   });
 });

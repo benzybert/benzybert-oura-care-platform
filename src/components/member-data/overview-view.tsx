@@ -72,7 +72,11 @@ const iso = (s: string) => `\u2066${s}\u2069`;
 function usualText(r: OverviewRow, V: V, lang: Locale): string | null {
   const { low, high } = r.usual;
   if (low === null || high === null) return null;
-  return V.usualRange(iso(formatOverview(r.key, low, lang)), iso(formatOverview(r.key, high, lang)));
+  const a = formatOverview(r.key, low, lang);
+  const b = formatOverview(r.key, high, lang);
+  // no spread yet (every day the same): a range "80 to 80" says nothing
+  if (a === b) return null;
+  return V.usualRange(iso(a), iso(b));
 }
 
 function statusText(r: OverviewRow, V: V): string {
@@ -169,6 +173,42 @@ function MeasureRow({
       </span>
       <p className="md-explain ov-explain">{V.explain[r.key]}</p>
     </li>
+  );
+}
+
+/**
+ * "Key metrics first" inside a category: one small tile per measure of that category (catalogue order, so a number
+ * is always in the same place), with this week's value, its status against the usual and the usual range. The
+ * full charts follow below it.
+ */
+export function CategoryBrief({ overview, view, lang }: { overview: Overview; view: DataView; lang: Locale }) {
+  const V = dataViews[lang].overview;
+  const rows = overview.all.filter((r) => r.view === view);
+  if (rows.length === 0) return null;
+  return (
+    <Shell lang={lang}>
+      <section className="ov-brief" aria-labelledby={`brief-${view}`}>
+        <h2 id={`brief-${view}`} className="ov-brief-title">
+          {V.briefTitle}
+        </h2>
+        <ul className="ov-brief-tiles">
+          {rows.map((r) => {
+            const usual = usualText(r, V, lang);
+            return (
+              <li key={r.key} className={`ov-brief-tile is-${r.tone}`}>
+                <span className="ov-brief-name">{V.names[r.key]}</span>
+                <span className="ov-brief-value">
+                  <Value k={r.key} v={r.recent} V={V} lang={lang} />
+                </span>
+                <span className="ov-brief-status">{statusText(r, V)}</span>
+                {usual && <span className="ov-muted ov-brief-usual">{usual}</span>}
+                <span className="md-explain ov-explain">{V.explain[r.key]}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </Shell>
   );
 }
 

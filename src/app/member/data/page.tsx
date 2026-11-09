@@ -13,7 +13,7 @@ import { SleepExtras } from "@/components/member-data/sleep-extras";
 import { SleepStructureView } from "@/components/member-data/sleep-structure";
 import { StressView } from "@/components/member-data/stress-view";
 import { ExplainToggle } from "@/components/member-data/explain-toggle";
-import { OverviewView } from "@/components/member-data/overview-view";
+import { CategoryBrief, OverviewView } from "@/components/member-data/overview-view";
 import { cookies } from "next/headers";
 import { buildOverview } from "@/lib/data-overview";
 import { todayInIsrael } from "@/lib/dates";
@@ -33,6 +33,8 @@ export const maxDuration = 60;
 /** Health has its own 30/60/90 switch in the hero; every other category shows it in the bar. */
 const WINDOWED: DataView[] = ["overview", "sleep", "heart", "activity", "stress", "oxygen", "advanced"];
 const NEEDS_EXTRAS: DataView[] = ["health", "sleep", "heart", "activity", "stress", "oxygen"];
+/** categories that open with "in brief" (Health's hero already leads with its key numbers; Advanced has none of its own) */
+const BRIEFED: DataView[] = ["sleep", "heart", "activity", "stress", "oxygen"];
 const NEEDS_EVENTS: DataView[] = ["health", "sleep", "activity", "stress"];
 
 /**
@@ -65,7 +67,9 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
   const dashboard = buildDashboard(dashboardMetrics, today, windowDays, locale);
   const cards = dashboardCards(dashboard, true, locale);
-  const overview = view === "overview" ? buildOverview(dashboard.slots, { today }) : null;
+  // the overview page, and the "in brief" strip that opens each body-system category
+  const overview = buildOverview(dashboard.slots, { today });
+  const brief = BRIEFED.includes(view) && overview ? <CategoryBrief overview={overview} view={view} lang={locale} /> : null;
   const empty = dashboard.daysWithData === 0;
   const askMore = oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: profile?.coverage }) : false;
   const coverage = { families: profile?.coverage ?? {}, askMore };
@@ -122,6 +126,8 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
         ) : (
           <>
             {view === "overview" && overview && <OverviewView overview={overview} days={windowDays} topics={t.insights.views} lang={locale} />}
+
+            {brief}
 
             {view === "health" && (
               <>
