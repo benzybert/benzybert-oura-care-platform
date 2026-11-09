@@ -1,0 +1,217 @@
+/*
+ * Section 05's demo (care-demo.tsx): the medical team's page, on the Stageshow kit. Nested under
+ * .cd so nothing leaks into the page. Wide hero: the browser window 40 from the top and the start
+ * edge, 780 wide (off the far side by about 8%) and off the bottom; its content column stops 56
+ * short of the stage's far edge. Hebrew mirrors the window by hand (it keeps dir="ltr" for its
+ * macOS chrome) and the column sits at the window's right edge. Codes and numbers stay left to right.
+ */
+
+.cd {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.cd .ss-stage {
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--ss-well);
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif;
+}
+
+.cd .cd-win {
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  width: 780px;
+  height: 440px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.cd[dir="rtl"] .cd-win {
+  left: auto;
+  right: 40px;
+}
+
+.cd .cd-body {
+  display: grid;
+  /* One column, the body's width: the table never stretches it */
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 14px;
+  width: 688px;
+  height: 100%;
+  padding: 20px 24px 0;
+  background: var(--ss-surface);
+}
+
+.cd[dir="rtl"] .cd-body {
+  margin-left: auto;
+}
+
+.cd .cd-title {
+  color: var(--ss-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cd .cd-summary {
+  margin: -8px 0 0;
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* Sections sit flush on the page column (one text edge with the title), divided by hairlines */
+.cd .cd-card {
+  display: grid;
+  margin-top: 4px;
+  /* A lasting layer, so rows do not hop as the list above them opens and closes */
+  will-change: transform;
+}
+
+.cd .cd-card-head {
+  padding-bottom: 8px;
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cd .cd-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 0;
+  border-top: 1px solid var(--ss-line-faint);
+}
+
+.cd .cd-alert-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cd .cd-alert-text strong {
+  color: var(--ss-text-strong);
+  font-weight: 600;
+  unicode-bidi: isolate;
+}
+
+.cd .cd-muted {
+  color: var(--ss-text-faint);
+}
+
+.cd .cd-none {
+  margin: 0;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--ss-line-faint);
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* The coded table: one grid template per layout, a fixed gap between columns */
+.cd .cd-grid {
+  display: grid;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.cd .cd-tr {
+  display: grid;
+  grid-template-columns: 64px 76px 96px 84px 140px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+  min-height: 34px;
+  border-top: 1px solid var(--ss-line-faint);
+  color: var(--ss-text);
+  white-space: nowrap;
+}
+
+.cd .ss-stage[data-layout="compact"] .cd-tr {
+  grid-template-columns: 52px 84px minmax(0, 1fr) 44px;
+}
+
+.cd .ss-stage[data-layout="compact"] .cd-th {
+  white-space: normal;
+  align-items: end;
+  padding: 6px 0;
+}
+
+.cd .cd-th {
+  color: var(--ss-text-faint);
+  font-weight: 500;
+}
+
+.cd .cd-tr > span {
+  min-width: 0;
+  text-align: start;
+}
+
+.cd .cd-code {
+  color: var(--ss-text-strong);
+  font-weight: 600;
+}
+
+.cd[dir="rtl"] .cd-tr .cd-code,
+.cd[dir="rtl"] .cd-tr .cd-num {
+  text-align: right;
+}
+
+.cd .cd-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.cd .cd-num[data-tone="neg"] {
+  color: #b05a0c;
+}
+
+.cd .cd-num[data-tone="pos"] {
+  color: #2f7d55;
+}
+
+.cd .ss-stage[data-theme="dark"] .cd-num[data-tone="neg"] {
+  color: #e08a3a;
+}
+
+.cd .ss-stage[data-theme="dark"] .cd-num[data-tone="pos"] {
+  color: #5fbf8c;
+}
+
+/* Where the cursor waits: empty surface beside the page title */
+.cd .cd-rest {
+  position: absolute;
+  top: 98px;
+  inset-inline-start: 600px;
+  width: 1px;
+  height: 1px;
+}
+
+/* Compact: the phone column. A narrower window with the alerts only. */
+.cd .ss-stage[data-layout="compact"] .cd-win {
+  top: 24px;
+  left: 24px;
+  width: 380px;
+  height: 320px;
+}
+
+.cd[dir="rtl"] .ss-stage[data-layout="compact"] .cd-win {
+  left: auto;
+  right: 24px;
+}
+
+.cd .ss-stage[data-layout="compact"] .cd-body {
+  width: 318px;
+  padding: 16px 16px 0;
+  gap: 12px;
+}
+
+.cd .ss-stage[data-layout="compact"] .cd-rest {
+  top: 80px;
+  inset-inline-start: 290px;
+}

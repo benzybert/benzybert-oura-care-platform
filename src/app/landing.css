@@ -1845,3 +1845,8 @@ main:has(> .lp) {
   text-align: center;
   color: var(--lp-ink-2);
 }
+
+/* 05 For medical teams: the care-team demo between the implementation steps and the measure guide */
+#clinics .lp-demo {
+  margin-block: 64px 72px;
+}

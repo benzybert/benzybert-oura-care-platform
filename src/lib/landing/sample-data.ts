@@ -104,3 +104,14 @@ export type TodayDemoRow = (typeof TODAY_DEMO)[number];
 export function bandOf(value: number, lo: number, hi: number): "below" | "within" | "above" {
   return value < lo ? "below" : value > hi ? "above" : "within";
 }
+
+/**
+ * The care-team demo's members: short codes, age bands and goals only, as the real care view shows
+ * them (no names). HRV is the 7-day mean, change is against each member's own baseline. Made up.
+ */
+export const CARE_DEMO = [
+  { id: "K7Q-2", age: [60, 69], goal: "heart", hrv: 41.2, change: -12 },
+  { id: "M3T-8", age: [40, 49], goal: "sleep", hrv: 52.6, change: 3 },
+  { id: "R9W-4", age: [50, 59], goal: "recovery", hrv: 38.9, change: -4 },
+  { id: "J4P-6", age: [30, 39], goal: "sleep", hrv: 61.0, change: 6 },
+] as const;

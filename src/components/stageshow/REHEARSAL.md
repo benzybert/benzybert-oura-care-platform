@@ -103,3 +103,31 @@ tab (`home.today`); numbers in `TODAY_DEMO` with `bandOf()` (`src/lib/landing/sa
 - **Looks checked:** light and dark, English and Hebrew (the phone's frame and status bar stay left
   to right; values with their units and the number lines stay left to right), 1280 and 390.
 - **Gate:** clear at both widths apart from the kit-override false positive.
+
+---
+
+# Rehearsal: landing care-team demo (section 05)
+
+Component: `src/components/landing/care-demo.tsx` (+ `care-demo.css`), in section 05 "for medical
+teams", between the implementation steps and the measure guide. Text in `landing.clinics.demo`, word
+for word from the real care page (`staff.care`: title, summary, Needs attention, Handled, the alert
+rules, the column names); members in `CARE_DEMO` (`src/lib/landing/sample-data.ts`): short codes, age
+bands and goals only, never a name.
+
+- **Gold copied:** `linear` (a wide window across the section, inset top and start, off the far side
+  and the bottom) with `table-edit`'s change in a row and the total it feeds.
+- **Story (loops, about 14 s):** K7Q-2 has an open alert (resting heart rate more than 4 beats above
+  baseline) → the clinician presses Handled → "Needs attention (0)", "No open alerts.", the table's
+  badge for K7Q-2 goes → a new alert drops in for M3T-8 (under 6 hours of sleep 3 nights in a row),
+  its badge appears → handled → K7Q-2's alert comes in again, the opening picture. Each change has a
+  seen cause (a press or an arriving alert), so nothing rewinds on its own.
+- **The summary line** keeps the consent rule in view ("1 did not share (not shown)") and that alerts
+  are a screening aid, not a diagnosis.
+- **Sections are flush on the page column** with hairlines (the real page uses cards; boxed, their
+  inset fought the title's text edge). The table is a grid with one template and a fixed gap.
+- **Compact (phone):** 358 × 300, the alerts only (the codes in them carry the identity rule); the
+  table would not fit whole.
+- **Looks checked:** light and dark, English and Hebrew (window and column mirrored by hand, codes and
+  numbers left to right), 1280 and 390.
+- **Gate:** clear at 1280 apart from the kit-override false positive. At 390, `near-empty frames` is
+  the deliberate "No open alerts." moment, and `steps in its box` on the URL is the host page settling.

@@ -5,6 +5,7 @@ import "@fontsource/instrument-serif/latin-400-italic.css";
 import "@fontsource/frank-ruhl-libre/hebrew-400.css";
 import "./landing.css";
 import { SleepStackChart, TrendChart } from "@/components/landing/charts";
+import { CareDemo } from "@/components/landing/care-demo";
 import { DayDial } from "@/components/landing/day-dial";
 import { DoctorDemo } from "@/components/landing/doctor-demo";
 import { MinutesCounter } from "@/components/landing/minutes-counter";
@@ -20,7 +21,7 @@ import { dirOf, intlTag } from "@/lib/i18n";
 import { siteUrl } from "@/config/site";
 import { getT } from "@/lib/i18n/server";
 import { APPOINTMENT_MINUTES, YEAR_MINUTES } from "@/lib/landing/dial";
-import { FLAGGED_FROM, HRV_BASELINE, ORG_DEMO, TODAY_DEMO, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
+import { CARE_DEMO, FLAGGED_FROM, HRV_BASELINE, ORG_DEMO, TODAY_DEMO, RESTING_HR_BASELINE, hrv, restingHr, restingHrStory } from "@/lib/landing/sample-data";
 import { getSessionUser, type Role } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -519,6 +520,10 @@ export default async function Home() {
               </div>
             </aside>
           </div>
+          <figure className="lp-demo">
+            <CareDemo text={L.clinics.demo} host={siteHost} members={CARE_DEMO.map((m) => ({ ...m }))} dir={dirOf(locale)} />
+            <figcaption className="lp-mono lp-illustrative">{L.clinics.demo.caption}</figcaption>
+          </figure>
           <div className="lp-guide-head lp-reveal">
             <h3 className="lp-display lp-guide-title">{L.clinics.guideTitle}</h3>
             <p className="lp-body">{L.clinics.guideLead}</p>
