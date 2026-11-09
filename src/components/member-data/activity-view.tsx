@@ -1,22 +1,14 @@
-import { ChartCard, ContributorList, MiniStat, Section, Trend, fmtNum, fmtShort } from "@/components/doctor-dashboard/dashboard";
-import { IconActivity, IconAlert, IconClock, IconHeartPulse, IconWind, IconZap } from "@/components/doctor-dashboard/icons";
+import { ChartCard, ContributorList, Section, Trend, fmtNum, fmtShort } from "@/components/doctor-dashboard/dashboard";
+import { IconClock, IconZap } from "@/components/doctor-dashboard/icons";
 import { StackChart } from "@/components/doctor-dashboard/stack-chart";
 import type { ContributorRow, DaySlot } from "@/lib/doctor-dashboard";
 import type { Locale } from "@/lib/i18n";
 import { dataViews } from "@/lib/i18n/dict/data-views";
-import { activityBreakdown, activityContributorsFor, alignExtras, latestOf, meanOf } from "@/lib/member-data";
+import { activityContributorsFor, alignExtras, latestOf, meanOf } from "@/lib/member-data";
 import { rollingMean } from "@/lib/series-math";
 import type { DayExtras } from "@/lib/types";
-import { ChartGrid, EmptyHint, Legend, Shell, Strip, percent, type Coverage } from "./shared";
+import { ChartGrid, EmptyHint, Legend, Shell, Strip, type Coverage } from "./shared";
 
-
-const BREAKDOWN_COLOR: Record<string, string> = {
-  high: "var(--viz-attn)",
-  medium: "var(--viz-data)",
-  low: "var(--viz-data-soft)",
-  rest: "var(--viz-neutral)",
-  nonwear: "var(--viz-grid)",
-};
 
 function contributorRows(extras: DayExtras[], recentDays: Set<string>, lang: Locale): ContributorRow[] {
   return Object.entries(activityContributorsFor(lang))
@@ -33,8 +25,6 @@ export function ActivityView({ slots, extras, coverage, lang }: { slots: DaySlot
   const short = (day: string) => fmtShort(day, lang);
   const ACTIVITY_LEGEND = (["act0", "act1", "act2", "act3", "act4", "act5"] as const).map((cls) => ({ cls, label: V.legend[cls] }));
   const days = slots.map((s) => s.day);
-  const byDay = new Map(extras.map((e) => [e.day, e]));
-  const slotByDay = new Map(slots.map((s) => [s.day, s]));
   const hasActivity = extras.some((e) => e.activityScore !== null || e.totalCalories !== null) || slots.some((s) => s.steps !== null);
 
   if (!hasActivity) {
@@ -45,9 +35,6 @@ export function ActivityView({ slots, extras, coverage, lang }: { slots: DaySlot
     );
   }
 
-  const latest = latestOf(extras, (e) => e.totalCalories ?? e.activityScore);
-  const e = latest ? byDay.get(latest.day) : undefined;
-  const s = latest ? slotByDay.get(latest.day) : undefined;
   const recentDays = new Set(days.slice(-7));
 
   const score = alignExtras(days, extras, (x) => x.activityScore);
@@ -61,101 +48,10 @@ export function ActivityView({ slots, extras, coverage, lang }: { slots: DaySlot
   const targetCal = latestOf(extras, (x) => x.targetCalories)?.value ?? null;
   const targetKm = latestOf(extras, (x) => x.targetMeters)?.value ?? null;
   const contributors = contributorRows(extras, recentDays, lang);
-  const breakdown = e ? activityBreakdown(e, lang) : [];
-  const breakdownTotal = breakdown.reduce((t, p) => t + p.minutes, 0);
-  const dayLabel = latest ? short(latest.day) : "";
   const strip = [...extras].reverse().find((x) => x.activityClass5Min);
 
   return (
     <Shell lang={lang}>
-      <Section
-        id="activity-today"
-        icon={<IconActivity size={20} />}
-        title={V.todayTitle(dayLabel)}
-        lead={V.todayLead}
-      >
-        <div className="mini-grid">
-          <MiniStat icon={<IconActivity size={16} />} label={V.score} value={fmtNum(e?.activityScore ?? null)} unit={V.outOf100} />
-          <MiniStat icon={<IconZap size={16} />} label={V.steps} value={fmtNum(s?.steps ?? null)} unit={V.stepsUnit} />
-          <MiniStat
-            icon={<IconHeartPulse size={16} />}
-            label={V.totalCal}
-            value={fmtNum(e?.totalCalories ?? null)}
-            unit={V.kcal}
-            hint={s?.activeCalories != null ? V.ofWhichActive(fmtNum(s.activeCalories)) : undefined}
-          />
-          <MiniStat
-            icon={<IconWind size={16} />}
-            label={V.distance}
-            value={e?.equivalentWalkingDistanceM == null ? "–" : (e.equivalentWalkingDistanceM / 1000).toFixed(1)}
-            unit={V.km}
-            hint={e?.targetMeters != null ? V.goalKm((e.targetMeters / 1000).toFixed(1)) : V.distanceHint}
-          />
-          <MiniStat
-            icon={<IconClock size={16} />}
-            label={V.activeMin}
-            value={fmtNum(s?.activeMinutes ?? null)}
-            unit={dataViews[lang].common.minutes}
-          />
-          <MiniStat
-            icon={<IconClock size={16} />}
-            label={V.sitting}
-            value={s?.sedentaryMinutes == null ? "–" : (s.sedentaryMinutes / 60).toFixed(1)}
-            unit={V.hoursUnit}
-            hint={V.sittingHint}
-          />
-          <MiniStat
-            icon={<IconAlert size={16} />}
-            label={V.inactivity}
-            value={fmtNum(e?.inactivityAlerts ?? null)}
-            unit={V.today}
-            flag={(e?.inactivityAlerts ?? 0) >= 3}
-          />
-          <MiniStat
-            icon={<IconActivity size={16} />}
-            label={V.met}
-            value={e?.averageMetMinutes == null ? "–" : e.averageMetMinutes.toFixed(1)}
-            unit="MET"
-            hint={e?.nonWearMinutes ? V.nonWearHint(e.nonWearMinutes) : undefined}
-          />
-        </div>
-
-        {breakdownTotal > 0 && (
-          <div className="panel" style={{ marginTop: 16 }}>
-            <h3>{V.split}</h3>
-            <div className="md-split" role="img" aria-label={breakdown.map((p) => `${p.label} ${p.minutes} ${dataViews[lang].common.minutes}`).join(", ")}>
-              {breakdown.map((p) => (
-                <span key={p.key} style={{ flexGrow: p.minutes, background: BREAKDOWN_COLOR[p.key] }} />
-              ))}
-            </div>
-            <ul className="md-legend">
-              {breakdown.map((p) => (
-                <li key={p.key}>
-                  <span className="md-sw" style={{ background: BREAKDOWN_COLOR[p.key] }} aria-hidden="true" />
-                  {p.label}: <bdi>{Math.floor(p.minutes / 60)}:{String(p.minutes % 60).padStart(2, "0")}</bdi> ({percent(p.minutes, breakdownTotal)}%)
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {strip?.activityClass5Min && (
-          <div className="panel" style={{ marginTop: 16 }}>
-            <h3>{V.fiveMin(short(strip.day))}</h3>
-            <p className="md-note" style={{ marginTop: 0 }}>
-              {V.fiveMinNote}
-            </p>
-            <Strip
-              codes={strip.activityClass5Min}
-              prefix="act"
-              label={V.fiveMinAria(short(strip.day))}
-              axis={[0, 48, 96, 144, 192, 240, 288].map((at, i) => ({ at: Math.min(at, strip.activityClass5Min?.length ?? 288), text: ["04", "08", "12", "16", "20", "00", "04"][i] as string }))}
-            />
-            <Legend items={ACTIVITY_LEGEND} />
-          </div>
-        )}
-      </Section>
-
       <Section id="activity-trends" icon={<IconZap size={20} />} title={V.trendsTitle} lead={V.trendsLead}>
         <ChartGrid
           items={[
@@ -383,6 +279,20 @@ export function ActivityView({ slots, extras, coverage, lang }: { slots: DaySlot
         >
           <div className="drivers-grid">
             <ContributorList title={V.score} rows={contributors} lang={lang} />
+          </div>
+        </Section>
+      )}
+      {/* one day in 5-minute steps, for looking back: today's numbers are on the Today tab */}
+      {strip?.activityClass5Min && (
+        <Section id="activity-day" icon={<IconClock size={20} />} title={V.fiveMin(short(strip.day))} lead={V.fiveMinNote}>
+          <div className="panel">
+            <Strip
+              codes={strip.activityClass5Min}
+              prefix="act"
+              label={V.fiveMinAria(short(strip.day))}
+              axis={[0, 48, 96, 144, 192, 240, 288].map((at, i) => ({ at: Math.min(at, strip.activityClass5Min?.length ?? 288), text: ["04", "08", "12", "16", "20", "00", "04"][i] as string }))}
+            />
+            <Legend items={ACTIVITY_LEGEND} />
           </div>
         </Section>
       )}

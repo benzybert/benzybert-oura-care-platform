@@ -95,7 +95,8 @@ export async function getDayExtras(memberId: string, windowDays: number): Promis
 }
 
 /**
- * The few daily_extras columns the Today tab compares (activity score, calorie target, distance, SpO2, bedtime window)
+ * The few daily_extras columns the Today tab compares (activity score, calorie target, distance, inactivity alerts,
+ * the minutes of low/medium/high activity, SpO2, bedtime window)
  * for the window, and today's all-day heart-rate curve on its own so the other days' curves are never read.
  * Member's own page only.
  */
@@ -110,6 +111,9 @@ export async function getTodayExtras(memberId: string, windowDays: number): Prom
         totalCalories: dailyExtras.totalCalories,
         equivalentWalkingDistanceM: dailyExtras.equivalentWalkingDistanceM,
         inactivityAlerts: dailyExtras.inactivityAlerts,
+        lowActivityMinutes: dailyExtras.lowActivityMinutes,
+        mediumActivityMinutes: dailyExtras.mediumActivityMinutes,
+        highActivityMinutes: dailyExtras.highActivityMinutes,
         spo2Average: dailyExtras.spo2Average,
         optimalBedtimeStart: dailyExtras.optimalBedtimeStart,
         optimalBedtimeEnd: dailyExtras.optimalBedtimeEnd,

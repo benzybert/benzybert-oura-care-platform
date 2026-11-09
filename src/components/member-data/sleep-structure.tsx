@@ -1,4 +1,4 @@
-import { MiniStat, Section, fmtShort } from "@/components/doctor-dashboard/dashboard";
+import { MiniStat, Section } from "@/components/doctor-dashboard/dashboard";
 import { IconClock, IconLayers, IconMoon, IconZap } from "@/components/doctor-dashboard/icons";
 import type { DaySlot } from "@/lib/doctor-dashboard";
 import { dirOf, intlTag, type Locale } from "@/lib/i18n";
@@ -26,25 +26,6 @@ export function SleepStructureView({ slots, coverage, t, locale }: { slots: DayS
             <EmptyHint families={["sleep"]} coverage={coverage} what={s.title} lang={locale} />
           ) : (
             <>
-              <h3 className="md-sub">{s.lastNight(fmtShort(latest.day))}</h3>
-              <div className="mini-grid">
-                <MiniStat icon={<IconMoon size={16} />} label={s.tst} value={mins(latest.stats.tst)} unit="" hint={`${s.tib}: ${mins(latest.stats.tib)}`} />
-                <MiniStat icon={<IconClock size={16} />} label={s.sol} value={mins(latest.stats.sol)} unit="" />
-                <MiniStat icon={<IconClock size={16} />} label={s.waso} value={mins(latest.stats.waso)} unit="" />
-                <MiniStat icon={<IconMoon size={16} />} label={s.se} value={pct(latest.stats.se)} unit="" />
-                <MiniStat icon={<IconMoon size={16} />} label={s.sme} value={pct(latest.stats.sme)} unit="" hint={s.smeHint} />
-                <MiniStat icon={<IconZap size={16} />} label={s.sfi} value={num(latest.sfi, 1)} unit="" hint={s.sfiHint} />
-                <MiniStat icon={<IconClock size={16} />} label={s.latDeep} value={mins(latest.stats.latDeep)} unit="" />
-                <MiniStat icon={<IconClock size={16} />} label={s.latRem} value={mins(latest.stats.latRem)} unit="" />
-                <MiniStat
-                  icon={<IconLayers size={16} />}
-                  label={s.bouts}
-                  value={mins(Math.max(latest.bouts.deep.longestMinutes, latest.bouts.light.longestMinutes, latest.bouts.rem.longestMinutes))}
-                  unit=""
-                  hint={`${s.stages.deep} ${mins(latest.bouts.deep.longestMinutes)} · ${s.stages.rem} ${mins(latest.bouts.rem.longestMinutes)}`}
-                />
-              </div>
-
               <h3 className="md-sub">{s.window(summary.nights.length)}</h3>
               <div className="mini-grid">
                 <MiniStat icon={<IconMoon size={16} />} label={s.sme} value={pct(win.sme)} unit="" />

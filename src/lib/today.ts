@@ -1,6 +1,10 @@
 import { suggestActions, type ActionRule } from "./actions-engine";
 import { addDays } from "./dates";
+import { READINESS_CONTRIBUTOR_KEYS } from "./doctor-dashboard-detail";
+import { nightHrvStats } from "./hrv";
 import { heartRateDayStats, sleepBandsFor } from "./member-data";
+import { decodeHypnogram, nightStats } from "./sleep-stages";
+import { fragmentationIndex } from "./sleep-structure";
 import { stdDev } from "./series-math";
 import type { DayExtras, DayMetric } from "./types";
 
@@ -28,6 +32,9 @@ export type TodayExtras = Pick<
   | "totalCalories"
   | "equivalentWalkingDistanceM"
   | "inactivityAlerts"
+  | "lowActivityMinutes"
+  | "mediumActivityMinutes"
+  | "highActivityMinutes"
   | "spo2Average"
   | "optimalBedtimeStart"
   | "optimalBedtimeEnd"
@@ -85,6 +92,42 @@ export type HeartToday = {
   bands: Array<[number, number]>;
 };
 
+/**
+ * "More about last night" (folded under the Last night card): what the ring saw inside the night. Moved here from the
+ * data tab (Nov 2026), which keeps the trends; everything is from the same night as `night`.
+ */
+export type NightMore = {
+  /** awake minutes between falling asleep and the last sleep, and how many separate times */
+  wakeAfterOnsetMinutes: number | null;
+  awakenings: number | null;
+  /** minutes from falling asleep to the first REM */
+  remLatencyMinutes: number | null;
+  /** Oura's count of restless periods */
+  restlessPeriods: number | null;
+  /** moves to a lighter stage or to awake per hour asleep (YASA-style, on Oura's 5-minute stages) */
+  fragmentation: number | null;
+  /** heart rate in sleep: Oura's average and lowest */
+  heartAvg: number | null;
+  heartLowest: number | null;
+  /** HRV through the night from the 5-minute samples (needs about an hour of them) */
+  hrv: { mean: number; min: number; max: number; firstHalf: number | null; secondHalf: number | null } | null;
+};
+
+/** One of Oura's readiness contributors for the shown morning, 1 to 100 (labels in the dictionary). */
+export type ReadinessDriver = { key: (typeof READINESS_CONTRIBUTOR_KEYS)[number]; value: number };
+
+/** "More about today" (folded under Today so far): sitting, inactivity nudges and how the moving minutes split. */
+export type DayMore = {
+  sittingMinutes: number | null;
+  inactivityAlerts: number | null;
+  high: number | null;
+  medium: number | null;
+  low: number | null;
+};
+
+/** Contributors under this value are named first and marked: Oura's own "pay attention" line. */
+export const LOW_DRIVER = 70;
+
 export type TodayView = {
   today: string;
   /** the newest day with sleep or readiness data (Oura files a night under the morning it ends) */
@@ -93,8 +136,12 @@ export type TodayView = {
   headline: Headline;
   scores: { sleep: ScoreSummary; readiness: ScoreSummary; activity: ScoreSummary };
   night: Night | null;
+  nightMore: NightMore | null;
+  /** what is behind this morning's readiness, lowest first */
+  readinessDrivers: ReadinessDriver[];
   vitals: Vital[];
   soFar: TodaySoFar | null;
+  dayMore: DayMore | null;
   heart: HeartToday | null;
   bedtime: { start: number; end: number } | null;
   tips: ActionRule[];
@@ -163,6 +210,30 @@ function nightOf(m: DayMetric): Night | null {
     stages,
     hypnogram: m.hypnogram ?? null,
   };
+}
+
+export function nightMoreOf(m: DayMetric): NightMore | null {
+  const stages = decodeHypnogram(m.hypnogram);
+  const st = stages ? nightStats(stages) : null;
+  const hrv = nightHrvStats(m.nightHrv);
+  const more: NightMore = {
+    wakeAfterOnsetMinutes: st?.onsetMinutes != null ? st.wakeAfterOnsetMinutes : null,
+    awakenings: st?.onsetMinutes != null ? st.awakenings : null,
+    remLatencyMinutes: st?.remLatencyMinutes ?? null,
+    restlessPeriods: isNum(m.restlessPeriods) ? m.restlessPeriods : null,
+    fragmentation: stages ? fragmentationIndex(stages) : null,
+    heartAvg: isNum(m.averageHeartRate) ? m.averageHeartRate : null,
+    heartLowest: isNum(m.lowestHeartRate) ? m.lowestHeartRate : null,
+    hrv: hrv ? { mean: hrv.mean, min: hrv.min, max: hrv.max, firstHalf: hrv.firstHalf, secondHalf: hrv.secondHalf } : null,
+  };
+  const any = Object.values(more).some((v) => v !== null);
+  return any ? more : null;
+}
+
+export function readinessDriversOf(m: DayMetric): ReadinessDriver[] {
+  const c = m.readinessContributors;
+  if (!c) return [];
+  return READINESS_CONTRIBUTOR_KEYS.flatMap((key) => (isNum(c[key]) ? [{ key, value: c[key] as number }] : [])).sort((a, b) => a.value - b.value);
 }
 
 export function buildToday({
@@ -239,6 +310,15 @@ export function buildToday({
     };
   }
 
+  const dayMoreRaw: DayMore = {
+    sittingMinutes: isNum(todayRow?.sedentaryMinutes) ? (todayRow?.sedentaryMinutes as number) : null,
+    inactivityAlerts: isNum(todayExtras?.inactivityAlerts) ? (todayExtras?.inactivityAlerts as number) : null,
+    high: isNum(todayExtras?.highActivityMinutes) ? (todayExtras?.highActivityMinutes as number) : null,
+    medium: isNum(todayExtras?.mediumActivityMinutes) ? (todayExtras?.mediumActivityMinutes as number) : null,
+    low: isNum(todayExtras?.lowActivityMinutes) ? (todayExtras?.lowActivityMinutes as number) : null,
+  };
+  const dayMore = Object.values(dayMoreRaw).some((v) => v !== null) ? dayMoreRaw : null;
+
   const bs = todayExtras?.optimalBedtimeStart;
   const be = todayExtras?.optimalBedtimeEnd;
 
@@ -249,8 +329,11 @@ export function buildToday({
     headline: freshness === "today" || freshness === "yesterday" ? headlineFor(readiness.value, sleep.value) : "unknown",
     scores: { sleep, readiness, activity },
     night: latest ? nightOf(latest) : null,
+    nightMore: latest ? nightMoreOf(latest) : null,
+    readinessDrivers: latest ? readinessDriversOf(latest) : [],
     vitals,
     soFar,
+    dayMore,
     heart,
     bedtime: isNum(bs) && isNum(be) ? { start: bs, end: be } : null,
     tips: suggestActions(rows, today).map((a) => a.rule),

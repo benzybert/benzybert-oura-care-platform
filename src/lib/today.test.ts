@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
-import { bandOf, buildToday, freshnessOf, headlineFor, scoreSummary, type TodayExtras } from "./today";
+import { bandOf, buildToday, freshnessOf, headlineFor, nightMoreOf, readinessDriversOf, scoreSummary, type TodayExtras } from "./today";
 import type { DayMetric } from "./types";
 
 const TODAY = "2026-11-05";
@@ -32,6 +32,9 @@ const extra = (d: string, o: Partial<TodayExtras> = {}): TodayExtras => ({
   totalCalories: 2400,
   equivalentWalkingDistanceM: 6000,
   inactivityAlerts: 0,
+  lowActivityMinutes: null,
+  mediumActivityMinutes: null,
+  highActivityMinutes: null,
   spo2Average: 97,
   optimalBedtimeStart: null,
   optimalBedtimeEnd: null,
@@ -160,5 +163,57 @@ describe("buildToday", () => {
   it("passes on Oura's bedtime window for tonight", () => {
     const v = buildToday({ metrics: history(2), extras: [extra(TODAY, { optimalBedtimeStart: -60, optimalBedtimeEnd: 30 })], heartBuckets: null, today: TODAY });
     expect(v.bedtime).toEqual({ start: -60, end: 30 });
+  });
+});
+
+describe("the details moved from the data tab", () => {
+  it("reads wake-ups, REM latency and the night's HRV from last night", () => {
+    // 2 awake epochs before sleep, light, one 10-minute wake, REM, light, awake at the end
+    const m = day(TODAY, {
+      hypnogram: "44" + "2222" + "44" + "33" + "22" + "4",
+      nightHrv: Array.from({ length: 24 }, (_, i) => (i < 12 ? 40 : 60)),
+      averageHeartRate: 58,
+      restlessPeriods: 12,
+    });
+    const more = nightMoreOf(m);
+    expect(more?.wakeAfterOnsetMinutes).toBe(10);
+    expect(more?.awakenings).toBe(1);
+    expect(more?.remLatencyMinutes).toBe(30);
+    expect(more?.restlessPeriods).toBe(12);
+    // light→awake once and REM→light is not lighter, so 1 shift over 40 minutes asleep = 1.5 an hour
+    expect(more?.fragmentation).toBeCloseTo(1.5);
+    expect(more?.heartAvg).toBe(58);
+    expect(more?.heartLowest).toBe(55);
+    expect(more?.hrv?.mean).toBe(50);
+    expect(more?.hrv?.firstHalf).toBe(40);
+    expect(more?.hrv?.secondHalf).toBe(60);
+  });
+
+  it("leaves out what the night lacks", () => {
+    const m = day(TODAY, { lowestHeartRate: null as unknown as number, nightHrv: [50, 50] });
+    expect(nightMoreOf(m)).toBeNull();
+  });
+
+  it("lists this morning's readiness contributors lowest first, known keys only", () => {
+    const m = day(TODAY, { readinessContributors: { hrv_balance: 55, previous_night: 90, resting_heart_rate: 70, made_up: 1 } });
+    expect(readinessDriversOf(m)).toEqual([
+      { key: "hrv_balance", value: 55 },
+      { key: "resting_heart_rate", value: 70 },
+      { key: "previous_night", value: 90 },
+    ]);
+    expect(readinessDriversOf(day(TODAY))).toEqual([]);
+  });
+
+  it("adds today's sitting, nudges and intensity minutes, and the night details, to the view", () => {
+    const v = buildToday({
+      metrics: history(20, { sedentaryMinutes: 420, readinessContributors: { sleep_balance: 64 } }),
+      extras: [extra(TODAY, { inactivityAlerts: 2, highActivityMinutes: 15, mediumActivityMinutes: 40, lowActivityMinutes: 180 })],
+      heartBuckets: null,
+      today: TODAY,
+    });
+    expect(v.dayMore).toEqual({ sittingMinutes: 420, inactivityAlerts: 2, high: 15, medium: 40, low: 180 });
+    expect(v.readinessDrivers).toEqual([{ key: "sleep_balance", value: 64 }]);
+    const none = buildToday({ metrics: history(20), extras: [], heartBuckets: null, today: TODAY });
+    expect(none.dayMore).toBeNull();
   });
 });

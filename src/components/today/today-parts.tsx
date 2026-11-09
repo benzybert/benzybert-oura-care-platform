@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import type { Messages } from "@/lib/i18n/messages";
 import { clockLabel, runs } from "@/lib/member-data";
-import type { Night, ScoreSummary, Stage, Vital, VitalKey } from "@/lib/today";
+import type { DayMore, Night, NightMore, ReadinessDriver, ScoreSummary, Stage, Vital, VitalKey } from "@/lib/today";
+import { LOW_DRIVER } from "@/lib/today";
 
 /** Server-rendered pieces of the Today tab (src/app/member/page.tsx). Styles: today.css (td-*). */
 
@@ -207,5 +208,123 @@ export function Progress({ value, of, label }: { value: number; of: number | nul
     <div className="td-progress" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
       <span style={{ inlineSize: `${pct}%` }} />
     </div>
+  );
+}
+
+/** A folded "more" block inside a card: details moved here from the data tab, out of the way until asked for. */
+function More({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="td-more">
+      <summary>{title}</summary>
+      <div className="td-more-body">{children}</div>
+    </details>
+  );
+}
+
+function Facts({ rows }: { rows: Array<[string, ReactNode] | null> }) {
+  const shown = rows.filter((r): r is [string, ReactNode] => r !== null);
+  if (shown.length === 0) return null;
+  return (
+    <dl className="td-facts">
+      {shown.map(([k, v]) => (
+        <div key={k}>
+          <dt>{k}</dt>
+          <dd>{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** "More about last night": wake-ups, first REM, restlessness, heart rate and HRV through the night. */
+export function NightMoreDetails({ more, t }: { more: NightMore | null; t: T }) {
+  if (!more) return null;
+  const tn = t.night;
+  const min = (v: number) => t.soFar.minutes(String(Math.round(v)));
+  const hrv = more.hrv;
+  return (
+    <More title={tn.moreTitle}>
+      <Facts
+        rows={[
+          more.wakeAfterOnsetMinutes != null ? [tn.waso, min(more.wakeAfterOnsetMinutes)] : null,
+          more.awakenings != null ? [tn.awakenings, <N>{more.awakenings}</N>] : null,
+          more.remLatencyMinutes != null ? [tn.remLatency, min(more.remLatencyMinutes)] : null,
+          more.restlessPeriods != null ? [tn.restless, <N>{more.restlessPeriods}</N>] : null,
+          more.fragmentation != null ? [tn.fragmentation, <N>{more.fragmentation.toFixed(1)}</N>] : null,
+          more.heartAvg != null ? [tn.heartAvg, <><N>{Math.round(more.heartAvg)}</N> <span className="muted small">bpm</span></>] : null,
+          more.heartLowest != null ? [tn.heartLowest, <><N>{Math.round(more.heartLowest)}</N> <span className="muted small">bpm</span></>] : null,
+        ]}
+      />
+      {hrv && (
+        <div className="td-more-hrv">
+          <span>{tn.hrv}</span>
+          <strong>
+            <N>{Math.round(hrv.mean)}</N> <span className="muted small">ms</span>
+          </strong>
+          <span className="muted small">{tn.hrvRange(String(Math.round(hrv.min)), String(Math.round(hrv.max)))}</span>
+          {hrv.firstHalf != null && hrv.secondHalf != null && (
+            <span className="muted small">{tn.hrvHalves(String(Math.round(hrv.firstHalf)), String(Math.round(hrv.secondHalf)))}</span>
+          )}
+        </div>
+      )}
+      <p className="muted small">{tn.epochNote}</p>
+    </More>
+  );
+}
+
+/** What is behind this morning's readiness: Oura's contributors, lowest first, each as a bar out of 100. */
+export function ReadinessDriversDetails({ drivers, labels, t }: { drivers: ReadinessDriver[]; labels: Record<string, string>; t: T }) {
+  if (drivers.length === 0) return null;
+  return (
+    <More title={t.body.driversTitle}>
+      <ul className="td-drivers">
+        {drivers.map((d) => (
+          <li key={d.key} className={d.value < LOW_DRIVER ? "is-low" : undefined}>
+            <span className="td-driver-name">{labels[d.key] ?? d.key}</span>
+            <span className="td-driver-track" aria-hidden="true">
+              <span style={{ inlineSize: `${Math.max(0, Math.min(100, d.value))}%` }} />
+            </span>
+            <N>{Math.round(d.value)}</N>
+          </li>
+        ))}
+      </ul>
+      <p className="muted small">{t.body.driversNote}</p>
+    </More>
+  );
+}
+
+/** "More about today": sitting time, inactivity nudges and how the moving minutes split by intensity. */
+export function DayMoreDetails({ more, split, t }: { more: DayMore | null; split: Record<"high" | "medium" | "low", string>; t: T }) {
+  if (!more) return null;
+  const ts = t.soFar;
+  const parts = (["high", "medium", "low"] as const).flatMap((k) => (more[k] != null && (more[k] as number) > 0 ? [{ k, m: more[k] as number }] : []));
+  const total = parts.reduce((a, p) => a + p.m, 0);
+  return (
+    <More title={ts.moreTitle}>
+      <Facts
+        rows={[
+          more.sittingMinutes != null ? [ts.sitting, ts.hours((more.sittingMinutes / 60).toFixed(1))] : null,
+          more.inactivityAlerts != null ? [ts.inactivity, <N>{more.inactivityAlerts}</N>] : null,
+        ]}
+      />
+      {total > 0 && (
+        <>
+          <p className="td-more-label">{ts.split}</p>
+          <div className="td-split" dir="ltr" role="img" aria-label={parts.map((p) => `${split[p.k]} ${hm(p.m)}`).join(", ")}>
+            {parts.map((p) => (
+              <span key={p.k} className={`td-int-${p.k}`} style={{ flexGrow: p.m }} />
+            ))}
+          </div>
+          <ul className="td-legend">
+            {parts.map((p) => (
+              <li key={p.k}>
+                <span className={`td-sw td-int-${p.k}`} aria-hidden="true" />
+                {split[p.k]} <N>{hm(p.m)}</N>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </More>
   );
 }

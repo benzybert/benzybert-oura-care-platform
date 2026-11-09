@@ -51,53 +51,6 @@ export function HeartView({
 
   return (
     <Shell lang={lang}>
-      <Section
-        id="heart-day"
-        icon={<IconHeartPulse size={20} />}
-        title={V.dayTitle}
-        lead={V.dayLead}
-      >
-        {curves.length > 0 ? (
-          <div className="panel">
-            <HeartDayChart days={curves} />
-          </div>
-        ) : (
-          <EmptyHint families={["heartrate"]} coverage={coverage} what={V.dayWhat} lang={lang} />
-        )}
-
-        {lastCurve?.heartRateSummary && (
-          <div className="table-card" style={{ marginTop: 16 }}>
-            <div className="table-scroll" tabIndex={0} role="region" aria-label={V.byState}>
-              <table className="dash-table">
-                <caption className="sr-only">{V.byStateOn(short(lastCurve.day))}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">{V.stateCol(short(lastCurve.day))}</th>
-                    <th scope="col">{V.low}</th>
-                    <th scope="col">{V.avg}</th>
-                    <th scope="col">{V.high}</th>
-                    <th scope="col">{V.readings}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(lastCurve.heartRateSummary)
-                    .sort((a, b) => b[1].n - a[1].n)
-                    .map(([source, s]) => (
-                      <tr key={source}>
-                        <th scope="row">{hrSourceLabel(source, lang)}</th>
-                        <td>{s.min}</td>
-                        <td>{s.avg}</td>
-                        <td>{s.max}</td>
-                        <td>{s.n}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </Section>
-
       {hasBody && (
         <Section id="heart-body" icon={<IconZap size={20} />} title={V.bodyTitle} lead={V.bodyLead}>
           <div className="mini-grid">
@@ -205,6 +158,54 @@ export function HeartView({
         />
         {!vo2.some((v) => v !== null) && !vascular.some((v) => v !== null) && (
           <EmptyHint families={["vO2_max", "daily_cardiovascular_age"]} coverage={coverage} what={V.vo2What} lang={lang} />
+        )}
+      </Section>
+
+      {/* a single day, for browsing back: today itself is on the Today tab */}
+      <Section
+        id="heart-day"
+        icon={<IconHeartPulse size={20} />}
+        title={V.dayTitle}
+        lead={V.dayLead}
+      >
+        {curves.length > 0 ? (
+          <div className="panel">
+            <HeartDayChart days={curves} />
+          </div>
+        ) : (
+          <EmptyHint families={["heartrate"]} coverage={coverage} what={V.dayWhat} lang={lang} />
+        )}
+
+        {lastCurve?.heartRateSummary && (
+          <div className="table-card" style={{ marginTop: 16 }}>
+            <div className="table-scroll" tabIndex={0} role="region" aria-label={V.byState}>
+              <table className="dash-table">
+                <caption className="sr-only">{V.byStateOn(short(lastCurve.day))}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{V.stateCol(short(lastCurve.day))}</th>
+                    <th scope="col">{V.low}</th>
+                    <th scope="col">{V.avg}</th>
+                    <th scope="col">{V.high}</th>
+                    <th scope="col">{V.readings}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(lastCurve.heartRateSummary)
+                    .sort((a, b) => b[1].n - a[1].n)
+                    .map(([source, s]) => (
+                      <tr key={source}>
+                        <th scope="row">{hrSourceLabel(source, lang)}</th>
+                        <td>{s.min}</td>
+                        <td>{s.avg}</td>
+                        <td>{s.max}</td>
+                        <td>{s.n}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </Section>
     </Shell>

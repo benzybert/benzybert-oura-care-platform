@@ -449,3 +449,94 @@
 [dir="rtl"] .td .hub-tile strong::after {
   content: " ←";
 }
+
+/* ---------- folded details moved here from the data tab (NightMoreDetails, ReadinessDriversDetails, DayMoreDetails) ---------- */
+.td-more {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.td-more > summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.td-more-body {
+  margin-top: 10px;
+}
+.td-more-body > p {
+  margin: 10px 0 0;
+}
+.td-more-hrv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 10px;
+}
+.td-more-label {
+  margin: 12px 0 6px;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.td-drivers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.td-drivers li {
+  display: grid;
+  grid-template-columns: minmax(8em, 11em) 1fr 2.5em;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.td-drivers li .td-num {
+  text-align: end;
+  font-weight: 600;
+}
+.td-driver-track {
+  position: relative;
+  block-size: 8px;
+  border-radius: 4px;
+  background: var(--track);
+  overflow: hidden;
+}
+.td-driver-track span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: 4px;
+  background: var(--td-data);
+}
+.td-drivers li.is-low .td-driver-track span {
+  background: var(--td-attn);
+}
+.td-drivers li.is-low .td-driver-name {
+  font-weight: 600;
+}
+.td-split {
+  display: flex;
+  block-size: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+}
+.td-int-high {
+  background: var(--td-attn);
+}
+.td-int-medium {
+  background: var(--td-data);
+}
+.td-int-low {
+  background: color-mix(in srgb, var(--td-data) 40%, var(--surface));
+}
+@media (max-width: 520px) {
+  .td-drivers li {
+    grid-template-columns: minmax(6.5em, 9em) 1fr 2.2em;
+  }
+}

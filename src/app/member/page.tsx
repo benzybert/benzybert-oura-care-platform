@@ -3,7 +3,8 @@ import { pickFeatured } from "@/components/experiments-section";
 import "@/components/heart/heart.css";
 import { RingCard } from "@/components/ring-card";
 import { TodayHeartChart } from "@/components/today/today-heart-chart";
-import { N, NightCard, Progress, ScoreDial, VitalRow } from "@/components/today/today-parts";
+import { DayMoreDetails, N, NightCard, NightMoreDetails, Progress, ReadinessDriversDetails, ScoreDial, VitalRow } from "@/components/today/today-parts";
+import { dataLib } from "@/lib/i18n/dict/data-lib";
 import "@/components/today/today.css";
 import { getDb } from "@/db";
 import { biomarkerSeries, outOfRange } from "@/lib/biomarkers";
@@ -197,6 +198,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
                 <a href={dataHref({ view: "sleep" })}>{td.night.more}</a>
               </header>
               <NightCard night={view.night} t={td} />
+              <NightMoreDetails more={view.nightMore} t={td} />
             </section>
 
             <section className="card td-card" aria-labelledby="td-body">
@@ -217,6 +219,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
                   {view.vitals.some((v) => v.key === "temperature") && <p className="muted small">{td.body.tempNote}</p>}
                 </>
               )}
+              <ReadinessDriversDetails drivers={view.readinessDrivers} labels={dataLib[locale].contributors.readiness} t={td} />
             </section>
 
             <section className="card td-card" aria-labelledby="td-sofar">
@@ -288,6 +291,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
                   </li>
                 </ul>
               )}
+              <DayMoreDetails more={view.dayMore} split={dataLib[locale].oura.breakdown} t={td} />
               <p className="muted small">{td.soFar.note}</p>
             </section>
 

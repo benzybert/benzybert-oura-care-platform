@@ -1,7 +1,7 @@
 import { MiniStat, Section } from "@/components/doctor-dashboard/dashboard";
 import { IconActivity, IconHeartPulse, IconZap } from "@/components/doctor-dashboard/icons";
 import type { DaySlot } from "@/lib/doctor-dashboard";
-import { hrvTrend, nightHrvStats } from "@/lib/hrv";
+import { hrvTrend } from "@/lib/hrv";
 import { dirOf, intlTag, type Locale } from "@/lib/i18n";
 import type { Messages } from "@/lib/i18n/messages";
 import { EmptyHint, Shell, type Coverage } from "./shared";
@@ -47,8 +47,6 @@ export function HrvInsights({ slots, coverage, t, locale }: { slots: DaySlot[]; 
   const num = (v: number | null | undefined, digits = 0) =>
     v === null || v === undefined ? "–" : v.toLocaleString(intlTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits });
   const trend = hrvTrend(slots.map((s) => ({ day: s.day, rmssd: s.averageHrv })));
-  const latest = [...slots].reverse().find((s) => nightHrvStats(s.nightHrv));
-  const night = latest ? nightHrvStats(latest.nightHrv) : null;
   const hasAny = trend.points.some((p) => p.rmssd !== null);
   const band = trend.baseline ? h.range(num(Math.exp(trend.baseline.low)), num(Math.exp(trend.baseline.high))) : "–";
 
@@ -81,27 +79,6 @@ export function HrvInsights({ slots, coverage, t, locale }: { slots: DaySlot[]; 
                 <TrendSvg trend={trend} label={h.chartLabel} />
               </div>
 
-              <h3 className="md-sub">{h.lastNight}</h3>
-              {night ? (
-                <>
-                  <p className="muted small">{h.lastNightLead(night.n)}</p>
-                  <div className="mini-grid">
-                    <MiniStat icon={<IconHeartPulse size={16} />} label={h.nMean} value={num(night.mean)} unit={h.unitMs} />
-                    <MiniStat icon={<IconHeartPulse size={16} />} label={h.nMedian} value={num(night.median)} unit={h.unitMs} />
-                    <MiniStat icon={<IconActivity size={16} />} label={h.nSpread} value={num(night.sd)} unit={h.unitMs} />
-                    <MiniStat icon={<IconActivity size={16} />} label={h.nCv} value={`${num(night.cv)}%`} unit="" />
-                    <MiniStat icon={<IconZap size={16} />} label={h.nRange} value={h.range(num(night.min), num(night.max))} unit={h.unitMs} />
-                    <MiniStat
-                      icon={<IconZap size={16} />}
-                      label={h.nHalves}
-                      value={h.range(num(night.firstHalf), num(night.secondHalf))}
-                      unit={h.unitMs}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="muted">{h.noNight}</p>
-              )}
               <p className="muted small">{h.method}</p>
               <p className="muted small">{h.notDiagnosis}</p>
             </>

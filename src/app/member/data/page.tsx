@@ -140,7 +140,6 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
             {view === "sleep" && (
               <>
-                {dash(["night"])}
                 <CardsSection
                   id="sleep-trends"
                   icon={<IconMoon size={20} />}
@@ -153,6 +152,8 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
                 {dash(["architecture", "rhythm", "drivers"], { contributorSets: ["sleep"], patternSets: ["week", "short"] })}
                 <SleepExtras slots={dashboard.slots} extras={extras} coverage={coverage} lang={locale} />
                 <EventsView events={events} coverage={coverage} kinds={["nap"]} lang={locale} />
+                {/* one night at a time, for looking back: last night itself is on the Today tab */}
+                {dash(["night"])}
               </>
             )}
 
