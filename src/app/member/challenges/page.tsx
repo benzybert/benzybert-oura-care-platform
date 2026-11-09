@@ -1,8 +1,8 @@
 import { createChallenge, joinChallenge, lookUpChallengeCode } from "@/app/challenge-actions";
 import "@/components/heart/heart.css";
 import { getDb } from "@/db";
-import { CHALLENGE_LENGTHS, CHALLENGE_METRICS, CHALLENGE_SCORINGS, challengePhase, daysLeft, normalizeInviteCode, scoringAllowed } from "@/lib/challenges";
-import { findChallengeByCode, listMyChallenges } from "@/lib/challenge-data";
+import { CHALLENGE_LENGTHS, CHALLENGE_METRICS, CHALLENGE_SCORINGS, challengePhase, daysLeft, myPlace, normalizeInviteCode, scoringAllowed } from "@/lib/challenges";
+import { findChallengeByCode, listMyChallenges, loadStandings } from "@/lib/challenge-data";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { formatDay } from "@/lib/format-locale";
 import { getT } from "@/lib/i18n/server";
@@ -11,7 +11,11 @@ import type { MemberSearchParams } from "../_shell/messages";
 
 export const dynamic = "force-dynamic";
 
-/** Challenges with family and friends: start one, join with a code, see the ones you play. */
+/**
+ * Challenges with family and friends, answer first (Nov 2026): each running challenge says where the member stands
+ * (`myPlace`), finished ones are folded, joining with a code is one field, and "Start a challenge" is folded unless
+ * the member has none. The heart-safety note sits with the start form and always shows.
+ */
 export default async function MemberChallengesPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member, prefs } = await loadMember({ sync: false });
   const { locale, t } = await getT();
@@ -23,13 +27,49 @@ export default async function MemberChallengesPage({ searchParams }: { searchPar
   const joinCode = typeof params.join === "string" ? normalizeInviteCode(params.join) : null;
   const [mine, joining] = await Promise.all([listMyChallenges(db, member.id), joinCode ? findChallengeByCode(db, joinCode) : Promise.resolve(null)]);
   const defaultNick = prefs?.circleName ?? "";
+  // each challenge reads only its own metric column for its own days (loadStandings), so this stays cheap
+  const rows = await Promise.all(
+    mine.map(async (ch) => {
+      const phase = challengePhase(ch, today);
+      const place = phase === "upcoming" ? null : myPlace(await loadStandings(db, ch, today), member.id);
+      return { ch, phase, place };
+    }),
+  );
+  function ChallengeRows({ rows: list }: { rows: typeof rows }) {
+    return (
+      <ul className="hw-alerts">
+        {list.map(({ ch, phase, place }) => (
+          <li key={ch.id}>
+            <div className="hw-alert-body">
+              <a href={`/member/challenges/${ch.id}`}>
+                <strong>{ch.title}</strong>
+              </a>
+              <p className="hw-place">
+                {phase === "upcoming"
+                  ? c.startsOn(formatDay(ch.startDay, locale))
+                  : place?.rank != null
+                    ? phase === "finished"
+                      ? c.placeFinal(place.rank, place.ranked)
+                      : c.place(place.rank, place.ranked)
+                    : c.noPlace}
+                {phase === "active" && <span className="muted"> · {c.daysLeft(daysLeft(ch, today))}</span>}
+                {phase === "finished" && <span className="muted"> · {c.endedOn(formatDay(ch.endDay, locale))}</span>}
+              </p>
+              <p className="muted small">
+                {c.metrics[ch.metric]} · {c.scorings[ch.scoring].label} · {c.players(ch.players)}
+              </p>
+            </div>
+            <span className={`hw-pill ${phase === "active" ? "is-ok" : "is-quiet"}`}>{c.phase[phase]}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const current = rows.filter((r) => r.phase !== "finished");
+  const finished = rows.filter((r) => r.phase === "finished");
 
   return (
     <MemberShell tab="challenges" title={c.title} lead={c.lead} params={params}>
-      <div className="notice" role="note">
-        {c.safety}
-      </div>
-
       {joining && joinCode && (
         <section className="card" aria-label={c.confirmJoin.title(joining.title)}>
           <h2>{c.confirmJoin.title(joining.title)}</h2>
@@ -56,27 +96,15 @@ export default async function MemberChallengesPage({ searchParams }: { searchPar
         {mine.length === 0 ? (
           <p className="muted">{c.none}</p>
         ) : (
-          <ul className="hw-alerts">
-            {mine.map((ch) => {
-              const phase = challengePhase(ch, today);
-              return (
-                <li key={ch.id}>
-                  <div className="hw-alert-body">
-                    <a href={`/member/challenges/${ch.id}`}>
-                      <strong>{ch.title}</strong>
-                    </a>
-                    <p className="muted small">
-                      {c.metrics[ch.metric]} · {c.scorings[ch.scoring].label} · {c.players(ch.players)}
-                    </p>
-                    <p className="muted small">
-                      {phase === "upcoming" ? c.startsOn(formatDay(ch.startDay, locale)) : phase === "finished" ? c.endedOn(formatDay(ch.endDay, locale)) : c.daysLeft(daysLeft(ch, today))}
-                    </p>
-                  </div>
-                  <span className={`hw-pill ${phase === "active" ? "is-ok" : "is-quiet"}`}>{c.phase[phase]}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            {current.length > 0 && <ChallengeRows rows={current} />}
+            {finished.length > 0 && (
+              <details className="hw-add" open={current.length === 0}>
+                <summary>{c.finishedTitle(finished.length)}</summary>
+                <ChallengeRows rows={finished} />
+              </details>
+            )}
+          </>
         )}
       </section>
 
@@ -93,8 +121,11 @@ export default async function MemberChallengesPage({ searchParams }: { searchPar
         </form>
       </section>
 
-      <section className="card" aria-label={c.startTitle}>
-        <h2>{c.startTitle}</h2>
+      <details className="card" aria-label={c.startTitle} open={mine.length === 0}>
+        <summary>
+          <strong>+ {c.startTitle}</strong>
+        </summary>
+        <p className="hw-note small">{c.safety}</p>
         <form action={createChallenge} className="hw-form">
           <div className="hw-fields">
             <label>
@@ -151,7 +182,7 @@ export default async function MemberChallengesPage({ searchParams }: { searchPar
             </button>
           </div>
         </form>
-      </section>
+      </details>
     </MemberShell>
   );
 }

@@ -3,6 +3,7 @@ import { addDays } from "./dates";
 import {
   baselineMean,
   challengePhase,
+  myPlace,
   daysLeft,
   formatScore,
   newInviteCode,
@@ -143,5 +144,36 @@ describe("formatScore", () => {
     expect(formatScore(7.26, "average", "total_sleep_hours")).toBe("7.3");
     expect(formatScore(6.34, "vs_baseline", "steps")).toBe("+6.3%");
     expect(formatScore(-2, "vs_baseline", "steps")).toBe("−2.0%");
+  });
+});
+
+describe("myPlace", () => {
+  const board = rankStandings([
+    { memberId: "a", nickname: "Ben", score: -4.3, days: 5 },
+    { memberId: "b", nickname: "Dan", score: -14.6, days: 5 },
+    { memberId: "me", nickname: "Dad", score: -26.2, days: 5 },
+    { memberId: "c", nickname: "Sarah", score: null, days: 0 },
+  ]);
+  it("says the rank, how many have a score and the gap to the player just ahead", () => {
+    const p = myPlace(board, "me");
+    expect(p?.rank).toBe(3);
+    expect(p?.ranked).toBe(3);
+    expect(p?.players).toBe(4);
+    expect(p?.ahead).toBe("Dan");
+    expect(p?.gapToNext).toBeCloseTo(11.6);
+  });
+  it("has no gap for the leader or a player without a score, and nothing for a stranger", () => {
+    expect(myPlace(board, "a")?.gapToNext).toBeNull();
+    expect(myPlace(board, "c")?.rank).toBeNull();
+    expect(myPlace(board, "c")?.gapToNext).toBeNull();
+    expect(myPlace(board, "nobody")).toBeNull();
+  });
+  it("skips a tie when looking for the player ahead", () => {
+    const tie = rankStandings([
+      { memberId: "x", nickname: "A", score: 10, days: 1 },
+      { memberId: "y", nickname: "B", score: 5, days: 1 },
+      { memberId: "me", nickname: "C", score: 5, days: 1 },
+    ]);
+    expect(myPlace(tie, "me")?.ahead).toBe("A");
   });
 });

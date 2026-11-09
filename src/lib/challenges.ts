@@ -161,3 +161,33 @@ export function formatScore(score: number | null, scoring: ChallengeScoring, met
   if (scoring === "total" || metric === "steps" || metric === "active_minutes") return Math.round(score).toLocaleString("en-US");
   return score.toFixed(metric === "total_sleep_hours" ? 1 : 0);
 }
+
+/** Where the member stands, for the top of a challenge and its row in the list (answer first). */
+export type MyPlace = {
+  /** null while the member has no score yet */
+  rank: number | null;
+  /** players with a score */
+  ranked: number;
+  players: number;
+  score: number | null;
+  /** how far behind the next better score (positive), null when first or unranked */
+  gapToNext: number | null;
+  /** nickname of the player just ahead */
+  ahead: string | null;
+};
+
+export function myPlace(standings: Standing[], memberId: string): MyPlace | null {
+  const i = standings.findIndex((s) => s.memberId === memberId);
+  if (i === -1) return null;
+  const me = standings[i] as Standing;
+  const ranked = standings.filter((s) => s.rank !== null).length;
+  const better = me.score === null ? undefined : [...standings.slice(0, i)].reverse().find((s) => s.score !== null && (s.score as number) > (me.score as number));
+  return {
+    rank: me.rank,
+    ranked,
+    players: standings.length,
+    score: me.score,
+    gapToNext: better && me.score !== null ? (better.score as number) - me.score : null,
+    ahead: better?.nickname ?? null,
+  };
+}
