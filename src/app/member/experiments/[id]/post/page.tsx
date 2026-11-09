@@ -1,13 +1,13 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
+import { loadMember } from "../../../_shell/member-shell";
 import { PostDraftCards } from "@/components/post-draft";
 import { todayInIsrael } from "@/lib/dates";
 import { buildExperimentPost } from "@/lib/experiment-post";
 import { loadExperimentView } from "@/lib/experiment-view";
-import { getMemberForUser, getOwnExperiment, getSuggestionBox } from "@/lib/queries";
+import { getOwnExperiment, getSuggestionBox } from "@/lib/queries";
 import { suggestUrl } from "@/lib/suggestions";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
-import { requireRole } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,9 +20,7 @@ export default async function ExperimentPostPage({ params }: { params: Promise<{
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
+  const { member } = await loadMember({ sync: false, public: true });
   const owned = await getOwnExperiment(member.id, id);
   if (!owned) notFound();
 

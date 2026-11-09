@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export default async function MemberExperimentsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember();
+  const { member, publicView } = await loadMember({ public: true });
   const { t } = await getT();
   const today = todayInIsrael();
   const [rows, box, suggestions] = await Promise.all([getExperiments(member.id), getSuggestionBox(member.id), getSuggestions(member.id)]);
@@ -30,7 +30,8 @@ export default async function MemberExperimentsPage({ searchParams }: { searchPa
         </a>
       </section>
       <ExperimentsSection rows={rows} featured={featured} today={today} />
-      <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} />
+      {/* Readers' ideas were sent to the member alone: never shown in the public view. */}
+      {!publicView && <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} />}
     </MemberShell>
   );
 }

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 /** Biomarkers: each marker from the member's lab reports, latest value against its range, and its history. */
 export default async function BiomarkersPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember({ sync: false });
+  const { member } = await loadMember({ sync: false, public: true });
   const params = await searchParams;
   const { locale, t } = await getT();
   const b = t.records.biomarkers;

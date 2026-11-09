@@ -1,5 +1,6 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
+import { loadMember } from "../../_shell/member-shell";
 import { deleteExperiment, saveExperimentText } from "@/app/actions";
 import { ExperimentChart } from "@/components/experiment-chart";
 import { ComparisonSummary, Delta, NightBandBadge, NightStrip, Num, PhaseBadge, VerdictBadge, progressText } from "@/components/experiment-parts";
@@ -18,9 +19,8 @@ import {
   nightsHe,
 } from "@/lib/experiments";
 import { fmt } from "@/lib/format";
-import { getMemberForUser, getOwnExperiment } from "@/lib/queries";
+import { getOwnExperiment } from "@/lib/queries";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
-import { requireRole } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 // Opening the page re-syncs a stale ring first, like /member.
@@ -41,9 +41,7 @@ export default async function ExperimentPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const user = await requireRole("member");
-  const member = await getMemberForUser(user.id);
-  if (!member) redirect("/member");
+  const { member } = await loadMember({ sync: false, public: true });
   const owned = await getOwnExperiment(member.id, id);
   if (!owned) notFound();
 

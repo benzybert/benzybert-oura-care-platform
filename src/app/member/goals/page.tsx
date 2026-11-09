@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export default async function MemberGoalsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember();
+  const { member } = await loadMember({ public: true });
   const { t } = await getT();
   const [metrics, selfRewards, rewards] = await Promise.all([getMetrics(member.id), getSelfRewards(member.id), rewardTotal(member.id)]);
 

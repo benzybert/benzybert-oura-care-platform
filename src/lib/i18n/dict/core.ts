@@ -9,6 +9,10 @@ export const core = defineDict(
     language: "Language",
     syncing: "Updating data from Oura in the background…",
     memberAreaLabel: "My area",
+    publicView: {
+      banner: "You are looking at a public, read-only copy of this member area. Nothing here can be changed.",
+      signIn: "Sign in to your own area",
+    },
     tabs: {
       home: "Today",
       heart: "Heart",
@@ -114,6 +118,10 @@ export const core = defineDict(
     language: "שפה",
     syncing: "מעדכן נתונים מ-Oura ברקע…",
     memberAreaLabel: "האזור שלי",
+    publicView: {
+      banner: "זה עותק ציבורי של האזור האישי, לקריאה בלבד. אי אפשר לשנות כאן כלום.",
+      signIn: "להתחברות לאזור שלכם",
+    },
     tabs: {
       home: "היום",
       heart: "הלב",

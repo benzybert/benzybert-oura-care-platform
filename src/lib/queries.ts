@@ -46,6 +46,11 @@ export async function getMemberForUser(userId: string): Promise<Member | null> {
   return m ?? null;
 }
 
+export async function getMemberById(memberId: string): Promise<Member | null> {
+  const [m] = await getDb().select().from(members).where(eq(members.id, memberId)).limit(1);
+  return m ?? null;
+}
+
 /** All metric rows for a member, oldest first. */
 export async function getMetrics(memberId: string): Promise<DayMetric[]> {
   return getDb()

@@ -17,7 +17,7 @@ export const maxDuration = 120;
 
 /** Lab results: the member's lab reports and the form to add one. Member-only, own data. */
 export default async function LabsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember({ sync: false });
+  const { member } = await loadMember({ sync: false, public: true });
   const params = await searchParams;
   const { locale, t } = await getT();
   const l = t.records.labs;

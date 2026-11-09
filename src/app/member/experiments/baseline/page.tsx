@@ -17,7 +17,7 @@ export const maxDuration = 60;
  * The draft is only shown for copying; nothing is sent and nothing goes in a URL.
  */
 export default async function BaselinePage() {
-  const { member } = await loadMember();
+  const { member } = await loadMember({ public: true });
   const today = todayInIsrael();
   const [firstDay, experiments, box] = await Promise.all([getFirstSleepDay(member.id), getExperiments(member.id), getSuggestionBox(member.id)]);
   const suggest = box ? suggestUrl(box.slug) : null;

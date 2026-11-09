@@ -19,7 +19,7 @@ export default async function LabReportPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<MemberSearchParams>;
 }) {
-  const { member } = await loadMember({ sync: false });
+  const { member } = await loadMember({ sync: false, public: true });
   const { id } = await params;
   const db = getDb();
   const report = /^[0-9a-f-]{36}$/i.test(id) ? await getOwnLabReport(db, member.id, id) : null;

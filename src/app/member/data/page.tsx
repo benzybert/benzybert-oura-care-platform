@@ -48,7 +48,7 @@ const NEEDS_EVENTS: DataView[] = ["health", "sleep", "activity", "stress"];
  * the first look is numbers and charts.
  */
 export default async function MemberDataPage({ searchParams }: { searchParams: Promise<MemberSearchParams & { view?: string }> }) {
-  const { member } = await loadMember();
+  const { member } = await loadMember({ public: true });
   const { t, locale } = await getT();
   const params = await searchParams;
   const view = resolveView(params.view);

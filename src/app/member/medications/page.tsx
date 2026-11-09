@@ -18,7 +18,7 @@ export const maxDuration = 60;
 
 /** Medications & supplements: the member's own list, with a "since you started" look at their ring data. Member-only. */
 export default async function MedicationsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member } = await loadMember();
+  const { member } = await loadMember({ public: true });
   const params = await searchParams;
   const { locale, t } = await getT();
   const m = t.records.meds;

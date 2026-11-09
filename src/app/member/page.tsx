@@ -55,7 +55,7 @@ const WINDOW_DAYS = RANGE_DAYS + 2;
  * asked first (once; it can be skipped).
  */
 export default async function MemberPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
-  const { member, prefs } = await loadMember();
+  const { member, prefs } = await loadMember({ public: true });
   const params = await searchParams;
   if (!prefs?.onboardedAt) redirect("/member/welcome");
   const { locale, t } = await getT();

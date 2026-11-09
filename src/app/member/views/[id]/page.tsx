@@ -30,7 +30,7 @@ export default async function CustomViewPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<MemberSearchParams>;
 }) {
-  const { member } = await loadMember();
+  const { member } = await loadMember({ public: true });
   const { id } = await params;
   const query = await searchParams;
   const db = getDb();
