@@ -70,7 +70,7 @@ export function parseFocusAreas(values: unknown[]): FocusArea[] {
 
 /**
  * Whether the member asked for heart health (main focus or "also interested in"). The Heart and Family circle tabs,
- * their home cards and tiles, the heart watch and the guardians' pages exist only for them: nobody gets them without
+ * their home cards, the heart watch and the guardians' pages exist only for them: nobody gets them without
  * declaring heart health on the profile.
  */
 export function wantsHeart(focus: readonly string[] | null | undefined): boolean {

@@ -441,11 +441,3 @@
 .td-chart-note {
   margin-top: 8px;
 }
-
-/* The tile arrow points the way the page reads. */
-.td .hub-tile strong::after {
-  content: " →";
-}
-[dir="rtl"] .td .hub-tile strong::after {
-  content: " ←";
-}

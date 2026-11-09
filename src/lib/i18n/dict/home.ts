@@ -94,21 +94,6 @@ export const home = defineDict(
       setup: "Set up the heart watch and choose who hears about it.",
       open: "Open the heart dashboard",
     },
-    tilesLabel: "More in my area",
-    tiles: {
-      heart: (label: string, on: boolean) => `${label} · alerts ${on ? "on" : "off"}`,
-      circle: (n: number) => (n === 0 ? "Nobody in your circle yet" : `${n} ${n === 1 ? "person" : "people"} in your circle`),
-      challenges: (n: number) => (n === 0 ? "No challenges yet. Start one with family or friends." : `${n} ${n === 1 ? "challenge" : "challenges"} running`),
-      data: "The full dashboard: trends, sleep stages, calendar and PDF.",
-      assistant: "Ask Claude about your sleep, heart, labs and experiments.",
-      experiments: {
-        none: "No experiment yet. Change one thing and check.",
-        phase: { planned: "planned", running: "running now", finished: "finished" },
-      },
-      goals: (goals: number, points: number) => `${goals ? `${goals} ${goals === 1 ? "goal" : "goals"}` : "No goal yet"} · ${points} points`,
-      sharing: (shared: number, links: number) => `${shared ? `${shared} active ${shared === 1 ? "share" : "shares"}` : "Nothing is shared"} · ${links} doctor ${links === 1 ? "link" : "links"}`,
-      profile: (score: number) => `Profile strength ${score}%`,
-    },
     sharing: {
       lead: "Nothing is shared without your approval.",
       title: "What is shared and with whom",
@@ -214,21 +199,6 @@ export const home = defineDict(
       title: "מעקב הלב",
       setup: "הגדירו את מעקב הלב ובחרו מי מקבל הודעה.",
       open: "לדאשבורד הלב",
-    },
-    tilesLabel: "עוד באזור שלי",
-    tiles: {
-      heart: (label, on) => `${label} · התראות ${on ? "פועלות" : "כבויות"}`,
-      circle: (n) => (n === 0 ? "עדיין אין אף אחד במעגל" : `${n} ${n === 1 ? "אדם" : "אנשים"} במעגל`),
-      challenges: (n) => (n === 0 ? "עדיין אין אתגרים. פתחו אחד עם משפחה או חברים." : `${n} ${n === 1 ? "אתגר רץ" : "אתגרים רצים"}`),
-      data: "הדאשבורד המלא: מגמות, שלבי שינה, לוח שנה ו-PDF.",
-      assistant: "לשאול את Claude על השינה, הלב, הבדיקות והניסויים שלך.",
-      experiments: {
-        none: "עוד אין ניסוי. משנים דבר אחד ובודקים.",
-        phase: { planned: "מתוכנן", running: "רץ עכשיו", finished: "הסתיים" },
-      },
-      goals: (goals, points) => `${goals ? `${goals} יעדים` : "עוד אין יעד"} · ${points} נקודות`,
-      sharing: (shared, links) => `${shared ? `${shared} שיתופים פעילים` : "שום דבר לא משותף"} · ${links} קישורים לרופא`,
-      profile: (score) => `חוזק הפרופיל ${score}%`,
     },
     sharing: {
       lead: "שום דבר לא משותף בלי שתאשר.",

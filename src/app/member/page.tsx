@@ -1,41 +1,20 @@
 import { redirect } from "next/navigation";
-import { pickFeatured } from "@/components/experiments-section";
 import "@/components/heart/heart.css";
 import { RingCard } from "@/components/ring-card";
 import { TodayHeartChart } from "@/components/today/today-heart-chart";
 import { N, NightCard, Progress, ScoreDial, VitalRow } from "@/components/today/today-parts";
 import "@/components/today/today.css";
 import { getDb } from "@/db";
-import { biomarkerSeries, outOfRange } from "@/lib/biomarkers";
-import { listCircleLinks } from "@/lib/circle/queries";
-import { listMyChallenges } from "@/lib/challenge-data";
-import { hasActiveConsent } from "@/lib/consent";
-import { addDays, todayInIsrael } from "@/lib/dates";
-import { experimentPhase } from "@/lib/experiments";
-import { formatDate, formatDay, timeAgo } from "@/lib/format-locale";
+import { todayInIsrael } from "@/lib/dates";
+import { formatDay, timeAgo } from "@/lib/format-locale";
 import { assessHeart, getHeartSettings, loadHeartInputs } from "@/lib/heart/data";
 import { intlTag } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
-import { medicationStatus } from "@/lib/medications";
 import { clockLabel } from "@/lib/member-data";
 import { dataHref } from "@/lib/member-nav";
 import { needsMorePermissions } from "@/lib/oura/scopes";
-import { profileStrength } from "@/lib/profile-strength";
-import {
-  getConsentRecords,
-  getDashboardMetrics,
-  getDoctorContacts,
-  getExperiments,
-  getOuraProfile,
-  getSelfRewards,
-  getTodayExtras,
-  listShareLinks,
-  ouraStatus,
-  rewardTotal,
-} from "@/lib/queries";
-import { getLabReports, getLabResults, getMedications } from "@/lib/records-data";
+import { getDashboardMetrics, getOuraProfile, getTodayExtras, ouraStatus } from "@/lib/queries";
 import { RANGE_DAYS, buildToday } from "@/lib/today";
-import { CONSENT_SCOPES } from "@/lib/types";
 import { wantsHeart } from "@/lib/member-tabs";
 import { MemberShell, loadMember } from "./_shell/member-shell";
 import type { MemberSearchParams } from "./_shell/messages";
@@ -49,7 +28,7 @@ const WINDOW_DAYS = RANGE_DAYS + 2;
 
 /**
  * Member home ("Today"): this morning's scores against the member's own usual, last night, the body signals, today so
- * far and today's heart-rate curve, then the heart watch, the ring and one tile per tab. All of it is the member's
+ * far and today's heart-rate curve, then the heart watch and the ring. All of it is the member's
  * own data on their own page (no consent scope, no audit). A member who has not answered "what matters most?" is
  * asked first (once; it can be skipped).
  */
@@ -63,74 +42,25 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const today = todayInIsrael();
   const db = getDb();
 
-  const [metrics, extras, records, rewards, oura, doctors, links, selfRewards, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges, meds, labResults, labReports] =
-    await Promise.all([
-      getDashboardMetrics(member.id, WINDOW_DAYS),
-      getTodayExtras(member.id, WINDOW_DAYS),
-      getConsentRecords(member.id),
-      rewardTotal(member.id),
-      ouraStatus(member.id), // re-read: the visit sync updates lastSyncAt or revokes the connection
-      getDoctorContacts(member.id),
-      listShareLinks(member.id),
-      getSelfRewards(member.id),
-      getExperiments(member.id),
-      getOuraProfile(member.id),
-      getHeartSettings(db, member.id),
-      loadHeartInputs(db, member.id, today),
-      listCircleLinks(db, member.id),
-      listMyChallenges(db, member.id),
-      getMedications(db, member.id),
-      getLabResults(db, member.id),
-      getLabReports(db, member.id),
-    ]);
+  const [metrics, extras, oura, ouraProfile, heartSettings, heartInputs] = await Promise.all([
+    getDashboardMetrics(member.id, WINDOW_DAYS),
+    getTodayExtras(member.id, WINDOW_DAYS),
+    ouraStatus(member.id), // re-read: the visit sync updates lastSyncAt or revokes the connection
+    getOuraProfile(member.id),
+    getHeartSettings(db, member.id),
+    loadHeartInputs(db, member.id, today),
+  ]);
 
   const view = buildToday({ metrics, extras: extras.rows, heartBuckets: extras.heartBuckets, today });
-  const strength = profileStrength({
-    ouraConnected: Boolean(oura),
-    recentDays: metrics.filter((d) => d.day > addDays(today, -7)).length,
-    reviewedSharing: records.length > 0,
-    hasDoctor: Object.keys(doctors).length > 0,
-  });
-  const featured = pickFeatured(experimentRows, today);
-  const sharedScopes = CONSENT_SCOPES.filter((s) => hasActiveConsent(records, s)).length;
-  const activeLinks = links.filter((l) => l.status === "active").length;
   const heart = assessHeart(heartInputs, heartSettings, today);
   const heartFirst = prefs.focusAreas?.[0] === "heart";
   const showHeart = wantsHeart(prefs.focusAreas);
-  const people = circle.filter((l) => !l.revokedAt).length;
-  const running = challenges.filter((c) => c.endDay >= today).length;
-  const markers = biomarkerSeries(labResults);
-  const rt = t.records.tiles;
 
   const dateLine = new Date(`${today}T00:00:00Z`).toLocaleDateString(intlTag(locale), { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
   const synced = oura?.lastSyncAt ? td.synced(timeAgo(oura.lastSyncAt, new Date(), locale)) : oura ? td.notSynced : null;
   const headline = td.headline[view.headline];
   const nf = new Intl.NumberFormat(intlTag(locale));
   const sf = view.soFar;
-
-  const tiles = [
-    ...(showHeart
-      ? [
-          { href: "/member/heart", title: t.core.tabs.heart, text: h.tiles.heart(t.heart.status[heart.status].label, heartSettings.monitoring) },
-          { href: "/member/circle", title: t.core.tabs.circle, text: h.tiles.circle(people) },
-        ]
-      : []),
-    { href: "/member/challenges", title: t.core.tabs.challenges, text: h.tiles.challenges(running) },
-    { href: "/member/data", title: t.core.tabs.data, text: h.tiles.data },
-    { href: "/member/assistant", title: t.core.tabs.assistant, text: h.tiles.assistant },
-    {
-      href: "/member/experiments",
-      title: t.core.tabs.experiments,
-      text: featured ? `${featured.title} · ${h.tiles.experiments.phase[experimentPhase(featured, today)]}` : h.tiles.experiments.none,
-    },
-    { href: "/member/goals", title: t.core.tabs.goals, text: h.tiles.goals(selfRewards.length, rewards.points) },
-    { href: "/member/medications", title: t.core.tabs.medications, text: rt.medications(meds.filter((m) => medicationStatus(m, today) === "active").length) },
-    { href: "/member/biomarkers", title: t.core.tabs.biomarkers, text: rt.biomarkers(markers.length, outOfRange(markers).length) },
-    { href: "/member/labs", title: t.core.tabs.labs, text: rt.labs(labReports.length, labReports[0] ? formatDate(labReports[0].takenOn, locale) : null) },
-    { href: "/member/integrations", title: t.core.tabs.integrations, text: rt.integrations(Boolean(oura)) },
-    { href: "/member/sharing", title: t.core.tabs.sharing, text: h.tiles.sharing(sharedScopes, activeLinks) },
-    { href: "/member/profile", title: t.core.tabs.profile, text: h.tiles.profile(strength.score) },
-  ];
 
   const hasData = view.day !== null;
 
@@ -346,15 +276,6 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
 
         <RingCard oura={oura} askMore={oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: ouraProfile?.coverage }) : false} />
 
-        <h2 className="td-section-title">{h.tilesLabel}</h2>
-        <nav className="hub" aria-label={h.tilesLabel}>
-          {tiles.map((tile) => (
-            <a key={tile.href} className="card hub-tile" href={tile.href}>
-              <strong>{tile.title}</strong>
-              <span className="muted">{tile.text}</span>
-            </a>
-          ))}
-        </nav>
       </div>
     </MemberShell>
   );

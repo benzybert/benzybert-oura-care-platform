@@ -40,13 +40,6 @@ export const records = defineDict(
       createView: "Create custom view",
       myViews: "My custom views",
     },
-    tiles: {
-      medications: (active: number) => (active === 0 ? "Nothing listed yet" : `${active} taken now`),
-      biomarkers: (measured: number, out: number) =>
-        measured === 0 ? "No results yet" : out === 0 ? `${measured} markers, all within range` : `${measured} markers, ${out} outside the range`,
-      labs: (n: number, last: string | null) => (n === 0 ? "No lab reports yet" : `${n} ${n === 1 ? "report" : "reports"}, last ${last}`),
-      integrations: (oura: boolean): string => (oura ? "Oura connected" : "Oura not connected"),
-    },
     meds: {
       lead: "What you take, when, and since when. Only you see this list.",
       kinds: { medication: "Medication", supplement: "Supplement" },
@@ -334,13 +327,6 @@ export const records = defineDict(
     nav: {
       createView: "יצירת תצוגה מותאמת",
       myViews: "התצוגות שלי",
-    },
-    tiles: {
-      medications: (active: number) => (active === 0 ? "עוד לא נרשם כלום" : active === 1 ? "אחד בשימוש עכשיו" : `${active} בשימוש עכשיו`),
-      biomarkers: (measured: number, out: number) =>
-        measured === 0 ? "עוד אין תוצאות" : out === 0 ? `${measured} מדדים, כולם בטווח` : `${measured} מדדים, ${out} מחוץ לטווח`,
-      labs: (n: number, last: string | null) => (n === 0 ? "עוד אין בדיקות" : `${n === 1 ? "בדיקה אחת" : `${n} בדיקות`}, האחרונה ב-${last}`),
-      integrations: (oura: boolean) => (oura ? "Oura מחוברת" : "Oura לא מחוברת"),
     },
     meds: {
       lead: "מה לוקחים, מתי ומאיזה יום. הרשימה גלויה רק לך.",
