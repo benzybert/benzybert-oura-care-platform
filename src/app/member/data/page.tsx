@@ -12,10 +12,14 @@ import { RingView } from "@/components/member-data/ring-view";
 import { SleepExtras } from "@/components/member-data/sleep-extras";
 import { SleepStructureView } from "@/components/member-data/sleep-structure";
 import { StressView } from "@/components/member-data/stress-view";
+import { ExplainToggle } from "@/components/member-data/explain-toggle";
+import { OverviewView } from "@/components/member-data/overview-view";
+import { cookies } from "next/headers";
+import { buildOverview } from "@/lib/data-overview";
 import { todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { getT } from "@/lib/i18n/server";
-import { dataHref, resolveView, type DataView } from "@/lib/member-nav";
+import { EXPLAIN_COOKIE, dataHref, resolveView, type DataView } from "@/lib/member-nav";
 import { needsMorePermissions } from "@/lib/oura/scopes";
 import { getDashboardMetrics, getDayExtras, getOuraEvents, getOuraProfile, ouraStatus } from "@/lib/queries";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
@@ -27,16 +31,19 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /** Health has its own 30/60/90 switch in the hero; every other category shows it in the bar. */
-const WINDOWED: DataView[] = ["sleep", "heart", "activity", "stress", "oxygen", "advanced"];
+const WINDOWED: DataView[] = ["overview", "sleep", "heart", "activity", "stress", "oxygen", "advanced"];
 const NEEDS_EXTRAS: DataView[] = ["health", "sleep", "heart", "activity", "stress", "oxygen"];
 const NEEDS_EVENTS: DataView[] = ["health", "sleep", "activity", "stress"];
 
 /**
- * The member's own data, in categories: Health (scores, findings, readiness, temperature, tags), Sleep, Heart,
+ * The member's own data. It opens on the Overview ("what changed this week?" against the member's own usual, with a
+ * tile per category, `data-overview.ts`), then categories: Health (scores, findings, readiness, temperature, tags), Sleep, Heart,
  * Activity, Stress, Oxygen, and Advanced (HRV in depth, sleep structure, calendar and tables, the ring and what
  * arrives from Oura). Each metric lives in exactly one category. The dashboard component is the same one a doctor
  * link uses, rendered in parts through `meta.sections` and its cards (`dashboardCards`); the other views read the
  * extra Oura tables, which only this page queries. Own data, so no audit.
+ * Captions, section leads and notes show only with the "Explain" switch (cookie `EXPLAIN_COOKIE`, off by default), so
+ * the first look is numbers and charts.
  */
 export default async function MemberDataPage({ searchParams }: { searchParams: Promise<MemberSearchParams & { view?: string }> }) {
   const { member } = await loadMember();
@@ -46,6 +53,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
   const asked = Number(params.days);
   const windowDays = (SHARE_WINDOW_OPTIONS as readonly number[]).includes(asked) ? asked : DEFAULT_SHARE_WINDOW;
   const today = todayInIsrael();
+  const explain = (await cookies()).get(EXPLAIN_COOKIE)?.value === "1";
 
   const [dashboardMetrics, extras, events, profile, oura] = await Promise.all([
     getDashboardMetrics(member.id, windowDays),
@@ -57,6 +65,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
   const dashboard = buildDashboard(dashboardMetrics, today, windowDays, locale);
   const cards = dashboardCards(dashboard, true, locale);
+  const overview = view === "overview" ? buildOverview(dashboard.slots, { today }) : null;
   const empty = dashboard.daysWithData === 0;
   const askMore = oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: profile?.coverage }) : false;
   const coverage = { families: profile?.coverage ?? {}, askMore };
@@ -86,17 +95,34 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
 
   return (
     <MemberShell tab="data" title={t.core.tabs.data} params={params}>
-      <DataViewTabs active={view} windowDays={windowDays} withWindow={WINDOWED.includes(view)} t={t.insights.views} locale={locale} />
+      <DataViewTabs
+        active={view}
+        windowDays={windowDays}
+        withWindow={WINDOWED.includes(view)}
+        t={t.insights.views}
+        locale={locale}
+        tools={
+          <ExplainToggle
+            initial={explain}
+            targetId="data"
+            on={t.dataViews.page.explainOn}
+            off={t.dataViews.page.explainOff}
+            aria={t.dataViews.page.explainAria}
+          />
+        }
+      />
 
-      <section id="data" className="data-section" aria-label={t.dataViews.page.region}>
+      <section id="data" className="data-section" aria-label={t.dataViews.page.region} data-explain={explain ? "on" : "off"}>
         {empty ? (
           <>
             {/* no ring data in the window: one "no data yet" note (the hero keeps the window switch), and on Advanced what Oura answered */}
-            {dash(view === "health" ? ["hero"] : [])}
+            {dash(view === "health" || view === "overview" ? ["hero"] : [])}
             {view === "advanced" && <RingView oura={oura} profile={profile} askMore={askMore} lang={locale} />}
           </>
         ) : (
           <>
+            {view === "overview" && overview && <OverviewView overview={overview} days={windowDays} topics={t.insights.views} lang={locale} />}
+
             {view === "health" && (
               <>
                 {dash(["hero", "findings"])}

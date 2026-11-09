@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ActiveTabIntoView } from "@/components/active-tab-into-view";
 import { dirOf, type Locale } from "@/lib/i18n";
 import type { Messages } from "@/lib/i18n/messages";
@@ -8,17 +9,20 @@ import { SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
 /**
  * The data tab's categories as an underlined tab bar, and the 30/60/90-day window that applies to most of them.
  * Plain links; the only client code keeps the current category in sight on a phone. The bar follows the visitor's language, even inside the Hebrew-only data island.
+ * `tools` sits next to the window switch (the "Explain" switch).
  */
 export function DataViewTabs({
   active,
   windowDays,
   withWindow,
+  tools,
   t,
   locale,
 }: {
   active: DataView;
   windowDays: number;
   withWindow: boolean;
+  tools?: ReactNode;
   t: Messages["insights"]["views"];
   locale: Locale;
 }) {
@@ -36,13 +40,18 @@ export function DataViewTabs({
         </ul>
         <ActiveTabIntoView />
       </nav>
-      {withWindow && (
-        <div className="win-switch" role="group" aria-label={t.window}>
-          {SHARE_WINDOW_OPTIONS.map((d) => (
-            <Link key={d} prefetch={false} href={dataHref({ view: active, days: d })} aria-current={d === windowDays ? "true" : undefined}>
-              {t.days(d)}
-            </Link>
-          ))}
+      {(withWindow || tools) && (
+        <div className="subtabs-tools">
+          {tools}
+          {withWindow && (
+            <div className="win-switch" role="group" aria-label={t.window}>
+              {SHARE_WINDOW_OPTIONS.map((d) => (
+                <Link key={d} prefetch={false} href={dataHref({ view: active, days: d })} aria-current={d === windowDays ? "true" : undefined}>
+                  {t.days(d)}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

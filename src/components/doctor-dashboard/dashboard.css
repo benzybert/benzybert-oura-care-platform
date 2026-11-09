@@ -2254,3 +2254,27 @@ main:has(> .dash .share-gate) {
 .dash.is-member .dash-foot {
   margin-bottom: 8px;
 }
+
+/* member view: the normal findings fold into one line (Signals foldOk) */
+.sig-fold {
+  margin-top: 10px;
+}
+.sig-fold > summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 6px 12px;
+  border: 1px solid var(--c-ok-line);
+  border-radius: 999px;
+  background: var(--c-ok-soft);
+  color: var(--c-ok-ink);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+.sig-fold[open] > summary {
+  margin-bottom: 10px;
+}
+@media print {
+  .sig-fold > summary {
+    display: none;
+  }
+}

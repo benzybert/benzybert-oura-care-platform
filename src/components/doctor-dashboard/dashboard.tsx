@@ -253,7 +253,8 @@ function Tile({ kpi, icon, L, metrics }: { kpi: Kpi; icon: ReactNode; L: DashTex
 
 const FINDING_ICON = { attention: IconAlert, info: IconInfo, ok: IconCheck } as const;
 
-function Signals({ findings, L }: { findings: Finding[]; L: DashText }) {
+/** `foldOk` (member view): the normal findings fold into one line, so what needs attention is all that shows. */
+function Signals({ findings, L, foldOk = false }: { findings: Finding[]; L: DashText; foldOk?: boolean }) {
   const FINDING_LABEL = L.findingLabel;
   const groups = (["attention", "info", "ok"] as const).map((status) => ({
     status,
@@ -268,8 +269,9 @@ function Signals({ findings, L }: { findings: Finding[]; L: DashText }) {
           </li>
         ))}
       </ul>
-      {groups.map(({ status, items }) =>
-        items.length === 0 ? null : (
+      {groups.map(({ status, items }) => {
+        if (items.length === 0) return null;
+        const list = (
           <ul key={status} className={`sig-list is-${status}`}>
             {items.map((f) => {
               const Icon = FINDING_ICON[status];
@@ -289,8 +291,16 @@ function Signals({ findings, L }: { findings: Finding[]; L: DashText }) {
               );
             })}
           </ul>
-        ),
-      )}
+        );
+        return foldOk && status === "ok" ? (
+          <details key={status} className="sig-fold">
+            <summary>{L.findingsShowOk(items.length)}</summary>
+            {list}
+          </details>
+        ) : (
+          list
+        );
+      })}
     </div>
   );
 }
@@ -1047,7 +1057,7 @@ export function DoctorDashboard({ data, meta }: { data: DashboardData; meta: Das
             title={L.findingsTitle(attentionCount)}
             lead={L.findingsLead(isMember)}
           >
-            <Signals findings={data.findings} L={L} />
+            <Signals findings={data.findings} L={L} foldOk={isMember} />
           </Section>
 
           <Section

@@ -468,3 +468,330 @@
     font-size: 0.82rem;
   }
 }
+
+/* ---------- "Explain" switch (explain-toggle.tsx): off = numbers and charts only ---------- */
+[data-explain="off"] .md-explain,
+[data-explain="off"] .md-note,
+[data-explain="off"] .hero-lead,
+[data-explain="off"] .dash-section-head p,
+[data-explain="off"] .chart-card figcaption p,
+[data-explain="off"] #sec-about {
+  display: none;
+}
+[data-explain="off"] .dash-section-head {
+  align-items: center;
+}
+.md-explain {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-inline-start: 3px solid var(--viz-data-soft);
+  background: var(--c-surface-2);
+  border-radius: 0 8px 8px 0;
+  color: var(--c-ink-2);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+[dir="rtl"] .md-explain {
+  border-radius: 8px 0 0 8px;
+}
+
+/* ---------- overview (overview-view.tsx) ---------- */
+.ov-hero {
+  padding: 22px 22px 18px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-card);
+  background: var(--c-surface);
+}
+.ov-hero h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--c-ink-2);
+}
+.ov-answer {
+  margin: 6px 0 4px;
+  font-size: clamp(1.25rem, 3.4vw, 1.6rem);
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--c-ink);
+}
+.ov-muted {
+  margin: 0;
+  color: var(--c-muted);
+  font-size: 0.86rem;
+}
+.ov-block {
+  margin-top: 28px;
+}
+.ov-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  color: var(--c-ink);
+}
+.ov-h svg {
+  color: var(--c-ok-ink);
+}
+.ov-cards,
+.ov-rows,
+.ov-topics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ov-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .ov-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.ov-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-card);
+  background: var(--c-surface);
+}
+.ov-card.is-worse {
+  border-color: var(--c-attn-line);
+}
+.ov-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.ov-card-head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.ov-card-value .ov-num {
+  font-size: 1.5rem;
+  font-weight: 650;
+}
+.ov-num {
+  unicode-bidi: isolate;
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+}
+.ov-unit {
+  color: var(--c-muted);
+  font-size: 0.85rem;
+}
+.ov-range {
+  position: relative;
+  block-size: 10px;
+  margin: 12px 0 8px;
+  border-radius: 5px;
+  background: var(--viz-grid);
+}
+.ov-range-band {
+  position: absolute;
+  inset-block: 0;
+  border-radius: 5px;
+  background: var(--viz-data-soft);
+  opacity: 0.55;
+}
+.ov-range-dot {
+  position: absolute;
+  inset-block-start: 50%;
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: 50%;
+  background: var(--viz-data);
+  border: 2px solid var(--c-surface);
+  transform: translate(-50%, -50%);
+}
+.ov-range-dot.is-worse {
+  background: var(--viz-attn);
+}
+.ov-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  font-size: 0.86rem;
+}
+.ov-status {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.ov-card.is-worse .ov-status {
+  color: var(--c-attn-ink);
+}
+.ov-tone {
+  display: inline-block;
+  margin-inline-start: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.ov-tone.is-better {
+  background: var(--c-ok-soft);
+  color: var(--c-ok-ink);
+}
+.ov-tone.is-worse {
+  background: var(--c-attn-soft);
+  color: var(--c-attn-ink);
+}
+.ov-more {
+  margin-top: auto;
+  padding-top: 10px;
+  align-self: flex-start;
+  color: var(--c-primary);
+  font-size: 0.86rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.ov-more:hover {
+  text-decoration: underline;
+}
+[dir="rtl"] .ov-more span {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+.ov-rows {
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-card);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+.ov-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+  padding: 11px 16px;
+}
+.ov-row + .ov-row {
+  border-top: 1px solid var(--c-line-soft);
+}
+.ov-row-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.ov-row-name {
+  min-inline-size: 9.5em;
+  color: var(--c-ink);
+}
+.ov-row-value {
+  font-weight: 600;
+}
+.ov-row .ov-explain {
+  flex-basis: 100%;
+}
+.ov-row-main {
+  flex-wrap: wrap;
+}
+.ov-row-status {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--c-ink-2);
+}
+.ov-row.is-worse .ov-row-status {
+  color: var(--c-attn-ink);
+}
+.ov-row-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.ov-row-link {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: 50%;
+  color: var(--c-primary);
+  text-decoration: none;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.ov-row-link:hover {
+  background: var(--c-primary-soft);
+}
+[dir="rtl"] .ov-row-link span {
+  transform: scaleX(-1);
+}
+.ov-learning {
+  font-size: 0.9rem;
+}
+.ov-method {
+  margin-top: 16px;
+}
+.ov-topics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.ov-topic {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  block-size: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-ctl);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  text-decoration: none;
+}
+.ov-topic:hover {
+  border-color: var(--c-primary);
+}
+.ov-topic:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+.ov-topic-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: 10px;
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+}
+.ov-topic-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  flex: 1;
+}
+.ov-topic-text span {
+  color: var(--c-muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+.ov-badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--c-attn-soft);
+  color: var(--c-attn-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .ov-hero {
+    padding: 18px 16px 14px;
+  }
+  .ov-row-name {
+    min-inline-size: 7.5em;
+  }
+}
