@@ -7,7 +7,7 @@ export type MemberSearchParams = Record<string, string | string[] | undefined>;
  * (`?doctor=saved`); the page maps it to text (src/lib/i18n/dict/*.ts). Never put content or health data in these keys.
  */
 export function noticesFor(params: MemberSearchParams, t: Messages): string[] {
-  const groups = { ...t.core.notices, ...t.circle.notices, ...t.challenges.notices, ...t.records.notices } as Record<string, Record<string, string>>;
+  const groups = { ...t.core.notices, ...t.circle.notices, ...t.challenges.notices, ...t.records.notices, ...t.appleHealth.notices } as Record<string, Record<string, string>>;
   return Object.entries(groups).flatMap(([param, texts]) => {
     const key = params[param];
     const text = typeof key === "string" ? texts[key] : undefined;

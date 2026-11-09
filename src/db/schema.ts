@@ -255,6 +255,42 @@ export const dailyExtras = pgTable(
   (t) => [primaryKey({ columns: [t.memberId, t.day] })],
 );
 
+/**
+ * Apple Health, one row per member and day: daily totals and means the member imported from their own "Export All
+ * Health Data" file (the browser reads the file and sends only these numbers). A separate source on purpose: Apple's
+ * HRV is SDNN, Oura's is RMSSD, and sleep, steps and energy come from different sensors, so nothing is merged into
+ * `daily_metrics`. Member-only: no care, org, doctor-link, PDF, family or aggregate code reads it. Re-importing a day
+ * replaces it.
+ */
+export const appleHealthDaily = pgTable(
+  "apple_health_daily",
+  {
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    steps: integer("steps"),
+    activeKcal: integer("active_kcal"),
+    exerciseMin: integer("exercise_min"),
+    distanceKm: real("distance_km"),
+    restingHr: real("resting_hr"),
+    hrvSdnn: real("hrv_sdnn"),
+    respRate: real("resp_rate"),
+    spo2: real("spo2"),
+    vo2Max: real("vo2_max"),
+    weightKg: real("weight_kg"),
+    sleepAsleepMin: integer("sleep_asleep_min"),
+    sleepDeepMin: integer("sleep_deep_min"),
+    sleepRemMin: integer("sleep_rem_min"),
+    sleepCoreMin: integer("sleep_core_min"),
+    sleepAwakeMin: integer("sleep_awake_min"),
+    workouts: integer("workouts"),
+    workoutMin: integer("workout_min"),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.day] })],
+);
+
 /** Event-shaped Oura data: workouts, sessions (meditation, breathing), tags, rest-mode periods, naps. */
 export const ouraEvents = pgTable(
   "oura_events",

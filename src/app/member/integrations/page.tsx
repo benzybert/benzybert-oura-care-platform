@@ -1,6 +1,9 @@
 import "@/components/records.css";
+import { getDb } from "@/db";
 import { MemberNavIcon } from "@/components/member-nav-icon";
 import { RingCard } from "@/components/ring-card";
+import { getAppleStatus } from "@/lib/apple-health-data";
+import { formatDate, formatDateTime } from "@/lib/format-locale";
 import { getT } from "@/lib/i18n/server";
 import { needsMorePermissions } from "@/lib/oura/scopes";
 import { getOuraProfile, ouraStatus } from "@/lib/queries";
@@ -13,14 +16,16 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Integrations: where the member's data comes from (Oura, the only connected source) and where it can go (FHIR file,
- * PDF, doctor links, alarms). Other wearables are listed as planned, never as connected, until a real connector exists.
+ * Integrations: where the member's data comes from (Oura, and Apple Health imported from a file) and where it can go
+ * (FHIR file, PDF, doctor links, alarms). Other wearables are listed as planned, never as connected, until a real
+ * connector exists.
  */
 export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member, prefs } = await loadMember();
-  const { t } = await getT();
+  const { locale, t } = await getT();
   const g = t.records.integrations;
-  const [oura, profile] = await Promise.all([ouraStatus(member.id), getOuraProfile(member.id)]);
+  const ah = t.appleHealth;
+  const [oura, profile, apple] = await Promise.all([ouraStatus(member.id), getOuraProfile(member.id), getAppleStatus(getDb(), member.id)]);
   const coverage = Object.values(profile?.coverage ?? {});
   const answered = coverage.filter((c) => c.status === "ok").length;
   const planned = t.landing.wearables.devices.filter((d) => !d.live);
@@ -57,6 +62,29 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         back="integrations"
         askMore={oura ? needsMorePermissions({ connectedAt: oura.connectedAt, scopes: oura.scopes, coverage: profile?.coverage }) : false}
       />
+      <div className="card">
+        <div className="rc-source">
+          <span className="rc-source-icon" aria-hidden="true">
+            <MemberNavIcon tab="heart" />
+          </span>
+          <div>
+            <h3 style={{ margin: 0 }}>
+              {ah.card.name} <span className="rc-chip">{ah.card.chip}</span>
+            </h3>
+            <p className="muted small">{ah.card.text}</p>
+            <p className="small">
+              {apple
+                ? ah.card.status(ah.days(apple.count), formatDate(apple.from, locale), formatDate(apple.to, locale), formatDateTime(apple.importedAt, locale))
+                : ah.card.none}
+            </p>
+            <div className="rc-actions">
+              <a className="btn secondary" href="/member/integrations/apple-health">
+                {apple ? ah.card.open : ah.card.import}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="rc-section-title">
         <h2>{g.exportsTitle}</h2>

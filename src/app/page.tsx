@@ -597,7 +597,7 @@ export default async function Home() {
               <li key={d.name} className={`lp-reveal${d.live ? " is-live" : ""}`}>
                 <span className="lp-device-status lp-mono">
                   <span aria-hidden="true" />
-                  {d.live ? L.wearables.now : L.wearables.planned}
+                  {("chip" in d && d.chip) || (d.live ? L.wearables.now : L.wearables.planned)}
                 </span>
                 <strong dir="ltr">{d.name}</strong>
                 <span className="lp-device-measures">{d.measures}</span>

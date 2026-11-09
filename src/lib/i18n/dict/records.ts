@@ -255,7 +255,7 @@ export const records = defineDict(
       alarmsText: "Email, text messages, ntfy and smart-home alarms for the heart watch are set up in your family circle.",
       alarmsLink: "Family circle",
       plannedTitle: "More devices",
-      plannedText: "Only Oura is connected today. These are planned; nothing about them works yet.",
+      plannedText: "Oura is connected and Apple Health can be imported from a file. These others are planned; nothing about them works yet.",
       planned: "Planned",
     },
     views: {
@@ -550,7 +550,7 @@ export const records = defineDict(
       alarmsText: "מייל, הודעות טקסט, ntfy והתראות לבית חכם של מעקב הלב מוגדרים במעגל המשפחה.",
       alarmsLink: "מעגל המשפחה",
       plannedTitle: "מכשירים נוספים",
-      plannedText: "היום מחוברת רק Oura. אלה מתוכננים, ושום דבר מהם עוד לא עובד.",
+      plannedText: "Oura מחוברת ואפשר לייבא נתוני Apple Health מקובץ. אלה האחרים מתוכננים, ושום דבר מהם עוד לא עובד.",
       planned: "מתוכנן",
     },
     views: {
