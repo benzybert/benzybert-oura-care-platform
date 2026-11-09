@@ -118,8 +118,19 @@
 
 .hw-grid-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  /* six measures: three a row on wide screens, two on tablets, one on phones, so no row is left half empty */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+@media (max-width: 900px) {
+  .hw-grid-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .hw-grid-tiles {
+    grid-template-columns: 1fr;
+  }
 }
 .hw-tile {
   margin: 0;
@@ -414,4 +425,45 @@ select {
   .hw-tile .hw-value {
     font-size: 1.6rem;
   }
+}
+
+/* ---------- answer first (Nov 2026): toolbar, alerts inside the status card, folded extras, "Explain" ---------- */
+.hw-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-end: 12px;
+}
+.hw-status-alerts {
+  margin-block-start: 14px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--line);
+}
+.hw-status-alerts h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+.hw-status-alerts.hw-alerts {
+  padding-inline: 0;
+}
+.hw-more {
+  margin-block-start: 12px;
+}
+.hw-more > summary,
+.hw-history > summary {
+  cursor: pointer;
+}
+.hw-more > summary {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.hw-explain {
+  display: block;
+  margin-block-start: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+[data-explain="off"] .hw-explain {
+  display: none;
 }

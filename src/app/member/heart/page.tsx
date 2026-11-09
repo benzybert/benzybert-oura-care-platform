@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { AlertList } from "@/components/heart/alert-list";
 import { DayCurve, Sparkline } from "@/components/heart/charts";
+import { ExplainToggle } from "@/components/member-data/explain-toggle";
+import { cookies } from "next/headers";
 import "@/components/heart/heart.css";
 import { HeartSettingsForm } from "@/components/heart/settings-form";
 import { listCircleLinks } from "@/lib/circle/queries";
@@ -10,7 +12,7 @@ import { formatDay, num, timeAgo } from "@/lib/format-locale";
 import { assessHeart, getHeartSettings, getRecentHeartAlerts, loadHeartInputs } from "@/lib/heart/data";
 import { sleepWindowsForDay } from "@/lib/heart/episodes";
 import { bySeverity, buildTiles } from "@/lib/heart/view";
-import { dataHref } from "@/lib/member-nav";
+import { EXPLAIN_COOKIE, dataHref } from "@/lib/member-nav";
 import { wantsHeart } from "@/lib/member-tabs";
 import { getT } from "@/lib/i18n/server";
 import { ouraStatus } from "@/lib/queries";
@@ -21,11 +23,17 @@ export const dynamic = "force-dynamic";
 // Opening the page re-syncs a stale ring first.
 export const maxDuration = 60;
 
+/** Keeps a signed number left to right inside a Hebrew sentence (LRI ... PDI), so "-0.5" does not flip. */
+const iso = (v: string) => `\u2066${v}\u2069`;
+
 const GLYPH = { steady: "✓", learning: "…", watch: "•", alert: "!", urgent: "!!", no_data: "?" } as const;
 
 /**
- * The heart dashboard: the ring's heart measures against the member's own normal, anything that moved, today's heart-rate
- * curve, and the settings that decide who hears about it. Own data, so no consent scope and no audit entry for viewing.
+ * The heart dashboard, answer first (Nov 2026): one card with the status and any open alert (with "I'm OK"), then last
+ * night's heart measures against the member's own normal, today's heart-rate curve (yesterday folded, each on its own scale so a spike yesterday does not flatten today),
+ * earlier alerts folded, the settings, and the safety notes, which always show. The setup checklist leads only while
+ * alerts are off; after that it is one line at the bottom. Explanations follow the data tab's "Explain" switch (same
+ * cookie). Own data, so no consent scope and no audit entry for viewing.
  */
 export default async function MemberHeartPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member, prefs } = await loadMember();
@@ -37,6 +45,7 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
   const today = todayInIsrael();
   const now = new Date();
   const p = t.heart.page;
+  const explain = (await cookies()).get(EXPLAIN_COOKIE)?.value === "1";
 
   const [settings, inputs, recent, oura, links] = await Promise.all([
     getHeartSettings(db, member.id),
@@ -71,7 +80,30 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
     monitoring: settings.monitoring,
     circle: links.some((l) => !l.revokedAt),
   };
-  const showSetup = params.setup === "1" || !(setupDone.ring && setupDone.monitoring && setupDone.circle);
+  const doneCount = Object.values(setupDone).filter(Boolean).length;
+  // the checklist leads only while the watch is not running; otherwise unfinished steps are one line at the bottom
+  const setupFirst = params.setup === "1" || !setupDone.monitoring;
+  const setupLater = !setupFirst && doneCount < 3;
+  const [todayCurve, ...olderCurves] = curves;
+
+  const setupList = (
+    <ul className="hw-alerts">
+      {(
+        [
+          ["ring", p.setup.ring, "/api/oura/connect"],
+          ["monitoring", p.setup.monitoring, "#settings"],
+          ["circle", p.setup.circle, "/member/circle"],
+        ] as const
+      ).map(([id, label, href]) => (
+        <li key={id}>
+          <span>
+            <span aria-hidden="true">{setupDone[id] ? "✓" : "○"}</span> {setupDone[id] ? label : <a href={href}>{label}</a>}
+          </span>
+          {setupDone[id] && <span className="hw-pill is-ok">{p.setupDone}</span>}
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <MemberShell tab="heart" title={p.title} lead={p.lead} params={params}>
@@ -96,25 +128,15 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
         </div>
       )}
 
-      {showSetup && (
+      <div className="hw-toolbar">
+        <ExplainToggle initial={explain} targetId="heart" on={t.dataViews.page.explainOn} off={t.dataViews.page.explainOff} aria={t.dataViews.page.explainAria} />
+      </div>
+
+      <div id="heart" data-explain={explain ? "on" : "off"}>
+      {setupFirst && (
         <section className="card" aria-label={p.setupTitle}>
           <h2>{p.setupTitle}</h2>
-          <ul className="hw-alerts">
-            {(
-              [
-                ["ring", p.setup.ring, "/api/oura/connect"],
-                ["monitoring", p.setup.monitoring, "#settings"],
-                ["circle", p.setup.circle, "/member/circle"],
-              ] as const
-            ).map(([id, label, href]) => (
-              <li key={id}>
-                <span>
-                  <span aria-hidden="true">{setupDone[id] ? "✓" : "○"}</span> {setupDone[id] ? label : <a href={href}>{label}</a>}
-                </span>
-                {setupDone[id] && <span className="hw-pill is-ok">{p.setupDone}</span>}
-              </li>
-            ))}
-          </ul>
+          {setupList}
         </section>
       )}
 
@@ -136,28 +158,28 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
             {assessment.latestDay && <span>{p.newestNight(formatDay(assessment.latestDay, locale))}</span>}
             <span className={`hw-pill ${settings.monitoring ? "is-ok" : "is-quiet"}`}>{settings.monitoring ? p.monitoringOn : p.monitoringOff}</span>
           </div>
-        </div>
-      </section>
 
-      <section className="card" aria-label={p.openAlerts}>
-        <h2>{p.openAlerts}</h2>
-        {open.length === 0 ? (
-          <p className="muted">{p.noOpenAlerts}</p>
-        ) : (
-          <AlertList t={t} locale={locale} alerts={open} ackName={nameOf} />
-        )}
-        {assessment.signals.length > 0 && open.length === 0 && (
-          <ul className="hw-alerts">
-            {assessment.signals.map((sig) => (
-              <li key={`${sig.rule}-${sig.day}`}>
-                <div className="hw-alert-body">
-                  <span className={`hw-pill is-${sig.level}`}>{t.heart.levels[sig.level]}</span> <strong>{t.heart.rules[sig.rule].title}</strong>
-                  <p className="muted">{t.heart.rules[sig.rule].text(sig.data)}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+          {/* what is behind the status, right under it: open alerts with "I'm OK", or the signals of the night */}
+          {open.length > 0 ? (
+            <div className="hw-status-alerts">
+              <h3>{p.openAlerts}</h3>
+              <AlertList t={t} locale={locale} alerts={open} ackName={nameOf} />
+            </div>
+          ) : assessment.signals.length > 0 ? (
+            <ul className="hw-alerts hw-status-alerts">
+              {assessment.signals.map((sig) => (
+                <li key={`${sig.rule}-${sig.day}`}>
+                  <div className="hw-alert-body">
+                    <span className={`hw-pill is-${sig.level}`}>{t.heart.levels[sig.level]}</span> <strong>{t.heart.rules[sig.rule].title}</strong>
+                    <p className="muted">{t.heart.rules[sig.rule].text(sig.data)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted small">{p.noOpenAlerts}</p>
+          )}
+        </div>
       </section>
 
       <section aria-label={p.tonight}>
@@ -173,41 +195,71 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
                   {tile.value !== null && m.unit && <span className="hw-unit">{m.unit}</span>}
                 </span>
                 <span className="hw-usual">
-                  {tile.usual ? p.usual(num(tile.usual.low, tile.digits), num(tile.usual.high, tile.digits)) : p.noUsual}
+                  {tile.usual ? p.usual(iso(num(tile.usual.low, tile.digits)), iso(num(tile.usual.high, tile.digits))) : p.noUsual}
                   {tile.flag && <> · <span className={`hw-pill is-${tile.flag}`}>{t.heart.levels[tile.flag]}</span></>}
                 </span>
                 <Sparkline values={tile.series} band={tile.usual ? [tile.usual.low, tile.usual.high] : null} label={`${m.label}: ${m.hint}`} />
+                <span className="hw-explain">{m.hint}</span>
               </div>
             );
           })}
         </div>
-        <p className="muted small">{p.bandNote}</p>
+        <p className="muted small hw-explain">{p.bandNote}</p>
       </section>
 
       <section className="card" aria-label={p.todayTitle}>
         <h2>{p.todayTitle}</h2>
-        <p className="muted">{p.todayLead}</p>
-        {curves.length === 0 ? (
+        <p className="muted hw-explain">{p.todayLead}</p>
+        {!todayCurve ? (
           <p className="muted">{p.noCurve}</p>
         ) : (
-          curves.map((c) => (
-            <div key={c.day}>
-              <h3>
-                {c.name} · {formatDay(c.day, locale)}
-              </h3>
-              <DayCurve
-                buckets={c.extra!.buckets!}
-                sleepWindows={sleepWindowsForDay(c.day, inputs.metrics)}
-                limits={curveLimits}
-                label={`${p.todayTitle}, ${formatDay(c.day, locale)}`}
-              />
-            </div>
-          ))
+          <>
+            <h3>
+              {todayCurve.name} · {formatDay(todayCurve.day, locale)}
+            </h3>
+            <DayCurve
+              buckets={todayCurve.extra!.buckets!}
+              sleepWindows={sleepWindowsForDay(todayCurve.day, inputs.metrics)}
+              limits={curveLimits}
+              label={`${p.todayTitle}, ${formatDay(todayCurve.day, locale)}`}
+            />
+            {olderCurves.map((c) => (
+              <details key={c.day} className="hw-more">
+                <summary>
+                  {c.name} · {formatDay(c.day, locale)}
+                </summary>
+                <DayCurve
+                  buckets={c.extra!.buckets!}
+                  sleepWindows={sleepWindowsForDay(c.day, inputs.metrics)}
+                  limits={curveLimits}
+                      label={`${p.todayTitle}, ${formatDay(c.day, locale)}`}
+                />
+              </details>
+            ))}
+          </>
         )}
         <p>
           <a href={dataHref({ view: "heart" })}>{p.moreData}</a>
         </p>
       </section>
+
+      {history.length > 0 && (
+        <details className="card hw-history">
+          <summary>
+            <strong>{p.earlierAlerts(history.length)}</strong>
+          </summary>
+          <AlertList t={t} locale={locale} alerts={history} ackName={nameOf} history />
+        </details>
+      )}
+
+      {setupLater && (
+        <details className="card">
+          <summary>
+            <strong>{p.setupProgress(doneCount, 3)}</strong> · <span className="muted">{p.setupFinish}</span>
+          </summary>
+          {setupList}
+        </details>
+      )}
 
       <details className="card" id="settings" open={params.heart === "invalid" || params.setup === "1"}>
         <summary>
@@ -217,11 +269,6 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
         <HeartSettingsForm t={t} settings={settings} />
       </details>
 
-      <section className="card" aria-label={p.historyTitle}>
-        <h2>{p.historyTitle}</h2>
-        {history.length === 0 ? <p className="muted">{p.noHistory}</p> : <AlertList t={t} locale={locale} alerts={history} ackName={nameOf} history />}
-      </section>
-
       <section className="card hw-safety" aria-label={p.safetyTitle}>
         <h2>{p.safetyTitle}</h2>
         <ul>
@@ -230,6 +277,7 @@ export default async function MemberHeartPage({ searchParams }: { searchParams: 
           ))}
         </ul>
       </section>
+      </div>
     </MemberShell>
   );
 }
