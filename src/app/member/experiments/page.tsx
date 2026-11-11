@@ -15,7 +15,8 @@ export const maxDuration = 60;
 
 export default async function MemberExperimentsPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member, publicView } = await loadMember({ public: true });
-  const { t } = await getT();
+  const { locale, t } = await getT();
+  const L = t.experiments.list;
   const today = todayInIsrael();
   // Readers' ideas (and the addresses some carry) are never even loaded for the public view.
   const [rows, box, suggestions] = await Promise.all([
@@ -28,17 +29,17 @@ export default async function MemberExperimentsPage({ searchParams }: { searchPa
   const featured = featuredRow ? await loadExperimentView(featuredRow, today, rows) : null;
 
   return (
-    <MemberShell tab="experiments" title={t.core.tabs.experiments} params={await searchParams} hebrew>
-      <section className="card" aria-label="הבייסליין שלי">
-        <h2>הבייסליין שלי</h2>
-        <p className="muted">החודש הראשון עם הטבעת, בלי אף ניסוי: מה רגיל אצלך, ומוכן כטיוטה לפוסט הראשון בבלוג.</p>
+    <MemberShell tab="experiments" title={t.core.tabs.experiments} params={await searchParams}>
+      <section className="card" aria-label={L.baselineTitle}>
+        <h2>{L.baselineTitle}</h2>
+        <p className="muted">{L.baselineLead}</p>
         <a className="btn" href="/member/experiments/baseline">
-          הבייסליין של החודש הראשון
+          {L.baselineButton}
         </a>
       </section>
-      <ExperimentsSection rows={rows} featured={featured} today={today} />
+      <ExperimentsSection rows={rows} featured={featured} today={today} locale={locale} />
       {/* Readers' ideas were sent to the member alone: never shown in the public view. */}
-      {!publicView && <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} pollLinks={pollLinks} />}
+      {!publicView && <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} pollLinks={pollLinks} locale={locale} />}
     </MemberShell>
   );
 }

@@ -64,21 +64,6 @@ export const DOCTOR_LABELS_HE: Record<DoctorRole, string> = {
 
 export const CONSENT_SCOPES: ConsentScope[] = ["care_team", "org_aggregate", "rewards"];
 
-export const CONSENT_LABELS_HE: Record<ConsentScope, { title: string; description: string }> = {
-  care_team: {
-    title: "שיתוף עם הצוות הרפואי",
-    description: "הצוות הרפואי שלך יראה מגמות ויקבל התראה כשיש שינוי חריג בנתונים שלך.",
-  },
-  org_aggregate: {
-    title: "הצטרפות לסטטיסטיקה ארגונית אנונימית",
-    description: "הנתונים שלך נכללים בממוצע קבוצתי בלבד. אף אחד לא רואה אותך אישית.",
-  },
-  rewards: {
-    title: "תגמולים על הרגלי שינה",
-    description: "אנחנו מחשבים עקביות בשעת השינה כדי לתת לך נקודות.",
-  },
-};
-
 /**
  * The rest of what Oura reports per day (table daily_extras). Read only by the member's own page.
  * Every field is nullable: an account or ring generation without that feature simply has no value.

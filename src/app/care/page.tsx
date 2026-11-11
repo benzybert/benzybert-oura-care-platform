@@ -109,7 +109,7 @@ export default async function CarePage() {
                 <tr key={r.m.id}>
                   <td>{r.m.displayId}</td>
                   <td>{r.m.ageBand ?? "–"}</td>
-                  <td>{r.m.goal ?? "–"}</td>
+                  <td>{r.m.goal ? ((c.goals as Record<string, string>)[r.m.goal] ?? r.m.goal) : "–"}</td>
                   <td>{fmt(r.summary.averageHrv, 1)}</td>
                   <td className={r.pct !== null && r.pct < -10 ? "neg" : r.pct !== null && r.pct > 0 ? "pos" : ""}>
                     {r.pct === null ? "–" : <span dir="ltr">{signed(r.pct)}%</span>}

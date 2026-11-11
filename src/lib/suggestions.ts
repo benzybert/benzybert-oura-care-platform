@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { siteUrl } from "../config/site";
-import { EXPERIMENT_TEMPLATES } from "./experiments";
+import { EXPERIMENT_TEMPLATES, experimentTemplates } from "./experiments";
+import type { Locale } from "./i18n";
 
 /**
  * "הציעו ניסוי": a public page (/suggest/<slug>) linked from the member's posts, where a reader sends
@@ -36,9 +37,10 @@ export const suggestUrl = (slug: string) => `${siteUrl()}${suggestPath(slug)}`;
  * MailerLite's own click tracking counts the votes per subscriber; the site stores nothing for a vote.
  * The page only thanks the reader and offers the idea box for a comment. Unknown ids are ignored.
  */
-export function pollVoteTitle(vote: unknown): string | null {
+/** `locale` is Hebrew by default: the public page and the newsletter are in Hebrew. */
+export function pollVoteTitle(vote: unknown, locale: Locale = "he"): string | null {
   if (typeof vote !== "string") return null;
-  return EXPERIMENT_TEMPLATES.find((t) => t.id === vote)?.title ?? null;
+  return experimentTemplates(locale).find((t) => t.id === vote)?.title ?? null;
 }
 /** The template id of a poll vote, or null for anything that is not one of the templates. */
 export function pollVoteId(vote: unknown): string | null {

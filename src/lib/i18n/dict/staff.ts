@@ -21,6 +21,8 @@ export const staff = defineDict(
         updated: "Last update",
         alerts: "Alerts",
       },
+      /** The goals of the seeded demo members are stored in Hebrew; a goal a real member typed is shown as written. */
+      goals: { "שינה": "Sleep", "קרדיו": "Cardio", "מטבולי": "Metabolic", "כוח": "Strength", "ניהול לחץ": "Stress management" },
       rules: {
         hrv_drop: "HRV more than 15 percent below the personal baseline over the last 3 days",
         short_sleep: "Under 6 hours of sleep 3 nights in a row",
@@ -55,6 +57,7 @@ export const staff = defineDict(
         updated: "עדכון אחרון",
         alerts: "התראות",
       },
+      goals: { "שינה": "שינה", "קרדיו": "קרדיו", "מטבולי": "מטבולי", "כוח": "כוח", "ניהול לחץ": "ניהול לחץ" },
       rules: {
         hrv_drop: "HRV נמוך ביותר מ-15 אחוז מקו הבסיס האישי ב-3 ימים אחרונים",
         short_sleep: "פחות מ-6 שעות שינה 3 לילות ברצף",

@@ -1,22 +1,20 @@
 import { removeDoctorContact, saveDoctorContact } from "@/app/actions";
 import type { DoctorContact } from "@/lib/queries";
-import { DOCTOR_LABELS_HE, DOCTOR_ROLES, type DoctorRole } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
+import { sharing } from "@/lib/i18n/dict/sharing";
+import { DOCTOR_ROLES, type DoctorRole } from "@/lib/types";
 
-const SEND_LABELS_HE: Record<DoctorRole, string> = {
-  neurologist: "שלח לנוירולוג שלי",
-  family_doctor: "שלח לרופא המשפחה שלי",
-};
-
-function ContactForm({ role, contact }: { role: DoctorRole; contact?: DoctorContact }) {
+function ContactForm({ role, contact, locale }: { role: DoctorRole; contact?: DoctorContact; locale: Locale }) {
+  const S = sharing[locale].send;
   return (
     <form action={saveDoctorContact} className="field-form">
       <input type="hidden" name="role" value={role} />
       <label>
-        שם
+        {S.name}
         <input name="name" required maxLength={80} defaultValue={contact?.name ?? ""} autoComplete="off" />
       </label>
       <label>
-        אימייל
+        {S.email}
         <input
           name="email"
           type="email"
@@ -28,7 +26,7 @@ function ContactForm({ role, contact }: { role: DoctorRole; contact?: DoctorCont
         />
       </label>
       <button className="btn" type="submit">
-        שמור
+        {S.save}
       </button>
     </form>
   );
@@ -38,12 +36,15 @@ function ContactForm({ role, contact }: { role: DoctorRole; contact?: DoctorCont
  * The member's own doctors and the "send" buttons. Sending is always started and confirmed
  * by the member on a separate page that shows the exact message; nothing is sent from here.
  */
-export function DoctorShareCard({ contacts }: { contacts: Partial<Record<DoctorRole, DoctorContact>> }) {
+export function DoctorShareCard({ contacts, locale }: { contacts: Partial<Record<DoctorRole, DoctorContact>>; locale: Locale }) {
+  const D = sharing[locale];
+  const S = D.send;
   return (
     <div className="card">
-      <h2>שליחה לרופאים שלי</h2>
+      <h2>{S.title}</h2>
       <p className="muted">
-        שליחה ביוזמתך בלבד, פעם אחת בכל לחיצה. המייל כולל קישור אישי לדאשבורד (נוצר ברגע השליחה, אפשר לבטל אותו למעלה) וסיכום PDF מצורף. זה לא קשור לשיתוף עם הצוות הרפואי למעלה.
+        {S.lead}
+        {D.doctorLanguage ? ` ${D.doctorLanguage}` : ""}
       </p>
 
       {DOCTOR_ROLES.map((role) => {
@@ -52,35 +53,35 @@ export function DoctorShareCard({ contacts }: { contacts: Partial<Record<DoctorR
           <div className="doctor-block" key={role}>
             <div className="row">
               <div>
-                <strong>{DOCTOR_LABELS_HE[role]}</strong>
+                <strong>{D.roles[role]}</strong>
                 {contact ? (
                   <p className="muted">
-                    {contact.name} · <span dir="ltr">{contact.email}</span>
+                    <bdi>{contact.name}</bdi> · <span dir="ltr">{contact.email}</span>
                   </p>
                 ) : (
-                  <p className="muted">עוד לא הוגדר.</p>
+                  <p className="muted">{S.notSet}</p>
                 )}
               </div>
               {contact && (
                 <a className="btn" href={`/member/send/${role}`}>
-                  {SEND_LABELS_HE[role]}
+                  {S.button[role]}
                 </a>
               )}
             </div>
 
             {contact ? (
               <details>
-                <summary>עריכה או הסרה</summary>
-                <ContactForm role={role} contact={contact} />
+                <summary>{S.edit}</summary>
+                <ContactForm role={role} contact={contact} locale={locale} />
                 <form action={removeDoctorContact}>
                   <input type="hidden" name="role" value={role} />
                   <button className="btn secondary" type="submit">
-                    הסר
+                    {S.remove}
                   </button>
                 </form>
               </details>
             ) : (
-              <ContactForm role={role} />
+              <ContactForm role={role} locale={locale} />
             )}
           </div>
         );

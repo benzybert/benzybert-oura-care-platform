@@ -7,16 +7,19 @@ import { core } from "./dict/core";
 import { data } from "./dict/data";
 import { dataLib } from "./dict/data-lib";
 import { dataViews } from "./dict/data-views";
+import { experiments } from "./dict/experiments";
+import { goals } from "./dict/goals";
 import { heart } from "./dict/heart";
 import { home } from "./dict/home";
 import { insights } from "./dict/insights";
 import { landing } from "./dict/landing";
 import { records } from "./dict/records";
+import { sharing } from "./dict/sharing";
 import { site } from "./dict/site";
 import { staff } from "./dict/staff";
 
 /** Every namespace, per language. Add a namespace here when you add a dictionary file. */
-const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records, assistant, dataLib, data, dataViews, appleHealth };
+const namespaces = { core, site, landing, heart, home, circle, challenges, staff, insights, records, assistant, dataLib, data, dataViews, appleHealth, goals, experiments, sharing };
 
 type Namespaces = typeof namespaces;
 

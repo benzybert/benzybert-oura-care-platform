@@ -3,11 +3,11 @@
 import { useActionState, useState } from "react";
 import { createExperiment, type ExperimentFormState } from "@/app/actions";
 import { addDays } from "@/lib/dates";
+import type { Locale } from "@/lib/i18n";
+import { experiments as dict } from "@/lib/i18n/dict/experiments";
 import {
   BASELINE_OPTIONS,
   DEFAULT_BASELINE_DAYS,
-  EXPERIMENT_METRICS,
-  EXPERIMENT_TEMPLATES,
   HYPOTHESIS_MAX,
   MAX_NIGHTS,
   MIN_EXPERIMENT_NIGHTS,
@@ -15,9 +15,9 @@ import {
   PRIMARY_METRIC_KEYS,
   TITLE_MAX,
   dayDiff,
-  fmtNight,
+  experimentTemplates,
   isIsoDay,
-  nightsHe,
+  nightSpan,
   type ExperimentMetricKey,
 } from "@/lib/experiments";
 
@@ -25,7 +25,10 @@ const NIGHTS_DEFAULT = 7;
 const LENGTH_CHOICES = [3, 7, 14, 30];
 
 /** Starts an experiment of any length. Template chips only fill the name and metric; the member writes the rest. */
-export function ExperimentBuilder({ today, startOpen }: { today: string; startOpen: boolean }) {
+export function ExperimentBuilder({ today, startOpen, locale }: { today: string; startOpen: boolean; locale: Locale }) {
+  const D = dict[locale];
+  const B = D.builder;
+  const templates = experimentTemplates(locale);
   const [state, formAction, pending] = useActionState(createExperiment, { ok: false, error: null, at: 0 } as ExperimentFormState);
   const [title, setTitle] = useState("");
   const [metric, setMetric] = useState<ExperimentMetricKey>("sleepScore");
@@ -33,7 +36,7 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
   const [startNight, setStartNight] = useState(today);
   const [endNight, setEndNight] = useState(addDays(today, NIGHTS_DEFAULT - 1));
 
-  const template = EXPERIMENT_TEMPLATES.find((t) => t.id === picked);
+  const template = templates.find((t) => t.id === picked);
   const nights = isIsoDay(startNight) && isIsoDay(endNight) ? dayDiff(startNight, endNight) + 1 : null;
   const nightsOk = nights !== null && nights >= MIN_NIGHTS && nights <= MAX_NIGHTS;
 
@@ -49,12 +52,12 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
 
   return (
     <details className="sr-builder" open={startOpen}>
-      <summary className="btn secondary">＋ ניסוי חדש</summary>
+      <summary className="btn secondary">{B.newExperiment}</summary>
 
       <div className="sr-builder-body">
-        <h3>רעיונות להתחלה</h3>
+        <h3>{B.ideas}</h3>
         <div className="sr-chips">
-          {EXPERIMENT_TEMPLATES.map((t) => (
+          {templates.map((t) => (
             <button
               key={t.id}
               type="button"
@@ -74,13 +77,13 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
 
         <form action={formAction} className="sr-form">
           <label className="sr-wide">
-            שם הניסוי
+            {B.name}
             <input
               name="title"
               value={title}
               maxLength={TITLE_MAX}
               required
-              placeholder="למשל: שינה בחוץ"
+              placeholder={B.namePlaceholder}
               onChange={(e) => {
                 setTitle(e.target.value);
                 if (template && e.target.value !== template.title) setPicked(null);
@@ -89,56 +92,56 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
           </label>
 
           <label className="sr-wide">
-            מה אני מצפה שיקרה? <small className="muted">לא חובה, אבל זה מה שהופך תוצאה לסיפור</small>
+            {B.expect} <small className="muted">{B.expectHint}</small>
             <textarea
               name="hypothesis"
               rows={2}
               maxLength={HYPOTHESIS_MAX}
-              placeholder={template?.example ?? "כתוב במילים שלך מה אתה חושב שישתנה בשינה."}
+              placeholder={template?.example ?? B.expectPlaceholder}
             />
           </label>
 
           <div className="sr-wide">
-            <span className="xp-field-label">כמה לילות</span>
+            <span className="xp-field-label">{B.howMany}</span>
             <div className="sr-chips">
               {LENGTH_CHOICES.map((n) => (
                 <button key={n} type="button" className={`sr-chip${nights === n ? " on" : ""}`} aria-pressed={nights === n} onClick={() => setLength(n)}>
-                  {nightsHe(n)}
+                  {D.nights(n)}
                 </button>
               ))}
             </div>
-            <small className="muted">או בחר תאריכים. אפשר כל משך, עד {MAX_NIGHTS} לילות.</small>
+            <small className="muted">{B.orDates(MAX_NIGHTS)}</small>
           </div>
 
           <label>
-            הלילה הראשון
+            {B.firstNight}
             <input type="date" name="startNight" value={startNight} required onChange={(e) => changeStart(e.target.value)} />
-            <small className="muted">התאריך של הערב שבו הלילה מתחיל</small>
+            <small className="muted">{B.firstNightHint}</small>
           </label>
 
           <label>
-            הלילה האחרון
+            {B.lastNight}
             <input type="date" name="endNight" value={endNight} min={startNight} required onChange={(e) => setEndNight(e.target.value)} />
           </label>
 
           <label>
-            המדד שמכריע
+            {B.deciding}
             <select name="primaryMetric" value={metric} onChange={(e) => setMetric(e.target.value as ExperimentMetricKey)}>
               {PRIMARY_METRIC_KEYS.map((k) => (
                 <option key={k} value={k}>
-                  {EXPERIMENT_METRICS[k].label}
+                  {D.metrics[k].label}
                 </option>
               ))}
             </select>
-            <small className="muted">שאר המדדים יופיעו בטבלה</small>
+            <small className="muted">{B.decidingHint}</small>
           </label>
 
           <label>
-            להשוות ללילות הרגילים של
+            {B.compareWith}
             <select name="baselineDays" defaultValue={DEFAULT_BASELINE_DAYS}>
               {BASELINE_OPTIONS.map((d) => (
                 <option key={d} value={d}>
-                  {d} הימים שלפני
+                  {B.daysBefore(d)}
                 </option>
               ))}
             </select>
@@ -146,14 +149,12 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
 
           <div className="sr-wide sr-contract">
             {nightsOk ? (
-              <p>
-                {nightsHe(nights)}, מ{fmtNight(startNight)} עד {fmtNight(endNight)}. הנתונים של כל לילה מופיעים בבוקר שאחריו.
-              </p>
+              <p>{B.contract(nightSpan(startNight, endNight, locale))}</p>
             ) : (
-              <p>{nights !== null && nights < MIN_NIGHTS ? "תאריך הסיום לפני תאריך ההתחלה." : `אפשר עד ${MAX_NIGHTS} לילות.`}</p>
+              <p>{nights !== null && nights < MIN_NIGHTS ? B.endBeforeStart : B.upTo(MAX_NIGHTS)}</p>
             )}
             {nightsOk && nights < MIN_EXPERIMENT_NIGHTS && (
-              <p className="muted">עם פחות מ־{MIN_EXPERIMENT_NIGHTS} לילות אין השוואה ללילות הרגילים. יופיעו רק המספרים.</p>
+              <p className="muted">{B.short(MIN_EXPERIMENT_NIGHTS)}</p>
             )}
           </div>
 
@@ -163,7 +164,7 @@ export function ExperimentBuilder({ today, startOpen }: { today: string; startOp
             </p>
           )}
           <button className="btn sr-wide" type="submit" disabled={pending || !nightsOk}>
-            {pending ? "שומר…" : "התחל ניסוי"}
+            {pending ? B.saving : B.start}
           </button>
         </form>
       </div>

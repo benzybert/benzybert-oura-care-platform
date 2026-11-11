@@ -1,5 +1,8 @@
 import { addDays, dayOfWeek } from "./dates";
 import { fmtDay } from "./format";
+import { formatDayLong } from "./format-locale";
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
+import { experiments as dict } from "./i18n/dict/experiments";
 import { fmtClock, stdDev, unwrapBedtime } from "./series-math";
 import type { DayMetric } from "./types";
 
@@ -60,7 +63,17 @@ export function fmtNight(night: string): string {
   return `יום ${WEEKDAY_HE[dayOfWeek(night)]} ${fmtDay(night)}`;
 }
 
-export const nightsHe = (n: number) => (n === 1 ? "לילה אחד" : `${n} לילות`);
+/** The night in the visitor's language: "Tue 20 Oct" / "יום ג׳ 20.10". */
+export function nightLabel(night: string, locale: Locale): string {
+  return locale === "he" ? fmtNight(night) : formatDayLong(night, locale);
+}
+
+export const nightsHe = dict.he.nights;
+
+/** "7 nights, from Tue 20 Oct to Mon 26 Oct" */
+export function nightSpan(startNight: string, endNight: string, locale: Locale): string {
+  return dict[locale].span(dayDiff(startNight, endNight) + 1, nightLabel(startNight, locale), nightLabel(endNight, locale));
+}
 
 // ---------------------------------------------------------------------------------------------
 // Metrics
@@ -97,37 +110,45 @@ export const EXPERIMENT_METRIC_KEYS = [
 ] as const;
 export type ExperimentMetricKey = (typeof EXPERIMENT_METRIC_KEYS)[number];
 
+// The names and units here are the Hebrew ones (the post drafts are written in Hebrew); pages use
+// metricText(key, locale) for the visitor's language. Both come from the same dictionary.
+const HE = dict.he;
+
 export const EXPERIMENT_METRICS: Record<ExperimentMetricKey, ExperimentMetricDef> = {
-  sleepScore: { label: "ציון שינה", unit: "", digits: 0, better: "higher", format: "number", read: (d) => d.sleepScore },
-  totalSleepHours: { label: "משך שינה", unit: "שעות", digits: 1, better: "higher", format: "number", read: (d) => d.totalSleepHours },
-  deepSleepMinutes: { label: "שינה עמוקה", unit: "דק׳", digits: 0, better: "higher", format: "number", read: (d) => d.deepSleepMinutes ?? null },
-  remSleepMinutes: { label: "שינת REM", unit: "דק׳", digits: 0, better: "higher", format: "number", read: (d) => d.remSleepMinutes ?? null },
-  sleepEfficiency: { label: "יעילות שינה", unit: "%", digits: 0, better: "higher", format: "number", read: (d) => d.sleepEfficiency ?? null },
-  sleepLatencyMinutes: { label: "זמן עד להירדמות", unit: "דק׳", digits: 0, better: "lower", format: "number", read: (d) => d.sleepLatencyMinutes ?? null },
-  awakeMinutes: { label: "ערות במהלך הלילה", unit: "דק׳", digits: 0, better: "lower", format: "number", read: (d) => d.awakeMinutes ?? null },
-  averageHrv: { label: "HRV בשינה", unit: "ms", digits: 0, better: "higher", format: "number", read: (d) => d.averageHrv },
-  lowestHeartRate: { label: "דופק מנוחה", unit: "bpm", digits: 0, better: "lower", format: "number", read: (d) => d.lowestHeartRate },
-  averageBreath: { label: "קצב נשימה (נשימות לדקה)", unit: "", digits: 1, better: "neutral", format: "number", read: (d) => d.averageBreath ?? null },
+  sleepScore: { ...HE.metrics.sleepScore, digits: 0, better: "higher", format: "number", read: (d) => d.sleepScore },
+  totalSleepHours: { ...HE.metrics.totalSleepHours, digits: 1, better: "higher", format: "number", read: (d) => d.totalSleepHours },
+  deepSleepMinutes: { ...HE.metrics.deepSleepMinutes, digits: 0, better: "higher", format: "number", read: (d) => d.deepSleepMinutes ?? null },
+  remSleepMinutes: { ...HE.metrics.remSleepMinutes, digits: 0, better: "higher", format: "number", read: (d) => d.remSleepMinutes ?? null },
+  sleepEfficiency: { ...HE.metrics.sleepEfficiency, digits: 0, better: "higher", format: "number", read: (d) => d.sleepEfficiency ?? null },
+  sleepLatencyMinutes: { ...HE.metrics.sleepLatencyMinutes, digits: 0, better: "lower", format: "number", read: (d) => d.sleepLatencyMinutes ?? null },
+  awakeMinutes: { ...HE.metrics.awakeMinutes, digits: 0, better: "lower", format: "number", read: (d) => d.awakeMinutes ?? null },
+  averageHrv: { ...HE.metrics.averageHrv, digits: 0, better: "higher", format: "number", read: (d) => d.averageHrv },
+  lowestHeartRate: { ...HE.metrics.lowestHeartRate, digits: 0, better: "lower", format: "number", read: (d) => d.lowestHeartRate },
+  averageBreath: { ...HE.metrics.averageBreath, digits: 1, better: "neutral", format: "number", read: (d) => d.averageBreath ?? null },
   temperatureDeviation: {
-    label: "סטיית טמפרטורת עור",
-    unit: "°",
+    ...HE.metrics.temperatureDeviation,
     digits: 2,
     better: "neutral",
     format: "number",
     read: (d) => d.temperatureDeviation ?? null,
-    caution: "הקריאה מושפעת גם מהטמפרטורה בסביבה, לא רק מהגוף.",
+    caution: HE.temperatureCaution,
   },
-  readinessScore: { label: "ציון מוכנות", unit: "", digits: 0, better: "higher", format: "number", read: (d) => d.readinessScore },
+  readinessScore: { ...HE.metrics.readinessScore, digits: 0, better: "higher", format: "number", read: (d) => d.readinessScore },
   bedtime: {
-    label: "שעת הירדמות",
-    unit: "דק׳",
+    ...HE.metrics.bedtime,
     digits: 0,
     better: "neutral",
     format: "clock",
     read: (d) => unwrapBedtime(d.bedtimeStartMinute),
   },
-  wake: { label: "שעת התעוררות", unit: "דק׳", digits: 0, better: "neutral", format: "clock", read: (d) => d.bedtimeEndMinute ?? null },
+  wake: { ...HE.metrics.wake, digits: 0, better: "neutral", format: "clock", read: (d) => d.bedtimeEndMinute ?? null },
 };
+
+/** A metric's name, unit and caution in the visitor's language. */
+export function metricText(key: ExperimentMetricKey, locale: Locale): { label: string; unit: string; caution?: string } {
+  const D = dict[locale];
+  return { ...D.metrics[key], ...(EXPERIMENT_METRICS[key].caution ? { caution: D.temperatureCaution } : {}) };
+}
 
 /** The metrics a member can pick as the one that decides the experiment. */
 export const PRIMARY_METRIC_KEYS = [
@@ -156,9 +177,9 @@ export function formatMetricValue(key: ExperimentMetricKey, v: number | null): s
  * and a unit word. Pages put the number in an LTR isolate and the word outside it, so the sign
  * does not jump to the wrong side of the digits inside Hebrew text.
  */
-export function deltaParts(key: ExperimentMetricKey, delta: number | null): { num: string; unit: string } {
+export function deltaParts(key: ExperimentMetricKey, delta: number | null, locale: Locale = "he"): { num: string; unit: string } {
   if (delta === null) return { num: "–", unit: "" };
-  const def = EXPERIMENT_METRICS[key];
+  const def = { ...EXPERIMENT_METRICS[key], unit: dict[locale].metrics[key].unit };
   const digits = def.format === "clock" ? 0 : def.digits;
   const rounded = Number(delta.toFixed(digits));
   const sign = rounded > 0 ? "+" : rounded < 0 ? "-" : "";
@@ -303,18 +324,22 @@ export function compareMetric(key: ExperimentMetricKey, baselineRows: DayMetric[
  * Plain-language reading of one comparison. "Within your usual swing" is the honest default: with a
  * week of nights most differences are.
  */
-export function verdictHe(c: Pick<MetricComparison, "strength" | "direction">): string {
+export function verdictText(c: Pick<MetricComparison, "strength" | "direction">, locale: Locale): string {
+  const V = dict[locale].verdict;
   switch (c.strength) {
     case "unknown":
-      return "אין מספיק נתונים";
+      return V.unknown;
     case "none":
-      return "בתוך התנודה הרגילה";
+      return V.none;
     case "slight":
-      return c.direction === "better" ? "נטייה לטוב יותר" : c.direction === "worse" ? "נטייה לפחות טוב" : "נטייה לשינוי";
+      return V.slight(c.direction);
     case "clear":
-      return c.direction === "better" ? "טוב יותר מהרגיל" : c.direction === "worse" ? "פחות טוב מהרגיל" : "שונה מהרגיל";
+      return V.clear(c.direction);
   }
 }
+
+/** The Hebrew reading, for the post drafts. */
+export const verdictHe = (c: Pick<MetricComparison, "strength" | "direction">) => verdictText(c, "he");
 
 export function evaluateExperiment(
   spec: ExperimentSpec,
@@ -400,7 +425,8 @@ export function bandTone(key: ExperimentMetricKey, band: NightBand | null): "bet
   return (band === "above") === (better === "higher") ? "better" : "worse";
 }
 
-export const NIGHT_BAND_HE: Record<NightBand, string> = { above: "מעל הטווח הרגיל", within: "בטווח הרגיל", below: "מתחת לטווח הרגיל" };
+export const NIGHT_BAND_HE: Record<NightBand, string> = dict.he.bands;
+export const nightBandText = (band: NightBand, locale: Locale): string => dict[locale].bands[band];
 
 export type BandCounts = { above: number; within: number; below: number; total: number };
 
@@ -500,29 +526,30 @@ export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const clean = (s: string | null | undefined) => (s ?? "").replace(/\r\n/g, "\n").trim();
 
-export function parseExperimentForm(get: Get, today: string): Parsed<ExperimentInput> {
+export function parseExperimentForm(get: Get, today: string, locale: Locale = DEFAULT_LOCALE): Parsed<ExperimentInput> {
+  const E = dict[locale].errors;
   const title = clean(get("title"));
-  if (title.length < 2) return { ok: false, error: "צריך שם לניסוי, למשל ״שינה בחוץ״." };
-  if (title.length > TITLE_MAX) return { ok: false, error: `השם ארוך מדי (עד ${TITLE_MAX} תווים).` };
+  if (title.length < 2) return { ok: false, error: E.title };
+  if (title.length > TITLE_MAX) return { ok: false, error: E.titleLong(TITLE_MAX) };
 
   const hypothesis = clean(get("hypothesis"));
-  if (hypothesis.length > HYPOTHESIS_MAX) return { ok: false, error: `ההשערה ארוכה מדי (עד ${HYPOTHESIS_MAX} תווים).` };
+  if (hypothesis.length > HYPOTHESIS_MAX) return { ok: false, error: E.hypothesisLong(HYPOTHESIS_MAX) };
 
   const startNight = clean(get("startNight"));
   const endNight = clean(get("endNight"));
-  if (!isIsoDay(startNight) || !isIsoDay(endNight)) return { ok: false, error: "צריך תאריך התחלה ותאריך סיום." };
-  if (endNight < startNight) return { ok: false, error: "תאריך הסיום לפני תאריך ההתחלה." };
+  if (!isIsoDay(startNight) || !isIsoDay(endNight)) return { ok: false, error: E.dates };
+  if (endNight < startNight) return { ok: false, error: E.endBeforeStart };
   if (startNight < addDays(today, -START_PAST_DAYS) || startNight > addDays(today, START_FUTURE_DAYS)) {
-    return { ok: false, error: "תאריך ההתחלה רחוק מדי מהיום." };
+    return { ok: false, error: E.startTooFar };
   }
   const nights = dayDiff(startNight, endNight) + 1;
-  if (nights > MAX_NIGHTS) return { ok: false, error: `ניסוי יכול להימשך עד ${MAX_NIGHTS} לילות.` };
+  if (nights > MAX_NIGHTS) return { ok: false, error: E.tooLong(MAX_NIGHTS) };
 
   const baselineDays = Number(get("baselineDays") ?? DEFAULT_BASELINE_DAYS);
-  if (!(BASELINE_OPTIONS as readonly number[]).includes(baselineDays)) return { ok: false, error: "תקופת ההשוואה לא תקינה." };
+  if (!(BASELINE_OPTIONS as readonly number[]).includes(baselineDays)) return { ok: false, error: E.baseline };
 
   const primaryMetric = clean(get("primaryMetric")) || "sleepScore";
-  if (!isPrimaryMetric(primaryMetric)) return { ok: false, error: "המדד המרכזי לא תקין." };
+  if (!isPrimaryMetric(primaryMetric)) return { ok: false, error: E.metric };
 
   return {
     ok: true,
@@ -531,11 +558,12 @@ export function parseExperimentForm(get: Get, today: string): Parsed<ExperimentI
 }
 
 /** One night's note from the quick form on /member. Only a night of this experiment is accepted. */
-export function parseNightNote(get: Get, nights: string[]): Parsed<{ night: string; note: string }> {
+export function parseNightNote(get: Get, nights: string[], locale: Locale = DEFAULT_LOCALE): Parsed<{ night: string; note: string }> {
+  const E = dict[locale].errors;
   const night = clean(get("night"));
-  if (!nights.includes(night)) return { ok: false, error: "הלילה לא שייך לניסוי." };
+  if (!nights.includes(night)) return { ok: false, error: E.night };
   const note = clean(get("note"));
-  if (note.length > NOTE_MAX) return { ok: false, error: `הערה ארוכה מדי (עד ${NOTE_MAX} תווים).` };
+  if (note.length > NOTE_MAX) return { ok: false, error: E.noteLong(NOTE_MAX) };
   return { ok: true, value: { night, note } };
 }
 
@@ -552,16 +580,17 @@ export type ExperimentText = {
 };
 
 /** The member's own words. Notes are kept only for nights of this experiment, whatever the form sent. */
-export function parseExperimentText(get: Get, nights: string[]): Parsed<ExperimentText> {
+export function parseExperimentText(get: Get, nights: string[], locale: Locale = DEFAULT_LOCALE): Parsed<ExperimentText> {
+  const E = dict[locale].errors;
   const hypothesis = clean(get("hypothesis"));
-  if (hypothesis.length > HYPOTHESIS_MAX) return { ok: false, error: `ההשערה ארוכה מדי (עד ${HYPOTHESIS_MAX} תווים).` };
+  if (hypothesis.length > HYPOTHESIS_MAX) return { ok: false, error: E.hypothesisLong(HYPOTHESIS_MAX) };
   const conclusion = clean(get("conclusion"));
-  if (conclusion.length > CONCLUSION_MAX) return { ok: false, error: `הסיכום ארוך מדי (עד ${CONCLUSION_MAX} תווים).` };
+  if (conclusion.length > CONCLUSION_MAX) return { ok: false, error: E.conclusionLong(CONCLUSION_MAX) };
 
   const nightNotes: Record<string, string> = {};
   for (const night of nights) {
     const note = clean(get(`note_${night}`));
-    if (note.length > NOTE_MAX) return { ok: false, error: `הערה ארוכה מדי (עד ${NOTE_MAX} תווים).` };
+    if (note.length > NOTE_MAX) return { ok: false, error: E.noteLong(NOTE_MAX) };
     if (note) nightNotes[night] = note;
   }
   return { ok: true, value: { hypothesis: hypothesis || null, conclusion: conclusion || null, nightNotes } };
@@ -580,47 +609,23 @@ export type ExperimentTemplate = {
   tip: string;
 };
 
-export const EXPERIMENT_TEMPLATES: ExperimentTemplate[] = [
-  {
-    id: "outdoor",
-    title: "שינה בחוץ",
-    primaryMetric: "sleepScore",
-    example: "למשל: אני מצפה להתעוררות מוקדמת יותר עם אור הבוקר, ואולי לשינה עמוקה יותר.",
-    tip: "רשום בהערות לכל לילה איפה ישנת, כמה היה קר ומה היה מזג האוויר. אור בוקר ושעת ההתעוררות שווים מבט בטבלה.",
-  },
-  {
-    id: "caffeine",
-    title: "בלי קפאין אחרי 14:00",
-    primaryMetric: "deepSleepMinutes",
-    example: "למשל: אני מצפה להירדם מהר יותר.",
-    tip: "הסתכל גם על זמן עד להירדמות. רשום בהערות אם הסתדרת בלי הקפה של אחר הצהריים.",
-  },
-  {
-    id: "screens",
-    title: "בלי מסכים שעה לפני השינה",
-    primaryMetric: "sleepScore",
-    example: "למשל: אני מצפה לישון פחות מקוטע.",
-    tip: "רשום מה עשית במקום ובאיזו שעה כיבית את המסכים.",
-  },
-  {
-    id: "cool_room",
-    title: "חדר קריר",
-    primaryMetric: "deepSleepMinutes",
-    example: "למשל: אני מצפה לפחות התעוררויות בלילה.",
-    tip: "רשום את הטמפרטורה בחדר. סטיית טמפרטורת העור שהטבעת מודדת מושפעת גם מהחדר.",
-  },
-  {
-    id: "fixed_bedtime",
-    title: "שעת שינה קבועה",
-    primaryMetric: "readinessScore",
-    example: "למשל: אני מצפה לקום יותר רענן.",
-    tip: "הקבוע הוא שעת ההירדמות. בטבלה אפשר לראות כמה היא באמת זזה.",
-  },
-  {
-    id: "no_alcohol",
-    title: "בלי אלכוהול",
-    primaryMetric: "averageHrv",
-    example: "למשל: אני מצפה ל-HRV גבוה יותר ולדופק מנוחה נמוך יותר.",
-    tip: "הסתכל על HRV ועל דופק המנוחה. רשום בהערות אם היה ערב חברתי.",
-  },
+const TEMPLATE_METRICS: Array<{ id: string; primaryMetric: ExperimentMetricKey }> = [
+  { id: "outdoor", primaryMetric: "sleepScore" },
+  { id: "caffeine", primaryMetric: "deepSleepMinutes" },
+  { id: "screens", primaryMetric: "sleepScore" },
+  { id: "cool_room", primaryMetric: "deepSleepMinutes" },
+  { id: "fixed_bedtime", primaryMetric: "readinessScore" },
+  { id: "no_alcohol", primaryMetric: "averageHrv" },
 ];
+
+/** The ideas in the visitor's language (experiments.ideas). */
+export function experimentTemplates(locale: Locale): ExperimentTemplate[] {
+  const ideas = dict[locale].ideas;
+  return TEMPLATE_METRICS.flatMap((t) => {
+    const text = ideas[t.id];
+    return text ? [{ ...t, ...text }] : [];
+  });
+}
+
+/** The Hebrew ideas: the newsletter poll and the post drafts are in Hebrew. */
+export const EXPERIMENT_TEMPLATES: ExperimentTemplate[] = experimentTemplates("he");

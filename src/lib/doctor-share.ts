@@ -63,3 +63,6 @@ export function buildDoctorMessage(opts: {
 
   return { subject: "נתוני Oura מהמטופל", body: lines.join("\n") };
 }
+
+/** Stands in for the personal link on the confirmation page: the real one is created at the moment of sending. */
+export const DASHBOARD_LINK_PLACEHOLDER = "[כאן יופיע קישור אישי לדאשבורד, שנוצר ברגע השליחה]";

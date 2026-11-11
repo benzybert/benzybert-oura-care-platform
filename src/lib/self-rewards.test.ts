@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
 import {
-  SELF_REWARD_TEMPLATES,
+  selfRewardTemplates,
   computeSelfBaseline,
   describeRule,
   evaluateSelfReward,
@@ -63,7 +63,7 @@ describe("average", () => {
 
   it("is missed when the average ends below target", () => {
     const e = evaluateSelfReward(r, series("sleepScore", [70, 75, 79, 80, 81, 78, 74, 70]), day(7));
-    expect(e).toMatchObject({ status: "missed", reason: "הממוצע נשאר מתחת ליעד" });
+    expect(e).toMatchObject({ status: "missed", reason: "below_goal" });
   });
 
   it("does not settle while the last day has not synced (within the grace period)", () => {
@@ -74,7 +74,7 @@ describe("average", () => {
   it("one great night is not enough: needs 70 percent of days with data", () => {
     const e = evaluateSelfReward(r, series("sleepScore", [95, null, null, null, 90, null, null, 70]), day(7));
     expect(e.status).toBe("missed");
-    expect(e.reason).toContain("נתונים");
+    expect(e.reason).toBe("no_data");
   });
 
   it("gives up early when coverage can no longer be reached", () => {
@@ -248,18 +248,20 @@ describe("parseSelfRewardForm", () => {
   });
 
   it("needs at least one reward", () => {
-    const r = parseSelfRewardForm(form({ ...ok, rewards: "  \n " }));
+    const r = parseSelfRewardForm(form({ ...ok, rewards: "  \n " }), "he");
     expect(r).toMatchObject({ ok: false, error: "מה הפרס? כתוב לפחות אחד" });
   });
 
   it("rejects out-of-range targets with a Hebrew message", () => {
-    const r = parseSelfRewardForm(form({ ...ok, target: "200" }));
+    const r = parseSelfRewardForm(form({ ...ok, target: "200" }), "he");
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/[א-ת]/);
+    const en = parseSelfRewardForm(form({ ...ok, target: "200" }), "en");
+    if (!en.ok) expect(en.error).toBe("A goal for steps between 1000 and 40000");
   });
 
   it("every built-in template passes validation", () => {
-    for (const t of SELF_REWARD_TEMPLATES) {
+    for (const t of [...selfRewardTemplates("en"), ...selfRewardTemplates("he")]) {
       const r = parseSelfRewardForm(
         form({
           kind: t.kind,
@@ -279,14 +281,29 @@ describe("parseSelfRewardForm", () => {
 
 describe("describeRule", () => {
   it("writes a readable Hebrew sentence", () => {
-    expect(describeRule(rule({ kind: "days_hit", metric: "steps", target: 10000, requiredDays: 5, windowDays: 7 }))).toBe(
+    expect(describeRule(rule({ kind: "days_hit", metric: "steps", target: 10000, requiredDays: 5, windowDays: 7 }), "he")).toBe(
       "10,000 צעדים ומעלה ב-5 מתוך 7 ימים",
     );
-    expect(describeRule(rule({ kind: "days_hit", metric: "bedtime", target: 23 * 60 + 30, requiredDays: 10, windowDays: 14 }))).toBe(
+    expect(describeRule(rule({ kind: "days_hit", metric: "bedtime", target: 23 * 60 + 30, requiredDays: 10, windowDays: 14 }), "he")).toBe(
       "שעת הירדמות עד 23:30 ב-10 מתוך 14 לילות",
     );
-    expect(describeRule(rule({ kind: "beat_baseline", metric: "average_hrv", target: 5, baseline: 52.34, windowDays: 14 }))).toContain(
+    expect(describeRule(rule({ kind: "beat_baseline", metric: "average_hrv", target: 5, baseline: 52.34, windowDays: 14 }), "he")).toContain(
       "5 אחוז",
+    );
+  });
+
+  it("writes the same rules in English", () => {
+    expect(describeRule(rule({ kind: "days_hit", metric: "steps", target: 10000, requiredDays: 5, windowDays: 7 }), "en")).toBe(
+      "10,000 steps or more on 5 of 7 days",
+    );
+    expect(describeRule(rule({ kind: "days_hit", metric: "bedtime", target: 23 * 60 + 30, requiredDays: 10, windowDays: 14 }), "en")).toBe(
+      "bedtime by 23:30 on 10 of 14 nights",
+    );
+    expect(describeRule(rule({ kind: "average", metric: "sleep_score", target: 80, windowDays: 7 }), "en")).toBe(
+      "an average sleep score of 80 or more over 7 days",
+    );
+    expect(describeRule(rule({ kind: "beat_baseline", metric: "average_hrv", target: 5, baseline: 52.34, windowDays: 14 }), "en")).toBe(
+      "an average HRV 5% higher than my baseline (baseline: 52.3), over 14 days",
     );
   });
 });

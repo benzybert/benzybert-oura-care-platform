@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { sendToDoctor } from "@/app/actions";
-import { buildDoctorMessage } from "@/lib/doctor-share";
+import { DASHBOARD_LINK_PLACEHOLDER, buildDoctorMessage } from "@/lib/doctor-share";
+import { getT } from "@/lib/i18n/server";
 import { mailConfigured } from "@/lib/mail";
 import { getDoctorContacts, getMemberForUser, getMetrics } from "@/lib/queries";
 import { requireRole } from "@/lib/session";
 import { DEFAULT_SHARE_EXPIRY, DEFAULT_SHARE_WINDOW } from "@/lib/share-links";
-import { DOCTOR_LABELS_HE, DOCTOR_ROLES, type DoctorRole } from "@/lib/types";
+import { DOCTOR_ROLES, type DoctorRole } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,51 +28,60 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
     doctorName: contact.name,
     days: await getMetrics(member.id),
     // The real link is created at the moment of sending; it is a new, personal link for this doctor.
-    dashboardUrl: "[כאן יופיע קישור אישי לדאשבורד, שנוצר ברגע השליחה]",
+    dashboardUrl: DASHBOARD_LINK_PLACEHOLDER,
     withPdf: true,
   });
   const ready = mailConfigured();
+  const { t } = await getT();
+  const C = t.sharing.confirm;
+  // The message is written for the doctor, in Hebrew, whatever language the member uses.
+  const he = { lang: "he", dir: "rtl" } as const;
 
   return (
     <>
       <div className="topbar">
         <div>
-          <h1>שליחה ל{DOCTOR_LABELS_HE[role]}</h1>
-          <p className="muted">בדוק מה יישלח. שום דבר לא נשלח עד שתאשר.</p>
+          <h1>{C.title(t.sharing.roles[role])}</h1>
+          <p className="muted">
+            {C.lead}
+            {t.sharing.doctorLanguage ? ` ${t.sharing.doctorLanguage}` : ""}
+          </p>
         </div>
       </div>
 
       <div className="card">
         <div className="row">
-          <span className="muted">אל</span>
+          <span className="muted">{C.to}</span>
           <span>
-            {contact.name} · <span dir="ltr">{contact.email}</span>
+            <bdi>{contact.name}</bdi> · <span dir="ltr">{contact.email}</span>
           </span>
         </div>
         <div className="row">
-          <span className="muted">תשובות יגיעו אל</span>
-          {user.email ? <span dir="ltr">{user.email}</span> : <span className="muted">אין כתובת בחשבון, כך שהרופא לא יוכל להשיב במייל</span>}
+          <span className="muted">{C.replies}</span>
+          {user.email ? <span dir="ltr">{user.email}</span> : <span className="muted">{C.noAddress}</span>}
         </div>
         <div className="row">
-          <span className="muted">נושא</span>
-          <span>{message.subject}</span>
+          <span className="muted">{C.subject}</span>
+          <span {...he}>{message.subject}</span>
         </div>
         <div className="row">
-          <span className="muted">מצורף</span>
-          <span>סיכום כקובץ PDF </span>
+          <span className="muted">{C.attached}</span>
+          <span>{C.pdf}</span>
         </div>
         <div className="row">
-          <span className="muted">קישור</span>
-          <span>דאשבורד ל-{DEFAULT_SHARE_WINDOW} ימים, תקף {DEFAULT_SHARE_EXPIRY} ימים, אפשר לבטל בכל רגע</span>
+          <span className="muted">{C.linkLabel}</span>
+          <span>{C.linkText(DEFAULT_SHARE_WINDOW, DEFAULT_SHARE_EXPIRY)}</span>
         </div>
-        <h2>תוכן ההודעה</h2>
-        <pre className="preview">{message.body}</pre>
+        <h2>{C.body}</h2>
+        <pre className="preview" {...he}>
+          {message.body}
+        </pre>
       </div>
 
       {!ready && (
         <div className="card">
-          <span className="badge">שליחת מייל עוד לא הוגדרה בשרת</span>
-          <p className="muted">צריך להדביק מפתח Resend בקובץ src/config/mail.ts. עד אז אי אפשר לשלוח.</p>
+          <span className="badge">{C.mailOff}</span>
+          <p className="muted">{C.mailOffHint}</p>
         </div>
       )}
 
@@ -79,11 +89,11 @@ export default async function ConfirmSendPage({ params }: { params: Promise<{ ro
         <form action={sendToDoctor}>
           <input type="hidden" name="role" value={role} />
           <button className="btn" type="submit" disabled={!ready}>
-            אשר ושלח
+            {C.confirm}
           </button>
         </form>
         <a className="btn secondary" href="/member/sharing#doctors">
-          ביטול
+          {C.cancel}
         </a>
       </div>
     </>

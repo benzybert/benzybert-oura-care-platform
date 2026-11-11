@@ -1,6 +1,8 @@
 import { saveSuggestionBox, setSuggestionStatus } from "@/app/actions";
 import { CopyTextButton } from "@/components/copy-text-button";
-import { fmtDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format-locale";
+import type { Locale } from "@/lib/i18n";
+import { experiments as dict } from "@/lib/i18n/dict/experiments";
 import type { SuggestionRow } from "@/lib/queries";
 import { pollVoteTitle } from "@/lib/suggestions";
 
@@ -18,8 +20,8 @@ function StatusButton({ id, status, label, secondary = true }: { id: string; sta
   );
 }
 
-function Idea({ s }: { s: SuggestionRow }) {
-  const voted = pollVoteTitle(s.vote);
+function Idea({ s, locale }: { s: SuggestionRow; locale: Locale }) {
+  const voted = pollVoteTitle(s.vote, locale);
   return (
     <span className="suggest-idea">
       {s.idea}
@@ -27,11 +29,11 @@ function Idea({ s }: { s: SuggestionRow }) {
         {" "}
         · {s.suggestedBy ? <bdi>{s.suggestedBy}</bdi> : null}
         {s.suggestedBy ? ", " : ""}
-        {fmtDateTime(s.createdAt)}
+        {formatDateTime(s.createdAt, locale)}
       </span>
       {(voted || s.readerEmail) && (
         <span className="suggest-meta muted">
-          {voted && <span>הצביע/ה: {voted}</span>}
+          {voted && <span>{dict[locale].suggestions.voted(voted)}</span>}
           {s.readerEmail && (
             <a href={`mailto:${s.readerEmail}`} dir="ltr">
               <bdi>{s.readerEmail}</bdi>
@@ -44,20 +46,19 @@ function Idea({ s }: { s: SuggestionRow }) {
 }
 
 /** The poll links for a newsletter: one per experiment template, each ending in MailerLite's `#r={$email}`. */
-function PollLinks({ links }: { links: PollLink[] }) {
+function PollLinks({ links, locale }: { links: PollLink[]; locale: Locale }) {
+  const S = dict[locale].suggestions;
   return (
     <details className="sr-history">
-      <summary>קישורי הצבעה לניוזלטר (MailerLite)</summary>
+      <summary>{S.pollTitle}</summary>
       <p className="muted">
-        קישור לכל אפשרות בסקר. MailerLite ממלא את <bdi dir="ltr">{"{$email}"}</bdi> בכתובת של כל קורא, והדף מצרף אותה לתגובה כדי
-        שתדע ממי היא. הקורא רואה את הכתובת ויכול לשלוח בלי. הכתובת אחרי ה-# לא מגיעה לשרת עם בקשת הדף, אז היא לא נכנסת ללוגים.
-        שלח לעצמך מייל ניסיון ובדוק שהכתובת מופיעה בדף לפני שליחה לכולם.
+        {S.poll.before} <bdi dir="ltr">{"{$email}"}</bdi> {S.poll.after}
       </p>
       <ul className="suggest-poll">
         {links.map((l) => (
           <li key={l.url}>
             <span>{l.title}</span>
-            <CopyTextButton text={l.url} label="העתק קישור" />
+            <CopyTextButton text={l.url} label={S.copyLink} locale={locale} />
           </li>
         ))}
       </ul>
@@ -73,49 +74,49 @@ export function SuggestionsCard({
   url,
   suggestions,
   pollLinks,
+  locale,
 }: {
   url: string | null;
   suggestions: SuggestionRow[];
   pollLinks: PollLink[];
+  locale: Locale;
 }) {
+  const S = dict[locale].suggestions;
   const fresh = suggestions.filter((s) => s.status === "new");
   const handled = suggestions.filter((s) => s.status !== "new");
   return (
-    <section className="card" id="suggestions" aria-label="הצעות לניסויים">
-      <h2>הצעות לניסויים</h2>
+    <section className="card" id="suggestions" aria-label={S.title}>
+      <h2>{S.title}</h2>
       {!url ? (
         <>
-          <p className="muted">
-            דף ציבורי קטן שבו קוראים מציעים ניסוי לשבוע הבא. בלי שם שלך ובלי נתונים: רק טופס לרעיון. הקישור נכנס לטיוטות של הפוסטים
-            ככפתור ״הציעו ניסוי״.
-          </p>
+          <p className="muted">{S.intro}</p>
           <form action={saveSuggestionBox}>
             <button className="btn" type="submit">
-              צור דף הצעות
+              {S.create}
             </button>
           </form>
         </>
       ) : (
         <>
-          <p className="muted">הקישור לכפתור ״הציעו ניסוי״ בפוסטים ובניוזלטר. ב-Kit: בלוק Button עם הכתובת הזו.</p>
+          <p className="muted">{S.linkLead}</p>
           <p className="suggest-url">{url}</p>
           <span className="sr-actions">
-            <CopyTextButton text={url} label="העתק קישור" />
+            <CopyTextButton text={url} label={S.copyLink} locale={locale} />
             <a className="btn secondary" href={url} target="_blank" rel="noreferrer">
-              פתח את הדף
+              {S.openPage}
             </a>
           </span>
 
           {fresh.length === 0 ? (
-            <p className="muted">עוד אין הצעות חדשות.</p>
+            <p className="muted">{S.none}</p>
           ) : (
             <ul className="suggest-list">
               {fresh.map((s) => (
                 <li key={s.id}>
-                  <Idea s={s} />
+                  <Idea s={s} locale={locale} />
                   <span className="sr-actions">
-                    <StatusButton id={s.id} status="used" label="בחרתי" secondary={false} />
-                    <StatusButton id={s.id} status="dismissed" label="הסתר" />
+                    <StatusButton id={s.id} status="used" label={S.choose} secondary={false} />
+                    <StatusButton id={s.id} status="dismissed" label={S.hide} />
                   </span>
                 </li>
               ))}
@@ -124,14 +125,14 @@ export function SuggestionsCard({
 
           {handled.length > 0 && (
             <details className="sr-history">
-              <summary>הצעות שטיפלת בהן ({handled.length})</summary>
+              <summary>{S.handled(handled.length)}</summary>
               <ul className="suggest-list">
                 {handled.map((s) => (
                   <li key={s.id}>
-                    <Idea s={s} />
+                    <Idea s={s} locale={locale} />
                     <span className="sr-actions">
-                      <span className="badge plain">{s.status === "used" ? "נבחרה" : "הוסתרה"}</span>
-                      <StatusButton id={s.id} status="new" label="החזר" />
+                      <span className="badge plain">{s.status === "used" ? S.chosen : S.hidden}</span>
+                      <StatusButton id={s.id} status="new" label={S.restore} />
                     </span>
                   </li>
                 ))}
@@ -139,15 +140,15 @@ export function SuggestionsCard({
             </details>
           )}
 
-          <PollLinks links={pollLinks} />
+          <PollLinks links={pollLinks} locale={locale} />
 
           <details className="sr-history">
-            <summary>להחליף את הקישור</summary>
-            <p className="muted">הקישור הישן יפסיק לעבוד, גם בפוסטים שכבר נשלחו. ההצעות שכבר הגיעו נשארות.</p>
+            <summary>{S.rotateTitle}</summary>
+            <p className="muted">{S.rotateLead}</p>
             <form action={saveSuggestionBox}>
               <input type="hidden" name="rotate" value="1" />
               <button className="btn secondary" type="submit">
-                החלף קישור
+                {S.rotate}
               </button>
             </form>
           </details>

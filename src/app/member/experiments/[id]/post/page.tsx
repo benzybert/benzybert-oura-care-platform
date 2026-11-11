@@ -5,6 +5,7 @@ import { PostDraftCards } from "@/components/post-draft";
 import { todayInIsrael } from "@/lib/dates";
 import { buildExperimentPost } from "@/lib/experiment-post";
 import { loadExperimentView } from "@/lib/experiment-view";
+import { getT } from "@/lib/i18n/server";
 import { getOwnExperiment, getSuggestionBox } from "@/lib/queries";
 import { suggestUrl } from "@/lib/suggestions";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
@@ -44,22 +45,26 @@ export default async function ExperimentPostPage({ params }: { params: Promise<{
     evaluation,
   );
 
+  const { locale, t } = await getT();
+  const P = t.experiments.post;
+
   return (
     <>
       <div className="topbar">
         <div>
-          <h1>טיוטת פוסט</h1>
-          <p className="muted">{row.title}. הטיוטה נבנית מהנתונים ומהמילים שכתבת, ומתעדכנת בכל פעם שפותחים אותה.</p>
+          <h1>{P.title}</h1>
+          <p className="muted">{P.lead(row.title)}</p>
         </div>
         <a className="btn secondary" href={`/member/experiments/${row.id}`}>
-          חזרה לניסוי
+          {P.back}
         </a>
       </div>
 
       <PostDraftCards
         post={post}
         suggestUrl={suggest}
-        privacyNote="הטיוטה מכילה ממוצעים, הפרשים ושורה לכל לילה. אין בה שם, ואין עקומות דופק או נתוני שינה גולמיים. מה שתעתיק ותפרסם הוא באחריותך, ולכן קרא הכול לפני."
+        privacyNote={P.privacy}
+        locale={locale}
       />
     </>
   );

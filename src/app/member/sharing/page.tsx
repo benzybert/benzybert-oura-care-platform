@@ -1,6 +1,5 @@
 import { setConsent } from "@/app/actions";
 import { DoctorShareCard } from "@/components/doctor-share-card";
-import { HebrewIsland } from "@/components/hebrew-island";
 import { ShareLinkCard } from "@/components/share-link-card";
 import { hasActiveConsent } from "@/lib/consent";
 import { formatDateTime } from "@/lib/format-locale";
@@ -50,12 +49,10 @@ export default async function MemberSharingPage({ searchParams }: { searchParams
         <p className="muted">{s.views(access.length, access[0] ? formatDateTime(access[0].at, locale) : null)}</p>
       </div>
 
-      <HebrewIsland locale={locale}>
-        <div id="doctors">
-          <ShareLinkCard links={links} contacts={doctors} />
-          <DoctorShareCard contacts={doctors} />
-        </div>
-      </HebrewIsland>
+      <div id="doctors">
+        <ShareLinkCard links={links} contacts={doctors} locale={locale} />
+        <DoctorShareCard contacts={doctors} locale={locale} />
+      </div>
     </MemberShell>
   );
 }

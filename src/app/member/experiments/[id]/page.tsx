@@ -10,26 +10,23 @@ import {
   CONCLUSION_MAX,
   EXPERIMENT_METRICS,
   HYPOTHESIS_MAX,
+  metricText,
+  nightLabel,
+  nightSpan,
   MIN_BASELINE_NIGHTS,
   MIN_EXPERIMENT_NIGHTS,
   NOTE_MAX,
-  fmtNight,
   formatMetricValue,
   metricSeries,
-  nightsHe,
 } from "@/lib/experiments";
 import { fmt } from "@/lib/format";
+import { getT } from "@/lib/i18n/server";
 import { getOwnExperiment } from "@/lib/queries";
 import { syncOnVisit } from "@/lib/oura/visit-sync";
 
 export const dynamic = "force-dynamic";
 // Opening the page re-syncs a stale ring first, like /member.
 export const maxDuration = 60;
-
-const SAVED_MESSAGES: Record<string, string> = {
-  ok: "נשמר.",
-  invalid: "לא נשמר: אחד הטקסטים ארוך מדי.",
-};
 
 export default async function ExperimentPage({
   params,
@@ -49,6 +46,9 @@ export default async function ExperimentPage({
   const today = todayInIsrael();
   const { row, spec, metrics, excludeNights, evaluation: ev } = await loadExperimentView(owned, today);
   const saved = (await searchParams).saved;
+  const { locale, t } = await getT();
+  const P = t.experiments.page;
+  const primaryLabel = metricText(spec.primaryMetric, locale).label;
 
   const series = metricSeries(spec.primaryMetric, spec, metrics, { excludeNights });
   const primaryDef = EXPERIMENT_METRICS[spec.primaryMetric];
@@ -59,82 +59,78 @@ export default async function ExperimentPage({
       <div className="topbar">
         <div>
           <h1>{row.title}</h1>
-          <p className="muted">
-            {nightsHe(ev.nights.length)}, מ{fmtNight(row.startNight)} עד {fmtNight(row.endNight)}
-          </p>
+          <p className="muted">{nightSpan(row.startNight, row.endNight, locale)}</p>
         </div>
         <a className="btn secondary" href="/member/experiments">
-          חזרה
+          {P.back}
         </a>
       </div>
 
-      {saved && SAVED_MESSAGES[saved] && (
+      {saved && P.saved[saved] && (
         <div className="notice" role="status">
-          {SAVED_MESSAGES[saved]}
+          {P.saved[saved]}
         </div>
       )}
 
       <div className="card">
         <div className="row">
           <span>
-            <PhaseBadge phase={ev.phase} /> <span className="muted">{progressText(spec, ev, today)}</span>
+            <PhaseBadge phase={ev.phase} locale={locale} /> <span className="muted">{progressText(spec, ev, today, locale)}</span>
           </span>
           <a className="btn" href={`/member/experiments/${row.id}/post`}>
-            טיוטת פוסט
+            {P.draft}
           </a>
         </div>
         {ev.nightsWithData < ev.nights.length && ev.phase !== "planned" && (
           <p className="muted">
-            חסר לילה? אפשר ללחוץ על ״סנכרן עכשיו״ <a href="/member#ring">בכרטיס הטבעת</a>.
+            {P.missingNight.before} <a href="/member#ring">{P.missingNight.link}</a>
+            {P.missingNight.after}
           </p>
         )}
       </div>
 
       <div className="card">
-        <h2>מה יצא</h2>
+        <h2>{P.results}</h2>
         {ev.ready ? (
-          <ComparisonSummary c={ev.primary} />
+          <ComparisonSummary c={ev.primary} locale={locale} />
         ) : ev.phase === "planned" ? (
           <p className="muted">
-            הניסוי עוד לא התחיל.
-            {ev.nights.length >= MIN_EXPERIMENT_NIGHTS && ` אחרי ${nightsHe(MIN_EXPERIMENT_NIGHTS)} עם נתונים אפשר לראות מגמה ראשונה.`}
+            {P.notStarted}
+            {ev.nights.length >= MIN_EXPERIMENT_NIGHTS && P.firstTrend(MIN_EXPERIMENT_NIGHTS)}
           </p>
         ) : ev.nights.length < MIN_EXPERIMENT_NIGHTS ? (
-          <p className="muted">הניסוי קצר מ־{MIN_EXPERIMENT_NIGHTS} לילות, ולכן אין השוואה. המספרים מופיעים בטבלה כמות שהם.</p>
+          <p className="muted">{P.tooShort(MIN_EXPERIMENT_NIGHTS)}</p>
         ) : (
-          <p className="muted">
-            עוד אין מספיק נתונים להשוואה. צריך לפחות {MIN_EXPERIMENT_NIGHTS} לילות עם נתונים בניסוי ו־{MIN_BASELINE_NIGHTS} בתקופת ההשוואה (יש כרגע {ev.nightsWithData} ו־
-            {ev.baselineWithData}).
-          </p>
+          <p className="muted">{P.needMore(MIN_EXPERIMENT_NIGHTS, MIN_BASELINE_NIGHTS, ev.nightsWithData, ev.baselineWithData)}</p>
         )}
         {row.hypothesis && (
           <p className="muted">
-            <strong>ההשערה שלי:</strong> {row.hypothesis}
+            <strong>{P.hypothesis}</strong> {row.hypothesis}
           </p>
         )}
-        {ev.phase !== "planned" && <NightStrip ev={ev} metric={spec.primaryMetric} />}
-        <ExperimentChart metric={spec.primaryMetric} baseline={series.baseline} experiment={series.experiment} comparison={ev.primary} />
+        {ev.phase !== "planned" && <NightStrip ev={ev} metric={spec.primaryMetric} locale={locale} />}
+        <ExperimentChart metric={spec.primaryMetric} baseline={series.baseline} experiment={series.experiment} comparison={ev.primary} locale={locale} />
       </div>
 
       <div className="card">
-        <h2>כל המדדים</h2>
+        <h2>{P.allMetrics}</h2>
         <div className="table-wrap">
           <table className="xp-table">
             <thead>
               <tr>
-                <th>מדד</th>
-                <th>לפני</th>
-                <th>בניסוי</th>
-                <th>הפרש</th>
-                <th>מה זה אומר</th>
+                <th>{P.cols.metric}</th>
+                <th>{P.cols.before}</th>
+                <th>{P.cols.during}</th>
+                <th>{P.cols.delta}</th>
+                <th>{P.cols.meaning}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.key}>
                   <td>
-                    {EXPERIMENT_METRICS[c.key].label}
-                    {c.key === spec.primaryMetric && <span className="badge plain">מכריע</span>}
+                    {metricText(c.key, locale).label}
+                    {c.key === spec.primaryMetric && <span className="badge plain">{P.deciding}</span>}
                   </td>
                   <td>
                     <Num>{formatMetricValue(c.key, c.baseline.mean)}</Num>
@@ -143,31 +139,31 @@ export default async function ExperimentPage({
                     <Num>{formatMetricValue(c.key, c.experiment.mean)}</Num>
                   </td>
                   <td>
-                    <Delta c={c} />
+                    <Delta c={c} locale={locale} />
                   </td>
                   <td>
-                    <VerdictBadge c={c} />
+                    <VerdictBadge c={c} locale={locale} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {rows.some((c) => EXPERIMENT_METRICS[c.key].caution) && (
+        {rows.some((c) => metricText(c.key, locale).caution) && (
           <p className="muted xp-caution">
-            {rows.flatMap((c) => (EXPERIMENT_METRICS[c.key].caution ? [`${EXPERIMENT_METRICS[c.key].label}: ${EXPERIMENT_METRICS[c.key].caution}`] : [])).join(" ")}
+            {rows.flatMap((c) => (metricText(c.key, locale).caution ? [`${metricText(c.key, locale).label}: ${metricText(c.key, locale).caution}`] : [])).join(" ")}
           </p>
         )}
       </div>
 
       <form action={saveExperimentText} className="card xp-notes">
         <input type="hidden" name="id" value={row.id} />
-        <h2>הלילות והמילים שלי</h2>
-        <p className="muted">מה שתכתוב כאן יהיה חלק מטיוטת הפוסט. רק אתה רואה את זה.</p>
+        <h2>{P.wordsTitle}</h2>
+        <p className="muted">{P.wordsLead}</p>
 
         <div className="sr-form">
           <label className="sr-wide">
-            מה ציפיתי שיקרה
+            {P.expected}
             <textarea name="hypothesis" rows={2} maxLength={HYPOTHESIS_MAX} defaultValue={row.hypothesis ?? ""} />
           </label>
         </div>
@@ -177,27 +173,27 @@ export default async function ExperimentPage({
             const m = n.metric;
             const facts = m
               ? [
-                  m.sleepScore !== null ? `ציון ${m.sleepScore}` : null,
-                  m.totalSleepHours !== null ? `${fmt(m.totalSleepHours, 1)} שעות` : null,
-                  m.averageHrv !== null ? `HRV ${fmt(m.averageHrv, 0)}` : null,
+                  m.sleepScore !== null ? P.facts.score(String(m.sleepScore)) : null,
+                  m.totalSleepHours !== null ? P.facts.hours(fmt(m.totalSleepHours, 1)) : null,
+                  m.averageHrv !== null ? P.facts.hrv(fmt(m.averageHrv, 0)) : null,
                 ].filter(Boolean)
               : [];
             return (
               <li key={n.night}>
                 <label>
                   <span className="xp-night-head">
-                    <strong>{fmtNight(n.night)}</strong>{" "}
+                    <strong>{nightLabel(n.night, locale)}</strong>{" "}
                     <span className="muted">
-                      {n.state === "data" ? facts.join(" · ") : n.state === "future" ? "עוד לא הגיע" : "ממתין לנתונים מהטבעת"}
+                      {n.state === "data" ? facts.join(" · ") : n.state === "future" ? P.future : P.waiting}
                     </span>{" "}
-                    {m && ev.ready && <NightBandBadge metric={spec.primaryMetric} value={primaryDef.read(m)} c={ev.primary} />}
+                    {m && ev.ready && <NightBandBadge metric={spec.primaryMetric} value={primaryDef.read(m)} c={ev.primary} locale={locale} />}
                   </span>
                   <input
                     className="xp-note"
                     name={`note_${n.night}`}
                     maxLength={NOTE_MAX}
                     defaultValue={row.nightNotes[n.night] ?? ""}
-                    placeholder="הערה ללילה הזה: איפה ישנת, מזג אוויר, מה הרגשת בבוקר"
+                    placeholder={P.notePlaceholder}
                   />
                 </label>
               </li>
@@ -207,39 +203,33 @@ export default async function ExperimentPage({
 
         <div className="sr-form">
           <label className="sr-wide">
-            מה אני מסיק
-            <textarea name="conclusion" rows={4} maxLength={CONCLUSION_MAX} defaultValue={row.conclusion ?? ""} placeholder="בסוף הניסוי: מה למדת, ומה היית עושה אחרת." />
+            {P.conclusion}
+            <textarea name="conclusion" rows={4} maxLength={CONCLUSION_MAX} defaultValue={row.conclusion ?? ""} placeholder={P.conclusionPlaceholder} />
           </label>
         </div>
         <button className="btn" type="submit">
-          שמור
+          {P.save}
         </button>
       </form>
 
       <details className="card xp-method">
-        <summary>איך זה מחושב ומה אפשר להסיק</summary>
+        <summary>{P.methodTitle}</summary>
         <ul>
-          <li>
-            הלילות הרגילים: {row.baselineDays} הימים שלפני הלילה הראשון, {ev.baselineWithData} מהם עם נתונים. לילות של ניסויים אחרים שלך לא נכללים.
-          </li>
-          <li>
-            הפער נמדד ביחס לתנודה הרגילה שלך בין לילה ללילה. פחות מחצי ממנה: בתוך התנודה הרגילה. בין חצי לאחד: נטייה. אחד ומעלה: שונה בבירור מהרגיל.
-          </li>
-          <li>כל לילה נרשם ביום שבו התעוררת: הלילה שמתחיל בערב יום ג׳ מופיע בנתוני יום ד׳.</li>
-          <li>
-            זה ניסוי של אדם אחד, בלי קבוצת ביקורת ועל מעט לילות. מזג אוויר, עונה, פעילות, אלכוהול ומחלה משפיעים גם בלי קשר. תוצאה כאן היא סימן, לא הוכחה.
-          </li>
-          <li>{primaryDef.label} הוא המדד שהחלטת שמכריע. שאר המדדים הם הקשר, לא תוצאה נפרדת: ככל שבודקים יותר מדדים, גדל הסיכוי שאחד מהם יזוז במקרה.</li>
+          <li>{P.method.usual(row.baselineDays, ev.baselineWithData)}</li>
+          <li>{P.method.gap}</li>
+          <li>{P.method.filed}</li>
+          <li>{P.method.honest}</li>
+          <li>{P.method.deciding(primaryLabel)}</li>
         </ul>
       </details>
 
       <details className="card">
-        <summary>מחיקה</summary>
-        <p className="muted">מוחק את הניסוי ואת מה שכתבת עליו. נתוני הטבעת לא נפגעים.</p>
+        <summary>{P.deleteTitle}</summary>
+        <p className="muted">{P.deleteLead}</p>
         <form action={deleteExperiment}>
           <input type="hidden" name="id" value={row.id} />
           <button className="btn secondary danger" type="submit">
-            מחק את הניסוי
+            {P.deleteButton}
           </button>
         </form>
       </details>

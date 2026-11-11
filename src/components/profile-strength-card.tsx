@@ -20,7 +20,7 @@ export function ProfileStrengthCard({ t, score, items }: { t: Messages; score: n
       </div>
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {items.map((it) => {
-          const label = s.items[it.id as keyof typeof s.items] ?? it.label;
+          const label = s.items[it.id];
           return (
             <li className="row" key={it.id}>
               <span>

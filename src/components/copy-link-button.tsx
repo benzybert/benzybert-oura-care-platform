@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Locale } from "@/lib/i18n";
+import { core } from "@/lib/i18n/dict/core";
 
 function absolute(path: string): string {
   return typeof window === "undefined" ? path : new URL(path, window.location.origin).toString();
 }
 
 /** Copies a share link. The URL is built in the browser from the current origin, so it fits every environment. */
-export function CopyLinkButton({ path, showUrl = false }: { path: string; showUrl?: boolean }) {
+export function CopyLinkButton({ path, showUrl = false, locale }: { path: string; showUrl?: boolean; locale: Locale }) {
+  const C = core[locale].copy;
   const [url, setUrl] = useState(path);
   const [copied, setCopied] = useState<"idle" | "ok" | "failed">("idle");
   useEffect(() => setUrl(absolute(path)), [path]);
@@ -29,22 +32,23 @@ export function CopyLinkButton({ path, showUrl = false }: { path: string; showUr
           readOnly
           value={url}
           dir="ltr"
-          aria-label="הקישור"
+          aria-label={C.linkLabel}
           onFocus={(e) => e.currentTarget.select()}
         />
       )}
       <button type="button" className="btn secondary" onClick={copy}>
-        {copied === "ok" ? "הועתק ✓" : copied === "failed" ? "לא הצלחתי להעתיק" : "העתק קישור"}
+        {copied === "ok" ? C.copied : copied === "failed" ? C.failed : C.link}
       </button>
       <span className="sr-only" role="status">
-        {copied === "ok" ? "הקישור הועתק" : ""}
+        {copied === "ok" ? C.linkCopied : ""}
       </span>
     </div>
   );
 }
 
 /** Native share sheet (WhatsApp, mail...) on phones that support it; hidden elsewhere. */
-export function ShareLinkButton({ path }: { path: string }) {
+export function ShareLinkButton({ path, locale }: { path: string; locale: Locale }) {
+  const C = core[locale].copy;
   const [can, setCan] = useState(false);
   useEffect(() => setCan(typeof navigator !== "undefined" && typeof navigator.share === "function"), []);
   if (!can) return null;
@@ -54,11 +58,11 @@ export function ShareLinkButton({ path }: { path: string }) {
       className="btn"
       onClick={() =>
         navigator
-          .share({ title: "סיכום נתוני שינה והתאוששות", text: "קישור לסיכום הנתונים שלי מטבעת Oura:", url: absolute(path) })
+          .share({ title: C.shareTitle, text: C.shareText, url: absolute(path) })
           .catch(() => undefined)
       }
     >
-      שתף…
+      {C.share}
     </button>
   );
 }

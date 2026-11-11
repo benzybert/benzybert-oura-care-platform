@@ -1,5 +1,7 @@
-import { fmtDay } from "@/lib/format";
-import { EXPERIMENT_METRICS, formatMetricValue, type ExperimentMetricKey, type MetricComparison } from "@/lib/experiments";
+import { formatDay } from "@/lib/format-locale";
+import type { Locale } from "@/lib/i18n";
+import { experiments as dict } from "@/lib/i18n/dict/experiments";
+import { formatMetricValue, metricText, type ExperimentMetricKey, type MetricComparison } from "@/lib/experiments";
 
 type Point = { label: string; value: number | null };
 
@@ -33,15 +35,17 @@ export function ExperimentChart({
   baseline,
   experiment,
   comparison,
+  locale,
 }: {
   metric: ExperimentMetricKey;
   baseline: Array<{ day: string; value: number | null }>;
   experiment: Array<{ night: string; value: number | null }>;
   comparison: MetricComparison;
+  locale: Locale;
 }) {
-  const def = EXPERIMENT_METRICS[metric];
-  const base: Point[] = baseline.map((b) => ({ label: fmtDay(b.day), value: b.value }));
-  const exp: Point[] = experiment.map((e) => ({ label: fmtDay(e.night), value: e.value }));
+  const C = dict[locale].chart;
+  const base: Point[] = baseline.map((b) => ({ label: formatDay(b.day, locale), value: b.value }));
+  const exp: Point[] = experiment.map((e) => ({ label: formatDay(e.night, locale), value: e.value }));
   const values = [...base, ...exp].flatMap((p) => (p.value === null ? [] : [p.value]));
   if (values.length === 0) return null;
 
@@ -76,7 +80,7 @@ export function ExperimentChart({
     return first && last ? [first, ...(last === first ? [] : [last])] : [];
   };
 
-  const alt = `${def.label}: ${base.length} ימים רגילים ו־${exp.length} לילות ניסוי. אותם מספרים מופיעים בטבלה שמתחת.`;
+  const alt = C.alt(metricText(metric, locale).label, base.length, exp.length);
 
   return (
     <figure className="xp-figure">
@@ -99,10 +103,10 @@ export function ExperimentChart({
 
           <line className="xp-split" x1={splitX} x2={splitX} y1={PAD.t - 8} y2={H - PAD.b + 6} />
           <text x={(x(0) + x(Math.max(base.length - 1, 0))) / 2} y={PAD.t - 14} textAnchor="middle">
-            לפני הניסוי
+            {C.before}
           </text>
           <text x={(x(base.length + 1) + x(base.length + Math.max(exp.length, 1))) / 2} y={PAD.t - 14} textAnchor="middle">
-            הניסוי
+            {C.during}
           </text>
 
           {runs(basePts).map((pts) => (
@@ -139,13 +143,13 @@ export function ExperimentChart({
       </div>
       <figcaption className="xp-legend">
         <span>
-          <i className="xp-key base" aria-hidden="true" /> לילות רגילים
+          <i className="xp-key base" aria-hidden="true" /> {C.usualNights}
         </span>
         <span>
-          <i className="xp-key exp" aria-hidden="true" /> לילות הניסוי
+          <i className="xp-key exp" aria-hidden="true" /> {C.experimentNights}
         </span>
         <span>
-          <i className="xp-key band" aria-hidden="true" /> התנודה הרגילה שלי
+          <i className="xp-key band" aria-hidden="true" /> {C.swing}
         </span>
       </figcaption>
     </figure>

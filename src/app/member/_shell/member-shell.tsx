@@ -77,15 +77,12 @@ export async function MemberShell({
   title,
   lead,
   params = {},
-  hebrew = false,
   children,
 }: {
   tab: ShellPage;
   title: string;
   lead?: string;
   params?: MemberSearchParams;
-  /** The content of this tab is still written in Hebrew: keep it right-to-left inside an English page. */
-  hebrew?: boolean;
   children: ReactNode;
 }) {
   const { locale, t } = await getT();
@@ -185,16 +182,7 @@ export async function MemberShell({
           </div>
         ))}
 
-        {hebrew && locale === "en" ? (
-          <>
-            <p className="muted small">{t.core.hebrewOnly}</p>
-            <div lang="he" dir="rtl">
-              {children}
-            </div>
-          </>
-        ) : (
-          children
-        )}
+        {children}
       </div>
     </div>
   );
