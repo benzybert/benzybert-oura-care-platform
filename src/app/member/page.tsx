@@ -7,6 +7,10 @@ import { DayMoreDetails, N, NightCard, NightMoreDetails, Progress, ReadinessDriv
 import { dataLib } from "@/lib/i18n/dict/data-lib";
 import "@/components/today/today.css";
 import { getDb } from "@/db";
+import { appleToday } from "@/lib/apple-health/insights";
+import { appleSyncState } from "@/lib/apple-health/status";
+import { getAppleDays } from "@/lib/apple-health-data";
+import { getAppleLink } from "@/lib/apple-health-sync";
 import { biomarkerSeries, outOfRange } from "@/lib/biomarkers";
 import { listCircleLinks } from "@/lib/circle/queries";
 import { listMyChallenges } from "@/lib/challenge-data";
@@ -50,7 +54,8 @@ const WINDOW_DAYS = RANGE_DAYS + 2;
 
 /**
  * Member home ("Today"): this morning's scores against the member's own usual, last night, the body signals, today so
- * far and today's heart-rate curve, then the heart watch, the ring and one tile per tab. All of it is the member's
+ * far, Apple Health's day when the member has it (beside the ring's numbers, never added to them), and today's
+ * heart-rate curve, then the heart watch, the ring and one tile per tab. All of it is the member's
  * own data on their own page (no consent scope, no audit). A member who has not answered "what matters most?" is
  * asked first (once; it can be skipped).
  */
@@ -64,7 +69,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const today = todayInIsrael();
   const db = getDb();
 
-  const [metrics, extras, records, rewards, oura, doctors, links, selfRewards, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges, meds, labResults, labReports] =
+  const [metrics, extras, records, rewards, oura, doctors, links, selfRewards, experimentRows, ouraProfile, heartSettings, heartInputs, circle, challenges, meds, labResults, labReports, appleDays, appleLink] =
     await Promise.all([
       getDashboardMetrics(member.id, WINDOW_DAYS),
       getTodayExtras(member.id, WINDOW_DAYS),
@@ -83,6 +88,8 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
       getMedications(db, member.id),
       getLabResults(db, member.id),
       getLabReports(db, member.id),
+      getAppleDays(db, member.id, addDays(today, -16)),
+      getAppleLink(db, member.id),
     ]);
 
   const view = buildToday({ metrics, extras: extras.rows, heartBuckets: extras.heartBuckets, today });
@@ -102,6 +109,10 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const running = challenges.filter((c) => c.endDay >= today).length;
   const markers = biomarkerSeries(labResults);
   const rt = t.records.tiles;
+  // Apple Health, next to the ring's numbers and never added to them (src/lib/apple-health/insights.ts)
+  const apple = appleToday(appleDays, today);
+  const appleSynced = appleSyncState(appleLink) === "live" && appleLink?.lastDataAt ? timeAgo(appleLink.lastDataAt, new Date(), locale) : null;
+  const at = t.appleHealth.today;
 
   const dateLine = new Date(`${today}T00:00:00Z`).toLocaleDateString(intlTag(locale), { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
   const synced = oura?.lastSyncAt ? td.synced(timeAgo(oura.lastSyncAt, new Date(), locale)) : oura ? td.notSynced : null;
@@ -134,6 +145,83 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   ];
 
   const hasData = view.day !== null;
+
+  const appleCard = apple ? (
+    <section className="card td-card td-apple" aria-labelledby="td-apple">
+      <header className="td-card-head">
+        <h2 id="td-apple">{apple.isToday ? at.title : at.titleYesterday}</h2>
+        <a href={dataHref({ view: "apple" })}>{at.more}</a>
+      </header>
+      <ul className="td-stats">
+        {apple.steps != null && (
+          <li>
+            <div className="td-stat-head">
+              <span>{at.steps}</span>
+              <strong>
+                <N>{nf.format(apple.steps)}</N>
+              </strong>
+            </div>
+            <Progress value={apple.steps} of={apple.usualSteps} label={at.steps} />
+            {apple.usualSteps != null && <span className="muted small">{at.usualSteps(nf.format(apple.usualSteps))}</span>}
+          </li>
+        )}
+        <li className="td-mini">
+          {apple.activeKcal != null && (
+            <span>
+              <span className="muted small">{at.activeKcal}</span>
+              <strong>
+                <N>{nf.format(apple.activeKcal)}</N> {t.appleHealth.page.fields.activeKcal.unit}
+              </strong>
+            </span>
+          )}
+          {apple.exerciseMin != null && (
+            <span>
+              <span className="muted small">{at.exercise}</span>
+              <strong>{td.soFar.minutes(String(apple.exerciseMin))}</strong>
+            </span>
+          )}
+          {apple.distanceKm != null && (
+            <span>
+              <span className="muted small">{at.distance}</span>
+              <strong>{td.soFar.km(apple.distanceKm.toFixed(1))}</strong>
+            </span>
+          )}
+          {apple.workouts != null && apple.workouts > 0 && (
+            <span>
+              <span className="muted small">{at.workouts}</span>
+              <strong>{at.workoutLine(apple.workouts, td.soFar.minutes(String(apple.workoutMin ?? 0)))}</strong>
+            </span>
+          )}
+          {apple.sleepAsleepMin != null && (
+            <span>
+              <span className="muted small">{at.sleep}</span>
+              <strong>{t.appleHealth.page.hm(apple.sleepAsleepMin)}</strong>
+            </span>
+          )}
+          {apple.restingHr != null && (
+            <span>
+              <span className="muted small">{at.restingHr}</span>
+              <strong>
+                <N>{nf.format(apple.restingHr)}</N> {t.appleHealth.page.fields.restingHr.unit}
+              </strong>
+            </span>
+          )}
+          {apple.hrvSdnn != null && (
+            <span>
+              <span className="muted small">{at.hrv}</span>
+              <strong>
+                <N>{nf.format(apple.hrvSdnn)}</N> {t.appleHealth.page.fields.hrvSdnn.unit}
+              </strong>
+            </span>
+          )}
+        </li>
+      </ul>
+      <p className="muted small">
+        {appleSynced && <>{at.synced(appleSynced)} </>}
+        {at.note}
+      </p>
+    </section>
+  ) : null;
 
   return (
     <MemberShell tab="home" title={h.greeting(member.displayId)} lead={h.lead} params={params}>
@@ -189,6 +277,8 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
             </div>
           </a>
         )}
+
+        {!hasData && appleCard}
 
         {hasData && (
           <div className="td-grid">
@@ -294,6 +384,8 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
               <DayMoreDetails more={view.dayMore} split={dataLib[locale].oura.breakdown} t={td} />
               <p className="muted small">{td.soFar.note}</p>
             </section>
+
+            {appleCard}
 
             <section className="card td-card" aria-labelledby="td-heart">
               <header className="td-card-head">

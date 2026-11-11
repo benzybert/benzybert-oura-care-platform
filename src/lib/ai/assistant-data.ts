@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { BIOMARKERS, isBiomarkerKey, rangeFor, rangeStatus, type DatedResult } from "../biomarkers";
 import { addDays, todayInIsrael } from "../dates";
+import type { AppleDay } from "../apple-health/rows";
 import { isIsoDay } from "../experiments";
 
 export const MAX_TOOL_DAYS = 120;
@@ -32,6 +33,10 @@ export const TOOL_SPECS = {
   },
   get_day_extras: {
     description: `More Oura data per day: activity score, calories, SpO2, breathing disturbance index, resilience level, cardiovascular age, VO2 max, naps, Oura's bedtime guidance. At most ${MAX_TOOL_DAYS} days per call.`,
+    input: RangeInput,
+  },
+  get_apple_health: {
+    description: `Apple Health per day, from the member's iPhone and Apple Watch (synced through the PulsHealth app or imported from an export file): steps, active energy (kcal), exercise minutes, walking and running distance (km), resting heart rate, HRV as SDNN (ms), breathing rate, blood oxygen (%), VO2 max, weight (kg), time asleep and sleep stages (minutes; a night is filed under the day it ends), workouts and workout minutes. A separate source from the Oura ring: Apple's HRV (SDNN) is not comparable with Oura's (RMSSD), and steps and sleep come from other sensors, so never add or average the two sources and say which one a number comes from. At most ${MAX_TOOL_DAYS} days per call.`,
     input: RangeInput,
   },
   get_lab_results: {
@@ -159,6 +164,30 @@ export function extrasJson(e: ExtrasRow) {
     nap_min: e.napMinutes,
     oura_bedtime_window:
       e.optimalBedtimeStart !== null && e.optimalBedtimeEnd !== null ? `${hhmm(e.optimalBedtimeStart)} to ${hhmm(e.optimalBedtimeEnd)}` : null,
+  });
+}
+
+/** One Apple Health day as the model reads it: our field names with units in the key, nulls left out. */
+export function appleJson(d: AppleDay) {
+  return compact({
+    day: d.day,
+    steps: d.steps,
+    active_kcal: d.activeKcal,
+    exercise_min: d.exerciseMin,
+    distance_km: r1(d.distanceKm),
+    resting_hr: r1(d.restingHr),
+    hrv_sdnn_ms: r1(d.hrvSdnn),
+    breathing_rate: r1(d.respRate),
+    spo2_pct: r1(d.spo2),
+    vo2_max: r1(d.vo2Max),
+    weight_kg: r1(d.weightKg),
+    asleep_min: d.sleepAsleepMin,
+    deep_min: d.sleepDeepMin,
+    rem_min: d.sleepRemMin,
+    core_min: d.sleepCoreMin,
+    awake_min: d.sleepAwakeMin,
+    workouts: d.workouts,
+    workout_min: d.workoutMin,
   });
 }
 

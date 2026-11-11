@@ -28,7 +28,8 @@ import { Shell } from "./shared";
 
 type V = (typeof dataViews)["en"]["overview"];
 
-const TOPICS: Array<{ view: Exclude<DataView, "overview">; icon: ReactNode }> = [
+// the ring's categories (Apple Health has its own tab in the bar, for members who have it)
+const TOPICS: Array<{ view: Exclude<DataView, "overview" | "apple">; icon: ReactNode }> = [
   { view: "sleep", icon: <IconMoon size={20} /> },
   { view: "heart", icon: <IconHeartPulse size={20} /> },
   { view: "health", icon: <IconZap size={20} /> },

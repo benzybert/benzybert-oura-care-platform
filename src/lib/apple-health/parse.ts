@@ -21,7 +21,7 @@ import { MAX_IMPORT_DAYS, cleanValue, emptyAppleDay, type AppleDay } from "./row
  *   ending later to the next). The source with the most sleep that night wins; its overlapping intervals are merged.
  */
 
-const QUANTITY = {
+export const QUANTITY = {
   HKQuantityTypeIdentifierStepCount: "steps",
   HKQuantityTypeIdentifierActiveEnergyBurned: "kcal",
   HKQuantityTypeIdentifierAppleExerciseTime: "exercise",
@@ -33,12 +33,12 @@ const QUANTITY = {
   HKQuantityTypeIdentifierVO2Max: "vo2",
   HKQuantityTypeIdentifierBodyMass: "weight",
 } as const;
-type Metric = (typeof QUANTITY)[keyof typeof QUANTITY];
+export type Metric = (typeof QUANTITY)[keyof typeof QUANTITY];
 type Summed = "steps" | "kcal" | "exercise" | "distance";
 type Meaned = "restingHr" | "hrv" | "resp" | "spo2";
 type Lasted = "vo2" | "weight";
 
-const SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis";
+export const SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis";
 const SLEEP_KIND: Record<string, SleepKind> = {
   HKCategoryValueSleepAnalysisAsleep: "asleep",
   HKCategoryValueSleepAnalysisAsleepUnspecified: "asleep",
@@ -48,7 +48,8 @@ const SLEEP_KIND: Record<string, SleepKind> = {
   HKCategoryValueSleepAnalysisAwake: "awake",
   HKCategoryValueSleepAnalysisInBed: "inbed",
 };
-type SleepKind = "asleep" | "core" | "deep" | "rem" | "awake" | "inbed";
+export type SleepKind = "asleep" | "core" | "deep" | "rem" | "awake" | "inbed";
+export const SLEEP_KINDS: readonly SleepKind[] = ["asleep", "core", "deep", "rem", "awake", "inbed"];
 
 /** A complete start tag of the elements we read. Attribute values are quoted, so a `>` inside one cannot end the tag. */
 const TAG = /<(Record|Workout|ActivitySummary)((?:\s+[\w:.-]+="[^"]*")*)\s*\/?>/g;
@@ -124,6 +125,14 @@ export function unionMinutes(intervals: Array<[number, number]>): number {
 }
 
 type Interval = { kind: SleepKind; s: number; e: number };
+
+/**
+ * The night a sleep interval belongs to, from its end in local wall-clock time (as UTC ms of that wall time): the day
+ * it ends, or the next day when it ends at 18:00 or later (an evening nap or the start of the night).
+ */
+export function nightOf(endWallMs: number): string {
+  return new Date(endWallMs + 6 * 3_600_000).toISOString().slice(0, 10);
+}
 
 export type AppleParseStats = { /** every Record, Workout and summary tag seen */ seen: number; /** the ones that became numbers */ used: number };
 
@@ -204,18 +213,25 @@ export class AppleHealthAggregator {
     if (!start || !day || !this.inWindow(day)) return;
     const raw = Number(attr(attrs, "value"));
     if (!Number.isFinite(raw)) return;
-    const value = convert(metric, raw, attr(attrs, "unit"));
-    this.used++;
+    this.addQuantity(metric, day, start.slice(0, 19), convert(metric, raw, attr(attrs, "unit")), attr(attrs, "sourceName") ?? "");
+  }
 
+  /**
+   * One quantity sample, already in our units (kcal, km, kg, percent, minutes, ms, per minute), on the person's local
+   * `day`; `wall` is its local start time ("YYYY-MM-DD HH:MM:SS" or ISO-like, compared as text) for "the day's last
+   * sample". Used by the file import above and by the live sync (src/lib/apple-health/puls.ts), so both follow the
+   * same rules.
+   */
+  addQuantity(metric: Metric, day: string, wall: string, value: number, source: string): void {
+    if (!this.inWindow(day) || !Number.isFinite(value)) return;
+    this.used++;
     if (metric === "steps" || metric === "kcal" || metric === "exercise" || metric === "distance") {
       const bySource = this.summed[metric].get(day) ?? new Map<string, number>();
-      const source = attr(attrs, "sourceName") ?? "";
       bySource.set(source, (bySource.get(source) ?? 0) + value);
       this.summed[metric].set(day, bySource);
     } else if (metric === "vo2" || metric === "weight") {
-      const at = start.slice(0, 19);
       const prev = this.lasted[metric].get(day);
-      if (!prev || at >= prev.at) this.lasted[metric].set(day, { at, value });
+      if (!prev || wall >= prev.at) this.lasted[metric].set(day, { at: wall, value });
     } else {
       const acc = this.meaned[metric].get(day) ?? { sum: 0, n: 0 };
       acc.sum += value;
@@ -229,13 +245,16 @@ export class AppleHealthAggregator {
     const start = parseStamp(attr(attrs, "startDate"));
     const end = parseStamp(attr(attrs, "endDate"));
     if (!kind || !start || !end || end.ms <= start.ms) return;
-    const night = new Date(end.wallMs + 6 * 3_600_000).toISOString().slice(0, 10);
-    if (!this.inWindow(night)) return;
+    this.addSleep(nightOf(end.wallMs), kind, start.ms, end.ms, attr(attrs, "sourceName") ?? "");
+  }
+
+  /** One sleep interval (UTC ms) of the night `night` (the day it ends, see `nightOf`). */
+  addSleep(night: string, kind: SleepKind, s: number, e: number, source: string): void {
+    if (!this.inWindow(night) || !(e > s)) return;
     this.used++;
     const bySource = this.sleep.get(night) ?? new Map<string, Interval[]>();
-    const source = attr(attrs, "sourceName") ?? "";
     const list = bySource.get(source) ?? [];
-    list.push({ kind, s: start.ms, e: end.ms });
+    list.push({ kind, s, e });
     bySource.set(source, list);
     this.sleep.set(night, bySource);
   }
@@ -248,6 +267,12 @@ export class AppleHealthAggregator {
     if (!Number.isFinite(duration)) return;
     const unit = attr(attrs, "durationUnit");
     const minutes = unit === "sec" || unit === "s" ? duration / 60 : unit === "hr" || unit === "h" ? duration * 60 : duration;
+    this.addWorkout(day, minutes);
+  }
+
+  /** One workout of `minutes` that started on the local `day`. */
+  addWorkout(day: string, minutes: number): void {
+    if (!this.inWindow(day) || !Number.isFinite(minutes) || minutes < 0) return;
     this.used++;
     const acc = this.workouts.get(day) ?? { n: 0, min: 0 };
     acc.n++;
@@ -259,8 +284,12 @@ export class AppleHealthAggregator {
     this.seen++;
     const day = attr(attrs, "dateComponents");
     if (!day || !this.inWindow(day)) return;
-    const kcal = Number(attr(attrs, "activeEnergyBurned"));
-    const exercise = Number(attr(attrs, "appleExerciseTime"));
+    this.addSummary(day, Number(attr(attrs, "activeEnergyBurned")), Number(attr(attrs, "appleExerciseTime")));
+  }
+
+  /** The Watch's activity rings for a day (Move in kcal, Exercise in minutes): preferred over summed samples. */
+  addSummary(day: string, kcal: number, exercise: number): void {
+    if (!this.inWindow(day)) return;
     this.used++;
     this.summaries.set(day, { kcal: Number.isFinite(kcal) ? kcal : 0, exercise: Number.isFinite(exercise) ? exercise : 0 });
   }

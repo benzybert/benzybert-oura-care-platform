@@ -148,6 +148,13 @@
       "when": 1794225688313,
       "tag": "0020_apple_health",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794409581288,
+      "tag": "0021_apple_health_sync",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toApiMessages, assistantSystemPrompt } from "./assistant";
-import { MAX_TOOL_DAYS, TOOL_NAMES, clampRange, extrasJson, hhmm, labJson, means, nightJson, type NightRow } from "./assistant-data";
+import { emptyAppleDay } from "../apple-health/rows";
+import { MAX_TOOL_DAYS, TOOL_NAMES, appleJson, clampRange, extrasJson, hhmm, labJson, means, nightJson, type NightRow } from "./assistant-data";
 
 const night = (o: Partial<NightRow>): NightRow => ({
   day: "2026-11-01",
@@ -121,6 +122,19 @@ describe("the conversation sent to the API", () => {
     expect(he).toContain("Answer in Hebrew");
     expect(he).toContain("101");
     expect(he).toContain("not a diagnosis");
-    expect(TOOL_NAMES).toEqual(["get_overview", "get_nights", "get_day_extras", "get_lab_results", "get_medications", "get_experiments"]);
+    expect(he).toContain("never compare Apple's HRV (SDNN) with Oura's (RMSSD)");
+    expect(TOOL_NAMES).toEqual(["get_overview", "get_nights", "get_day_extras", "get_apple_health", "get_lab_results", "get_medications", "get_experiments"]);
+  });
+});
+
+describe("appleJson", () => {
+  it("names units in the keys, keeps SDNN labelled, and leaves out empty fields", () => {
+    expect(appleJson({ ...emptyAppleDay("2026-11-10"), steps: 8123, hrvSdnn: 41.26, distanceKm: 5.234, sleepAsleepMin: 402 })).toEqual({
+      day: "2026-11-10",
+      steps: 8123,
+      hrv_sdnn_ms: 41.3,
+      distance_km: 5.2,
+      asleep_min: 402,
+    });
   });
 });

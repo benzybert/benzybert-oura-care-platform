@@ -2,8 +2,10 @@ import "@/components/records.css";
 import "@/components/apple-health.css";
 import { getDb } from "@/db";
 import { AppleHealthImport } from "@/components/apple-health-import";
+import { AppleSyncCard } from "@/components/apple-sync-card";
 import { APPLE_FIELDS, appleAverages, type AppleDay, type AppleField } from "@/lib/apple-health/rows";
 import { getAppleDays, getAppleStatus } from "@/lib/apple-health-data";
+import { getAppleLink } from "@/lib/apple-health-sync";
 import { addDays, todayInIsrael } from "@/lib/dates";
 import { formatDate, formatDateTime, formatDayLong } from "@/lib/format-locale";
 import { intlTag } from "@/lib/i18n";
@@ -18,9 +20,9 @@ export const dynamic = "force-dynamic";
 const TILES: AppleField[] = ["steps", "activeKcal", "exerciseMin", "restingHr", "hrvSdnn", "respRate", "spo2", "sleepAsleepMin", "vo2Max", "weightKg"];
 
 /**
- * Apple Health: where the member imports their own export file (read in the browser), what has been imported, and
- * how to delete it. Member-only own data: no consent scope, no audit, and no staff, org, doctor-link, PDF or family
- * page reads it. It is a separate source, never merged with the ring's data.
+ * Apple Health: the live sync from the member's iPhone (PulsHealth, AppleSyncCard), the file import (read in the
+ * browser), what has arrived, and how to delete it. Member-only own data: no consent scope, no audit, and no staff,
+ * org, doctor-link, PDF or family page reads it. It is a separate source, never merged with the ring's data.
  */
 export default async function AppleHealthPage({ searchParams }: { searchParams: Promise<MemberSearchParams> }) {
   const { member } = await loadMember({ sync: false });
@@ -29,7 +31,7 @@ export default async function AppleHealthPage({ searchParams }: { searchParams: 
   const p = a.page;
   const db = getDb();
   const today = todayInIsrael();
-  const [status, window] = await Promise.all([getAppleStatus(db, member.id), getAppleDays(db, member.id, addDays(today, -29))]);
+  const [status, window, link] = await Promise.all([getAppleStatus(db, member.id), getAppleDays(db, member.id, addDays(today, -29)), getAppleLink(db, member.id)]);
 
   const averages = appleAverages(window, today);
   const recentFrom = addDays(today, -13);
@@ -45,6 +47,8 @@ export default async function AppleHealthPage({ searchParams }: { searchParams: 
   return (
     <MemberShell tab="integrations" title={p.title} lead={p.lead} params={await searchParams}>
       <div className="ah-sections">
+        <AppleSyncCard link={link} locale={locale} t={t} now={new Date()} />
+
         <div className="card">
           <h2>{p.importTitle}</h2>
           <AppleHealthImport locale={locale} today={today} />

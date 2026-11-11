@@ -291,6 +291,77 @@ export const appleHealthDaily = pgTable(
   (t) => [primaryKey({ columns: [t.memberId, t.day] })],
 );
 
+/**
+ * Live Apple Health sync: one connection per member between their iPhone (the open-source PulsHealth app, which reads
+ * HealthKit) and our receiver (/api/apple-health/v1/batches, Puls Sync Protocol v1). The phone sends a bearer token we
+ * only look up by sha256; `token_enc` (AES-256-GCM) exists so the member can show the pairing code again. `puls_user`
+ * is the UUID the phone sends as X-User-ID; a token answers only for its own. Disconnecting deletes the row, so the
+ * old token stops working at once. Member-only.
+ */
+export const appleHealthLinks = pgTable("apple_health_links", {
+  memberId: uuid("member_id")
+    .primaryKey()
+    .references(() => members.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  tokenEnc: text("token_enc").notNull(),
+  pulsUser: uuid("puls_user").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** the phone's first and latest contact (the connection test counts), and the latest batch with data */
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  lastDataAt: timestamp("last_data_at", { withTimezone: true }),
+  batches: integer("batches").notNull().default(0),
+  /** our short field names that have arrived at least once (steps, sleep, ...) */
+  fieldsSeen: jsonb("fields_seen").$type<string[]>().notNull().default([]),
+});
+
+/**
+ * The few raw HealthKit samples the daily rows are rebuilt from, slimmed down: our metric name, the local day (a
+ * night for sleep, filed under the day it ends), times, the value in our units, the sleep stage, and a short hash of
+ * the writing app and device (to pick one source per day, never shown, never a name). Identity is HealthKit's UUID,
+ * as the protocol requires: a re-sent sample is a no-op and a deletion removes it. Types we do not use are never
+ * stored. Member-only.
+ */
+export const appleHealthSamples = pgTable(
+  "apple_health_samples",
+  {
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    uuid: text("uuid").notNull(),
+    metric: text("metric").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    /** local wall-clock time of the start, "YYYY-MM-DDTHH:MM:SS", for "the day's last sample" */
+    wall: text("wall").notNull(),
+    value: real("value"),
+    sleepKind: text("sleep_kind"),
+    source: text("source").notNull().default(""),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.uuid] }), index("apple_health_samples_member_day_idx").on(t.memberId, t.day)],
+);
+
+/**
+ * Daily numbers Apple already de-duplicated on the phone: daily aggregate buckets (HKStatisticsCollectionQuery, all
+ * devices) and the activity rings. Upserted, last line wins, a null clears. When present they beat totals rebuilt from
+ * raw samples. Member-only.
+ */
+export const appleHealthBuckets = pgTable(
+  "apple_health_buckets",
+  {
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    /** an AppleDay field, or ring_move / ring_exercise */
+    field: text("field").notNull(),
+    value: real("value"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.memberId, t.day, t.field] })],
+);
+
 /** Event-shaped Oura data: workouts, sessions (meditation, breathing), tags, rest-mode periods, naps. */
 export const ouraEvents = pgTable(
   "oura_events",
