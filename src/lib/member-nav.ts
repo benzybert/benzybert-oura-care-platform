@@ -5,11 +5,15 @@
  *
  * The views are categories (Nov 2026): Overview opens the tab ("what changed this week?", `data-overview.ts`, one
  * screen that points into the categories), then Health (scores, findings, readiness, temperature), one view per
- * body system, and Advanced with the deep statistics, the tables and the ring. Labels live in the dictionary
+ * body system, Apple Health (its own source, never mixed with the ring's numbers; only for members who have it), and
+ * Advanced with the deep statistics, the tables and the ring. Labels live in the dictionary
  * (`insights.views`).
  */
 
-export const DATA_VIEWS = ["overview", "health", "sleep", "heart", "activity", "stress", "oxygen", "advanced"] as const;
+export const DATA_VIEWS = ["overview", "health", "sleep", "heart", "activity", "stress", "oxygen", "apple", "advanced"] as const;
+
+/** Apple Health has its own category, listed only for members who have Apple Health data or a sync connection. */
+export const OPTIONAL_VIEWS: readonly DataView[] = ["apple"];
 
 export type DataView = (typeof DATA_VIEWS)[number];
 

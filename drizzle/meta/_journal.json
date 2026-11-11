@@ -155,6 +155,13 @@
       "when": 1794407982107,
       "tag": "0021_suggestion_reader",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794411908873,
+      "tag": "0022_apple_health_sync",
+      "breakpoints": true
     }
   ]
 }

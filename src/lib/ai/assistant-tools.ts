@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, lte, max, min } from "drizzle-orm";
 import { getDb, schema } from "../../db";
+import { getAppleDays, getAppleStatus } from "../apple-health-data";
 import { addDays, todayInIsrael } from "../dates";
 import { records } from "../i18n/dict/records";
 import { getLabResults, getMedications } from "../records-data";
@@ -8,6 +9,7 @@ import {
   NoInput,
   RangeInput,
   TOOL_SPECS,
+  appleJson,
   clampRange,
   extrasJson,
   labJson,
@@ -59,7 +61,7 @@ async function nights(memberId: string, from: string, to: string): Promise<Night
 async function overview(memberId: string) {
   const db = getDb();
   const today = todayInIsrael();
-  const [[span], [member], [prefs], [labs], [meds], [exps], recent] = await Promise.all([
+  const [[span], [member], [prefs], [labs], [meds], [exps], recent, apple] = await Promise.all([
     db
       .select({ first: min(dailyMetrics.day), last: max(dailyMetrics.day), n: count() })
       .from(dailyMetrics)
@@ -73,6 +75,7 @@ async function overview(memberId: string) {
     db.select({ n: count() }).from(medications).where(eq(medications.memberId, memberId)),
     db.select({ n: count() }).from(experiments).where(eq(experiments.memberId, memberId)),
     nights(memberId, addDays(today, -27), today),
+    getAppleStatus(db, memberId),
   ]);
   return {
     today,
@@ -85,6 +88,7 @@ async function overview(memberId: string) {
     last_lab_report: labs?.last ?? null,
     medications_and_supplements: meds?.n ?? 0,
     experiments: exps?.n ?? 0,
+    apple_health: apple ? { first_day: apple.from, last_day: apple.to, days: apple.count } : "none",
   };
 }
 
@@ -127,6 +131,13 @@ export async function runAssistantTool(memberId: string, name: ToolName, input: 
         .where(and(eq(dailyExtras.memberId, memberId), gte(dailyExtras.day, range.from), lte(dailyExtras.day, range.to)))
         .orderBy(asc(dailyExtras.day));
       return ok({ ...range, days: rows.map(extrasJson) });
+    }
+    case "get_apple_health": {
+      const parsed = RangeInput.safeParse(input);
+      const range = parsed.success ? clampRange(parsed.data) : null;
+      if (!range) return fail("Give from and to as YYYY-MM-DD, not in the future.");
+      const rows = (await getAppleDays(db, memberId, range.from)).filter((d) => d.day <= range.to);
+      return ok(rows.length ? { ...range, source: "Apple Health", days: rows.map(appleJson) } : "No Apple Health data in these days.");
     }
     case "get_lab_results": {
       const parsed = LabInput.safeParse(input ?? {});

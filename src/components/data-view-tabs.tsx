@@ -16,10 +16,13 @@ export function DataViewTabs({
   windowDays,
   withWindow,
   tools,
+  hide = [],
   t,
   locale,
 }: {
   active: DataView;
+  /** categories to leave out of the bar (Apple Health for a member without it) */
+  hide?: readonly DataView[];
   windowDays: number;
   withWindow: boolean;
   tools?: ReactNode;
@@ -30,7 +33,7 @@ export function DataViewTabs({
     <div className="subtabs-row" dir={dirOf(locale)} lang={locale}>
       <nav className="subtabs" aria-label={t.label}>
         <ul>
-          {DATA_VIEWS.map((v) => (
+          {DATA_VIEWS.filter((v) => v === active || !hide.includes(v)).map((v) => (
             <li key={v}>
               <Link prefetch={false} href={dataHref({ view: v, days: windowDays })} aria-current={v === active ? "page" : undefined}>
                 {t[v]}

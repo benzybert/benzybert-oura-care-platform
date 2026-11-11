@@ -18,6 +18,7 @@ export const insights = defineDict(
       activity: "Activity",
       stress: "Stress",
       oxygen: "Oxygen",
+      apple: "Apple Health",
       advanced: "Advanced",
     },
     hrv: {
@@ -94,6 +95,7 @@ export const insights = defineDict(
       activity: "פעילות",
       stress: "לחץ",
       oxygen: "חמצן",
+      apple: "Apple Health",
       advanced: "מתקדם",
     },
     hrv: {

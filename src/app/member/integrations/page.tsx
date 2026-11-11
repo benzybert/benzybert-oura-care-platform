@@ -3,6 +3,9 @@ import { getDb } from "@/db";
 import { MemberNavIcon } from "@/components/member-nav-icon";
 import { RingCard } from "@/components/ring-card";
 import { getAppleStatus } from "@/lib/apple-health-data";
+import { getAppleLink } from "@/lib/apple-health-sync";
+import { appleSyncState } from "@/lib/apple-health/status";
+import { timeAgo } from "@/lib/format-locale";
 import { formatDate, formatDateTime } from "@/lib/format-locale";
 import { getT } from "@/lib/i18n/server";
 import { needsMorePermissions } from "@/lib/oura/scopes";
@@ -16,7 +19,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Integrations: where the member's data comes from (Oura, and Apple Health imported from a file) and where it can go
+ * Integrations: where the member's data comes from (Oura, and Apple Health synced from the iPhone or imported from a file) and where it can go
  * (FHIR file, PDF, doctor links, alarms). Other wearables are listed as planned, never as connected, until a real
  * connector exists.
  */
@@ -25,7 +28,14 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   const { locale, t } = await getT();
   const g = t.records.integrations;
   const ah = t.appleHealth;
-  const [oura, profile, apple] = await Promise.all([ouraStatus(member.id), getOuraProfile(member.id), getAppleStatus(getDb(), member.id)]);
+  const [oura, profile, apple, appleLink] = await Promise.all([
+    ouraStatus(member.id),
+    getOuraProfile(member.id),
+    getAppleStatus(getDb(), member.id),
+    getAppleLink(getDb(), member.id),
+  ]);
+  const now = new Date();
+  const appleState = appleSyncState(appleLink, now);
   const coverage = Object.values(profile?.coverage ?? {});
   const answered = coverage.filter((c) => c.status === "ok").length;
   const planned = t.landing.wearables.devices.filter((d) => !d.live);
@@ -69,17 +79,26 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           </span>
           <div>
             <h3 style={{ margin: 0 }}>
-              {ah.card.name} <span className="rc-chip">{ah.card.chip}</span>
+              {ah.card.name}{" "}
+              <span className={appleState === "live" || appleState === "stale" ? "rc-chip is-live" : "rc-chip"}>
+                {appleState === "off" ? ah.card.chip : ah.card.chipLive}
+              </span>
             </h3>
             <p className="muted small">{ah.card.text}</p>
             <p className="small">
-              {apple
-                ? ah.card.status(ah.days(apple.count), formatDate(apple.from, locale), formatDate(apple.to, locale), formatDateTime(apple.importedAt, locale))
-                : ah.card.none}
+              {appleState === "live" && appleLink?.lastDataAt
+                ? ah.card.live(timeAgo(appleLink.lastDataAt, now, locale))
+                : appleState === "stale" && appleLink?.lastDataAt
+                  ? ah.card.stale(timeAgo(appleLink.lastDataAt, now, locale))
+                  : appleState === "waiting" || appleState === "paired"
+                    ? ah.card.waiting
+                    : apple
+                      ? ah.card.status(ah.days(apple.count), formatDate(apple.from, locale), formatDate(apple.to, locale), formatDateTime(apple.importedAt, locale))
+                      : ah.card.none}
             </p>
             <div className="rc-actions">
-              <a className="btn secondary" href="/member/integrations/apple-health">
-                {apple ? ah.card.open : ah.card.import}
+              <a className="btn secondary" href={appleState === "off" && !apple ? "/member/integrations/apple-health#sync" : "/member/integrations/apple-health"}>
+                {appleState === "off" && !apple ? ah.card.connect : ah.card.open}
               </a>
             </div>
           </div>

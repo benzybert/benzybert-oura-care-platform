@@ -73,3 +73,61 @@
 .ah-sections h3 {
   margin: 0 0 8px;
 }
+
+/* Live sync card: state line, pairing button and QR code */
+.ah-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.ah-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.ah-state.is-live .ah-dot {
+  background: var(--ok);
+}
+.ah-state.is-stale .ah-dot,
+.ah-state.is-paired .ah-dot {
+  background: var(--gold);
+}
+.ah-pair {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  justify-items: start;
+}
+.ah-qr-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.ah-qr-wrap p {
+  flex: 1 1 200px;
+  margin: 0;
+}
+/* A QR code must stay dark on light in both colour modes, or phones cannot read it. */
+.ah-qr {
+  width: 168px;
+  height: 168px;
+  padding: 6px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.ah-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ah-secret {
+  margin: 0;
+}
+.rc-chip.is-live {
+  background: color-mix(in srgb, var(--ok) 16%, var(--surface));
+}

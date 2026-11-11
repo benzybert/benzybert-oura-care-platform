@@ -2,6 +2,7 @@ import { DoctorDashboard, dashboardCards, type DashSection, type PatternSet } fr
 import { IconMoon } from "@/components/doctor-dashboard/icons";
 import { DataViewTabs } from "@/components/data-view-tabs";
 import { ActivityView } from "@/components/member-data/activity-view";
+import { AppleView } from "@/components/member-data/apple-view";
 import { CardsSection } from "@/components/member-data/cards-section";
 import { EventsView } from "@/components/member-data/events-view";
 import { HealthView } from "@/components/member-data/health-view";
@@ -15,11 +16,14 @@ import { StressView } from "@/components/member-data/stress-view";
 import { ExplainToggle } from "@/components/member-data/explain-toggle";
 import { CategoryBrief, OverviewView } from "@/components/member-data/overview-view";
 import { cookies } from "next/headers";
+import { getDb } from "@/db";
+import { getAppleDays, getAppleStatus } from "@/lib/apple-health-data";
+import { getAppleLink } from "@/lib/apple-health-sync";
 import { buildOverview } from "@/lib/data-overview";
-import { todayInIsrael } from "@/lib/dates";
+import { addDays, todayInIsrael } from "@/lib/dates";
 import { buildDashboard } from "@/lib/doctor-dashboard";
 import { getT } from "@/lib/i18n/server";
-import { EXPLAIN_COOKIE, dataHref, resolveView, type DataView } from "@/lib/member-nav";
+import { EXPLAIN_COOKIE, OPTIONAL_VIEWS, dataHref, resolveView, type DataView } from "@/lib/member-nav";
 import { needsMorePermissions } from "@/lib/oura/scopes";
 import { getDashboardMetrics, getDayExtras, getOuraEvents, getOuraProfile, ouraStatus } from "@/lib/queries";
 import { DEFAULT_SHARE_WINDOW, SHARE_WINDOW_OPTIONS } from "@/lib/share-links";
@@ -31,7 +35,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /** Health has its own 30/60/90 switch in the hero; every other category shows it in the bar. */
-const WINDOWED: DataView[] = ["overview", "sleep", "heart", "activity", "stress", "oxygen", "advanced"];
+const WINDOWED: DataView[] = ["overview", "sleep", "heart", "activity", "stress", "oxygen", "apple", "advanced"];
 const NEEDS_EXTRAS: DataView[] = ["health", "sleep", "heart", "activity", "stress", "oxygen"];
 /** categories that open with "in brief" (Health's hero already leads with its key numbers; Advanced has none of its own) */
 const BRIEFED: DataView[] = ["sleep", "heart", "activity", "stress", "oxygen"];
@@ -40,7 +44,7 @@ const NEEDS_EVENTS: DataView[] = ["health", "sleep", "activity", "stress"];
 /**
  * The member's own data. It opens on the Overview ("what changed this week?" against the member's own usual, with a
  * tile per category, `data-overview.ts`), then categories: Health (scores, findings, readiness, temperature, tags), Sleep, Heart,
- * Activity, Stress, Oxygen, and Advanced (HRV in depth, sleep structure, calendar and tables, the ring and what
+ * Activity, Stress, Oxygen, Apple Health (its own source, `apple_health_daily`, for members who have it), and Advanced (HRV in depth, sleep structure, calendar and tables, the ring and what
  * arrives from Oura). Each metric lives in exactly one category. The dashboard component is the same one a doctor
  * link uses, rendered in parts through `meta.sections` and its cards (`dashboardCards`); the other views read the
  * extra Oura tables, which only this page queries. Own data, so no audit.
@@ -48,7 +52,7 @@ const NEEDS_EVENTS: DataView[] = ["health", "sleep", "activity", "stress"];
  * the first look is numbers and charts.
  */
 export default async function MemberDataPage({ searchParams }: { searchParams: Promise<MemberSearchParams & { view?: string }> }) {
-  const { member } = await loadMember({ public: true });
+  const { member, publicView } = await loadMember({ public: true });
   const { t, locale } = await getT();
   const params = await searchParams;
   const view = resolveView(params.view);
@@ -57,13 +61,19 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
   const today = todayInIsrael();
   const explain = (await cookies()).get(EXPLAIN_COOKIE)?.value === "1";
 
-  const [dashboardMetrics, extras, events, profile, oura] = await Promise.all([
+  const db = getDb();
+  const [dashboardMetrics, extras, events, profile, oura, appleStatus, appleLink, appleDays] = await Promise.all([
     getDashboardMetrics(member.id, windowDays),
     NEEDS_EXTRAS.includes(view) ? getDayExtras(member.id, windowDays) : Promise.resolve([]),
     NEEDS_EVENTS.includes(view) ? getOuraEvents(member.id, windowDays) : Promise.resolve([]),
     getOuraProfile(member.id),
     ouraStatus(member.id),
+    getAppleStatus(db, member.id),
+    getAppleLink(db, member.id),
+    view === "apple" ? getAppleDays(db, member.id, addDays(today, -(windowDays - 1))) : Promise.resolve([]),
   ]);
+  // Apple Health has a category only for members who have its data or a sync connection
+  const hasApple = Boolean(appleStatus || appleLink);
 
   const dashboard = buildDashboard(dashboardMetrics, today, windowDays, locale);
   const cards = dashboardCards(dashboard, true, locale);
@@ -105,6 +115,7 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
         withWindow={WINDOWED.includes(view)}
         t={t.insights.views}
         locale={locale}
+        hide={hasApple ? [] : OPTIONAL_VIEWS}
         tools={
           <ExplainToggle
             initial={explain}
@@ -117,7 +128,9 @@ export default async function MemberDataPage({ searchParams }: { searchParams: P
       />
 
       <section id="data" className="data-section" aria-label={t.dataViews.page.region} data-explain={explain ? "on" : "off"}>
-        {empty ? (
+        {view === "apple" ? (
+          <AppleView days={appleDays} today={today} windowDays={windowDays} lang={locale} connectHref={publicView ? null : "/member/integrations/apple-health#sync"} />
+        ) : empty ? (
           <>
             {/* no ring data in the window: one "no data yet" note (the hero keeps the window switch), and on Advanced what Oura answered */}
             {dash(view === "health" || view === "overview" ? ["hero"] : [])}
