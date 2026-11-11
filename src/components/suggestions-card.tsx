@@ -2,6 +2,9 @@ import { saveSuggestionBox, setSuggestionStatus } from "@/app/actions";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { fmtDateTime } from "@/lib/format";
 import type { SuggestionRow } from "@/lib/queries";
+import { pollVoteTitle } from "@/lib/suggestions";
+
+export type PollLink = { title: string; url: string };
 
 function StatusButton({ id, status, label, secondary = true }: { id: string; status: string; label: string; secondary?: boolean }) {
   return (
@@ -16,15 +19,49 @@ function StatusButton({ id, status, label, secondary = true }: { id: string; sta
 }
 
 function Idea({ s }: { s: SuggestionRow }) {
+  const voted = pollVoteTitle(s.vote);
   return (
     <span className="suggest-idea">
       {s.idea}
       <span className="muted">
         {" "}
-        · {s.suggestedBy ? `${s.suggestedBy}, ` : ""}
+        · {s.suggestedBy ? <bdi>{s.suggestedBy}</bdi> : null}
+        {s.suggestedBy ? ", " : ""}
         {fmtDateTime(s.createdAt)}
       </span>
+      {(voted || s.readerEmail) && (
+        <span className="suggest-meta muted">
+          {voted && <span>הצביע/ה: {voted}</span>}
+          {s.readerEmail && (
+            <a href={`mailto:${s.readerEmail}`} dir="ltr">
+              <bdi>{s.readerEmail}</bdi>
+            </a>
+          )}
+        </span>
+      )}
     </span>
+  );
+}
+
+/** The poll links for a newsletter: one per experiment template, each ending in MailerLite's `#r={$email}`. */
+function PollLinks({ links }: { links: PollLink[] }) {
+  return (
+    <details className="sr-history">
+      <summary>קישורי הצבעה לניוזלטר (MailerLite)</summary>
+      <p className="muted">
+        קישור לכל אפשרות בסקר. MailerLite ממלא את <bdi dir="ltr">{"{$email}"}</bdi> בכתובת של כל קורא, והדף מצרף אותה לתגובה כדי
+        שתדע ממי היא. הקורא רואה את הכתובת ויכול לשלוח בלי. הכתובת אחרי ה-# לא מגיעה לשרת עם בקשת הדף, אז היא לא נכנסת ללוגים.
+        שלח לעצמך מייל ניסיון ובדוק שהכתובת מופיעה בדף לפני שליחה לכולם.
+      </p>
+      <ul className="suggest-poll">
+        {links.map((l) => (
+          <li key={l.url}>
+            <span>{l.title}</span>
+            <CopyTextButton text={l.url} label="העתק קישור" />
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -32,7 +69,15 @@ function Idea({ s }: { s: SuggestionRow }) {
  * "הצעות לניסויים" on /member/experiments: the member's public suggestion page (link to copy into
  * posts) and the ideas readers sent. The ideas are free text from the public, shown only here.
  */
-export function SuggestionsCard({ url, suggestions }: { url: string | null; suggestions: SuggestionRow[] }) {
+export function SuggestionsCard({
+  url,
+  suggestions,
+  pollLinks,
+}: {
+  url: string | null;
+  suggestions: SuggestionRow[];
+  pollLinks: PollLink[];
+}) {
   const fresh = suggestions.filter((s) => s.status === "new");
   const handled = suggestions.filter((s) => s.status !== "new");
   return (
@@ -93,6 +138,8 @@ export function SuggestionsCard({ url, suggestions }: { url: string | null; sugg
               </ul>
             </details>
           )}
+
+          <PollLinks links={pollLinks} />
 
           <details className="sr-history">
             <summary>להחליף את הקישור</summary>

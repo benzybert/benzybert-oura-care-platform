@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { markdownToHtml, markdownToPlain } from "./markdown-lite";
 import { suggestSection } from "./post-parts";
-import { HONEYPOT_FIELD, IDEA_MAX, isSuggestionSlug, isSuggestionStatus, newSuggestionSlug, parseSuggestionForm, pollVoteTitle, pollVoteUrl } from "./suggestions";
+import {
+  HONEYPOT_FIELD,
+  IDEA_MAX,
+  isSuggestionSlug,
+  isSuggestionStatus,
+  newSuggestionSlug,
+  parseReaderEmail,
+  parseSuggestionForm,
+  pollVoteId,
+  pollVoteTitle,
+  pollVoteUrl,
+  readerFromHash,
+} from "./suggestions";
 
 const form = (values: Record<string, string>) => (key: string) => values[key] ?? null;
 
@@ -9,9 +21,22 @@ describe("parseSuggestionForm", () => {
   it("accepts an idea and an optional name", () => {
     expect(parseSuggestionForm(form({ idea: "  בלי קפאין אחרי 12:00 ", name: " דנה  כ " }))).toEqual({
       ok: true,
-      value: { idea: "בלי קפאין אחרי 12:00", suggestedBy: "דנה כ" },
+      value: { idea: "בלי קפאין אחרי 12:00", suggestedBy: "דנה כ", vote: null, readerEmail: null },
     });
-    expect(parseSuggestionForm(form({ idea: "מקלחת קרה" }))).toEqual({ ok: true, value: { idea: "מקלחת קרה", suggestedBy: null } });
+    expect(parseSuggestionForm(form({ idea: "מקלחת קרה" }))).toEqual({
+      ok: true,
+      value: { idea: "מקלחת קרה", suggestedBy: null, vote: null, readerEmail: null },
+    });
+  });
+
+  it("keeps a poll vote and the reader's address, and drops anything that is not one", () => {
+    expect(parseSuggestionForm(form({ idea: "כי קר לי בלילה", vote: "cool_room", reader: " Dana+News@Example.com " }))).toEqual({
+      ok: true,
+      value: { idea: "כי קר לי בלילה", suggestedBy: null, vote: "cool_room", readerEmail: "dana+news@example.com" },
+    });
+    const r = parseSuggestionForm(form({ idea: "רעיון", vote: "nope", reader: "{$email}" }));
+    expect(r.ok && r.value.vote).toBeNull();
+    expect(r.ok && r.value.readerEmail).toBeNull();
   });
 
   it("drops bots that fill the honeypot", () => {
@@ -74,6 +99,35 @@ describe("newsletter poll", () => {
     expect(pollVoteTitle(undefined)).toBeNull();
     expect(pollVoteTitle(["caffeine"])).toBeNull();
     expect(pollVoteTitle("constructor")).toBeNull();
+  });
+
+  it("knows the template ids", () => {
+    expect(pollVoteId("outdoor")).toBe("outdoor");
+    expect(pollVoteId("constructor")).toBeNull();
+    expect(pollVoteId(null)).toBeNull();
+  });
+
+  it("puts MailerLite's address tag after # so it never reaches the server", () => {
+    expect(pollVoteUrl("H-xZQkh58MwW", "outdoor", { reader: true })).toMatch(/\/suggest\/H-xZQkh58MwW\?vote=outdoor#r=\{\$email\}$/);
+  });
+
+  it("reads the reader from the hash, keeping a plus sign", () => {
+    expect(readerFromHash("#r=dana+news@example.com")).toBe("dana+news@example.com");
+    expect(readerFromHash("#r=Dana%40Example.co.il")).toBe("dana@example.co.il");
+    expect(readerFromHash("#x=1&r=a@b.io")).toBe("a@b.io");
+    expect(readerFromHash("#r={$email}")).toBeNull();
+    expect(readerFromHash("#r=%E0%A4%A")).toBeNull();
+    expect(readerFromHash("")).toBeNull();
+    expect(readerFromHash("#r=")).toBeNull();
+  });
+
+  it("accepts only a plausible address", () => {
+    expect(parseReaderEmail("a@b.io")).toBe("a@b.io");
+    expect(parseReaderEmail("no-at-sign")).toBeNull();
+    expect(parseReaderEmail("a@b")).toBeNull();
+    expect(parseReaderEmail('a"<script>@b.io')).toBeNull();
+    expect(parseReaderEmail(`${"a".repeat(250)}@b.io`)).toBeNull();
+    expect(parseReaderEmail(42)).toBeNull();
   });
 
   it("builds the vote link on the site's own address", () => {

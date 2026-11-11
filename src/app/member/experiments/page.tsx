@@ -4,7 +4,8 @@ import { loadExperimentView } from "@/lib/experiment-view";
 import { SuggestionsCard } from "@/components/suggestions-card";
 import { getT } from "@/lib/i18n/server";
 import { getExperiments, getSuggestionBox, getSuggestions } from "@/lib/queries";
-import { suggestUrl } from "@/lib/suggestions";
+import { EXPERIMENT_TEMPLATES } from "@/lib/experiments";
+import { pollVoteUrl, suggestUrl } from "@/lib/suggestions";
 import { MemberShell, loadMember } from "../_shell/member-shell";
 import type { MemberSearchParams } from "../_shell/messages";
 
@@ -16,7 +17,13 @@ export default async function MemberExperimentsPage({ searchParams }: { searchPa
   const { member, publicView } = await loadMember({ public: true });
   const { t } = await getT();
   const today = todayInIsrael();
-  const [rows, box, suggestions] = await Promise.all([getExperiments(member.id), getSuggestionBox(member.id), getSuggestions(member.id)]);
+  // Readers' ideas (and the addresses some carry) are never even loaded for the public view.
+  const [rows, box, suggestions] = await Promise.all([
+    getExperiments(member.id),
+    publicView ? null : getSuggestionBox(member.id),
+    publicView ? [] : getSuggestions(member.id),
+  ]);
+  const pollLinks = box ? EXPERIMENT_TEMPLATES.map((t) => ({ title: t.title, url: pollVoteUrl(box.slug, t.id, { reader: true }) })) : [];
   const featuredRow = pickFeatured(rows, today);
   const featured = featuredRow ? await loadExperimentView(featuredRow, today, rows) : null;
 
@@ -31,7 +38,7 @@ export default async function MemberExperimentsPage({ searchParams }: { searchPa
       </section>
       <ExperimentsSection rows={rows} featured={featured} today={today} />
       {/* Readers' ideas were sent to the member alone: never shown in the public view. */}
-      {!publicView && <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} />}
+      {!publicView && <SuggestionsCard url={box ? suggestUrl(box.slug) : null} suggestions={suggestions} pollLinks={pollLinks} />}
     </MemberShell>
   );
 }

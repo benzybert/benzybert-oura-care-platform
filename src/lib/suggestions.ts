@@ -5,7 +5,9 @@ import { EXPERIMENT_TEMPLATES } from "./experiments";
 /**
  * "הציעו ניסוי": a public page (/suggest/<slug>) linked from the member's posts, where a reader sends
  * an idea for a future experiment. The page shows no name and no health data, and only lets someone
- * write. Ideas land in the member's experiments tab, nowhere else.
+ * write. Ideas land in the member's experiments tab, nowhere else (never in the public view). A comment
+ * that came through a newsletter poll keeps which option the reader voted for and, if the link carried it
+ * and the reader left it on, their newsletter address.
  */
 
 export const IDEA_MIN = 3;
@@ -38,14 +40,54 @@ export function pollVoteTitle(vote: unknown): string | null {
   if (typeof vote !== "string") return null;
   return EXPERIMENT_TEMPLATES.find((t) => t.id === vote)?.title ?? null;
 }
-export const pollVoteUrl = (slug: string, templateId: string) => `${suggestUrl(slug)}?vote=${encodeURIComponent(templateId)}`;
+/** The template id of a poll vote, or null for anything that is not one of the templates. */
+export function pollVoteId(vote: unknown): string | null {
+  if (typeof vote !== "string") return null;
+  return EXPERIMENT_TEMPLATES.find((t) => t.id === vote)?.id ?? null;
+}
+
+/**
+ * MailerLite has no subscriber-id variable, only fields such as `{$email}`. With `reader`, the link ends
+ * in `#r={$email}`: the part after `#` never reaches our server (so no request log holds the address);
+ * the page's script reads it, shows it to the reader, and sends it with the comment only if they keep it.
+ */
+export const READER_TAG = "{$email}";
+export const pollVoteUrl = (slug: string, templateId: string, opts: { reader?: boolean } = {}) =>
+  `${suggestUrl(slug)}?vote=${encodeURIComponent(templateId)}${opts.reader ? `#r=${READER_TAG}` : ""}`;
+
+export const READER_MAX = 254;
+const EMAIL_RE = /^[^\s@<>"'(),;:\\[\]]+@[^\s@<>"'(),;:\\[\]]+\.[^\s@<>"'(),;:\\[\]]{2,}$/;
+
+/** A reader's address from the link or the form: trimmed, lower-case, plausible, or null. */
+export function parseReaderEmail(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().toLowerCase();
+  if (!s || s.length > READER_MAX || !EMAIL_RE.test(s)) return null;
+  return s;
+}
+
+/**
+ * The reader's address from a page's `location.hash` (`#r=<address>`). Read by hand rather than with
+ * URLSearchParams, which would turn the `+` of "dana+news@x.com" into a space. An unfilled tag is null.
+ */
+export function readerFromHash(hash: string): string | null {
+  const m = /(?:^#|&)r=([^&]*)/.exec(hash);
+  if (!m?.[1]) return null;
+  let value = m[1];
+  try {
+    value = decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+  return parseReaderEmail(value);
+}
 
 /** The form's honeypot field: hidden from people, filled in by bots. */
 export const HONEYPOT_FIELD = "website";
 
 type Get = (key: string) => string | null | undefined;
 
-export type SuggestionInput = { idea: string; suggestedBy: string | null };
+export type SuggestionInput = { idea: string; suggestedBy: string | null; vote: string | null; readerEmail: string | null };
 export type ParsedSuggestion = { ok: true; value: SuggestionInput } | { ok: false; reason: "spam" | "short" | "long" };
 
 const clean = (s: string | null | undefined) =>
@@ -62,5 +104,8 @@ export function parseSuggestionForm(get: Get): ParsedSuggestion {
   if (idea.length > IDEA_MAX) return { ok: false, reason: "long" };
   const name = clean(get("name")).replace(/\s+/g, " ");
   if (name.length > SUGGESTER_MAX) return { ok: false, reason: "long" };
-  return { ok: true, value: { idea, suggestedBy: name || null } };
+  return {
+    ok: true,
+    value: { idea, suggestedBy: name || null, vote: pollVoteId(get("vote")), readerEmail: parseReaderEmail(get("reader")) },
+  };
 }

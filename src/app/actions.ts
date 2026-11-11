@@ -56,6 +56,7 @@ import {
   isSuggestionStatus,
   newSuggestionSlug,
   parseSuggestionForm,
+  pollVoteId,
   suggestPath,
 } from "@/lib/suggestions";
 import {
@@ -726,10 +727,13 @@ export async function submitSuggestion(formData: FormData): Promise<void> {
   if (!box) redirect(path);
 
   const parsed = parseSuggestionForm(formValue(formData));
-  if (!parsed.ok) redirect(`${path}?sent=${parsed.reason === "spam" ? "1" : parsed.reason}`);
+  // Back to the form after a refusal keeps the poll vote (a template id); the reader's address stays in their browser.
+  const vote = pollVoteId(formData.get("vote"));
+  const back = (sent: string) => `${path}?${vote ? `vote=${encodeURIComponent(vote)}&` : ""}sent=${sent}`;
+  if (!parsed.ok) redirect(parsed.reason === "spam" ? `${path}?sent=1` : back(parsed.reason));
 
   const load = await suggestionLoad(box.memberId, new Date(Date.now() - 60 * 60 * 1000));
-  if (load.recent >= SUGGESTIONS_PER_HOUR || load.waiting >= MAX_NEW_SUGGESTIONS) redirect(`${path}?sent=busy`);
+  if (load.recent >= SUGGESTIONS_PER_HOUR || load.waiting >= MAX_NEW_SUGGESTIONS) redirect(back("busy"));
 
   await getDb().insert(experimentSuggestions).values({ memberId: box.memberId, ...parsed.value });
   revalidatePath("/member/experiments");

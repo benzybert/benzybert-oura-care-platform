@@ -516,6 +516,10 @@ export const experimentSuggestions = pgTable(
     idea: text("idea").notNull(),
     /** what the reader asked to be called, optional */
     suggestedBy: text("suggested_by"),
+    /** the experiment template the reader voted for in a newsletter poll, when the comment came from one */
+    vote: text("vote"),
+    /** the reader's newsletter address, only when the poll link carried it and the reader left it on */
+    readerEmail: text("reader_email"),
     /** new | used | dismissed */
     status: text("status").notNull().default("new"),
     createdAt: createdAt(),

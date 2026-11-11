@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { submitSuggestion } from "@/app/actions";
 import { findSuggestionBox } from "@/lib/queries";
-import { HONEYPOT_FIELD, IDEA_MAX, SUGGESTER_MAX, isSuggestionSlug, pollVoteTitle } from "@/lib/suggestions";
+import { SuggestReader } from "@/components/suggest-reader";
+import { HONEYPOT_FIELD, IDEA_MAX, SUGGESTER_MAX, isSuggestionSlug, pollVoteId, pollVoteTitle } from "@/lib/suggestions";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function SuggestPage({
   const notice = NOTICES[query.sent ?? ""];
   // A vote from the newsletter poll: the click itself is the vote (MailerLite counts it); here we only say thanks.
   const voted = pollVoteTitle(query.vote);
+  const voteId = pollVoteId(query.vote);
 
   return (
     <div className="suggest-page" dir="rtl" lang="he">
@@ -61,6 +63,8 @@ export default async function SuggestPage({
 
         <form action={submitSuggestion} className="suggest-form">
           <input type="hidden" name="slug" value={slug} />
+          {/* The comment keeps which option the reader voted for, so the member reads it in context. */}
+          {voteId && <input type="hidden" name="vote" value={voteId} />}
           <label>
             <span>{voted ? "התגובה או הרעיון" : "הרעיון"}</span>
             <textarea
@@ -76,6 +80,7 @@ export default async function SuggestPage({
             <span>איך לקרוא לך, אם אכתוב על זה (לא חובה)</span>
             <input name="name" maxLength={SUGGESTER_MAX} autoComplete="nickname" />
           </label>
+          <SuggestReader />
           {/* Honeypot: hidden from people, bots fill it in. */}
           <label className="suggest-hp" aria-hidden="true">
             <span>אתר</span>

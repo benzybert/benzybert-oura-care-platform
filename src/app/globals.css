@@ -1558,6 +1558,42 @@ td .badge.plain {
 .suggest-form .btn {
   justify-self: start;
 }
+.suggest-form .suggest-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.suggest-form .suggest-check input {
+  width: auto;
+}
+.suggest-reader p {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.suggest-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+.suggest-meta a {
+  overflow-wrap: anywhere;
+}
+.suggest-poll {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.suggest-poll li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
 .suggest-hp {
   position: absolute;
   left: -10000px;
